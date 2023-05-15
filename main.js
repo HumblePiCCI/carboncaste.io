@@ -22,7 +22,7 @@ effect.setSize(window.innerWidth * 2, window.innerHeight * 2);
 document.body.appendChild(effect.domElement);
 
 // Create a directional light (the sun, for example)
-var directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+var directionalLight = new THREE.DirectionalLight(0xffffff, 0.78);
 directionalLight.position.set(0, 1, 1); // Position the light
 scene.add(directionalLight);
 
@@ -57,7 +57,7 @@ loader.load( './fonts/helvetiker_regular.typeface.json', function ( font ) {
     } );*/
 
     // Create the text materials
-    var textMaterial = new THREE.MeshPhongMaterial( { color: 0xffffff, transparent: true, opacity: 0.5 } );
+    var textMaterial = new THREE.MeshPhongMaterial( { color: 0xffffff, transparent: true, opacity: 0.8 } );
 
     // Create the text meshes
     var topText = new THREE.Mesh( topTextGeometry, textMaterial );
@@ -134,8 +134,8 @@ window.addEventListener('resize', function() {
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
 
-    // Calculate a scale factor based on the height of the window
-    var scaleFactor = height / 1000; // Adjust the denominator as needed
+    // Calculate a scale factor based on the smaller of the window's width and height
+    var scaleFactor = Math.min(width, height) / 1000; // Adjust the denominator as needed
 
     // Adjust the text size based on the scale factor
     var size = scaleFactor * 0.25; // Adjust the multiplier as needed

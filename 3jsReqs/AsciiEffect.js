@@ -6,7 +6,7 @@
 
 class AsciiEffect {
 
-	constructor( renderer, charSet = ' .:!*+=%@#', options = {} ) {
+	constructor( renderer, charSet = ' .;!*t@#W■', options = {} ) {
 
 		// ' .,:;=|iI+hHOE#`$';
 		// darker bolder character set from https://github.com/saw/Canvas-ASCII-Art/
