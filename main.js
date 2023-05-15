@@ -30,11 +30,13 @@ scene.add(directionalLight);
 var loader = new FontLoader();
 loader.load( './fonts/helvetiker_regular.typeface.json', function ( font ) {
 
+    var size = window.innerHeight * 0.00007;
+
     // Create the text geometries
     var topTextGeometry = new TextGeometry( 'We found you.', {
         font: font,
-        size: .25, // Adjust the size here
-        height: 0.01, // Adjust the height here
+        size: size, // Adjust the size here
+        height: 0.001, // Adjust the height here
         curveSegments: 12,
         bevelEnabled: true,
         bevelThickness: 0.01, // Adjust the bevel thickness here
@@ -69,7 +71,7 @@ loader.load( './fonts/helvetiker_regular.typeface.json', function ( font ) {
     var center = topTextGeometry.boundingBox.getCenter(new THREE.Vector3());
 
     // Position the text meshes
-    topText.position.set(-center.x, 0.2, 1); // Adjust the position here
+    topText.position.set(-center.x, 0.05, 2); // Adjust the position here
     //bottomText.position.set(-2, -0.2, 1); // Adjust the position here
 
     // Add the text meshes to the scene
@@ -122,3 +124,37 @@ function animate() {
 }
 
 animate();
+
+// Event listener for window resize
+window.addEventListener('resize', function() {
+    var width = window.innerWidth;
+    var height = window.innerHeight;
+    renderer.setSize(width, height);
+    effect.setSize(width * 2, height * 2);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+
+    // Calculate a scale factor based on the height of the window
+    var scaleFactor = height / 1000; // Adjust the denominator as needed
+
+    // Adjust the text size based on the scale factor
+    var size = scaleFactor * 0.25; // Adjust the multiplier as needed
+    topTextGeometry.parameters.options.size = size;
+    topTextGeometry.needsUpdate = true;
+
+    // Adjust the position of the text
+    topTextGeometry.computeBoundingBox();
+    var center = topTextGeometry.boundingBox.getCenter(new THREE.Vector3());
+    topText.position.set(-center.x, 0.2 * scaleFactor, 1); // Adjust the multiplier as needed
+
+    // Adjust the Mobius strip to fill the screen
+    var boundingBox = new THREE.Box3().setFromObject(mobiusStrip);
+    var size = boundingBox.getSize(new THREE.Vector3()).length();
+    var distance = size / (2 * Math.tan((camera.fov / 2) * (Math.PI / 180)));
+    camera.position.z = distance * scaleFactor; // Adjust the position based on the scale factor
+    var aspectRatio = width / height;
+    var verticalFOV = 2 * Math.atan(size / (2 * distance));
+    var horizontalFOV = 2 * Math.atan(aspectRatio * Math.tan(verticalFOV / 2));
+    camera.fov = Math.max(verticalFOV, horizontalFOV) * (180 / Math.PI);
+    camera.updateProjectionMatrix();
+});
