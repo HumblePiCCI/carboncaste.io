@@ -1,0 +1,16 @@
+[Unit]
+Description=Carbon Caste corporate website (:8126)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/humble/services/carboncaste-web/current
+Environment=CARBONCASTE_WEB_ROOT=/home/humble/services/carboncaste-web/current
+Environment=CARBONCASTE_WEB_HOST=127.0.0.1
+Environment=CARBONCASTE_WEB_PORT=8126
+ExecStart=/home/humble/.hermes/node/bin/node /home/humble/services/carboncaste-web/current/server/static-server.mjs
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

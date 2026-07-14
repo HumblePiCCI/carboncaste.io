@@ -1,0 +1,11 @@
+{
+  "name": "carboncaste.io",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "node server/static-server.mjs",
+    "check": "node scripts/check-site.mjs",
+    "smoke": "node scripts/smoke-test.mjs"
+  }
+}
