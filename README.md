@@ -1,41 +1,60 @@
 # carboncaste.io
 
-Corporate landing page and public legal/support directory for Carbon Caste Inc.
+The public company surface for Carbon Caste Inc. The home route is an
+interactive, ASCII-rendered Three.js world derived from the original Carbon
+Caste Mobius experiment and the later `mobcon` interaction model.
 
-The visual system is ASCII-first. The home page renders a live Three.js
-Mobius strip through a CSP-compatible character renderer, while product,
-company, contact, legal, and error surfaces use the same terminal grammar. A
-static ASCII Mobius remains in the document as the no-script and reduced-motion
-fallback.
+First load intentionally exposes only two scene objects: the toroidal Mobius
+and `We found you.` Activating the text dives through the surface and reveals a
+directory made from the same 3D text geometry and normal material. There is no
+conventional landing-page shell over the experience.
 
-See `DESIGN.md` for the visual grammar and extension rules.
+## Interaction model
+
+- Drag or one-finger move: orbit the scene.
+- Wheel or pinch: zoom.
+- Click or tap empty space, or press Space: pause/resume motion.
+- Double-click or double-tap: reset the camera.
+- `[` / `-` and `]` / `=`: decrease/increase rotation speed.
+- Tab and Shift+Tab: move through active scene links.
+- Enter: activate the selected link or enter from the opening scene.
+- Escape: company relief -> directory -> opening scene.
+
+Visible links are real `TextGeometry` meshes selected by Three.js raycasting.
+The off-screen semantic directory preserves the company copy and destinations
+for assistive technology. The custom ASCII renderer quantizes surface color to
+CSS classes, avoiding the inline styles emitted by Three's stock color effect.
 
 ## Public routes
 
-- `/` - company landing page and Rezonance product link
+- `/` - interactive company portal and product directory
 - `/privacy.html` - corporate website privacy policy
 - `/terms.html` - corporate website terms
-- `/contact.html` - company and product-support contacts
+- `/contact.html` - company and Rezonance support contacts
 - `/.well-known/security.txt` - security contact
 
-Rezonance keeps its product-specific support, privacy, and terms pages at `https://rezonance.carboncaste.io`.
+Rezonance keeps its product-specific support, privacy, and terms at
+`https://rezonance.carboncaste.io`.
 
-## Local verification
+## Verification
 
 ```sh
-npm run check
+npm install
+npm test
 npm run serve
 BASE_URL=http://127.0.0.1:8126 npm run smoke
+BASE_URL=http://127.0.0.1:8126 npm run interaction
+npm audit
 ```
 
-The repository has no runtime package dependencies. The production service uses Node's built-in HTTP server from `server/static-server.mjs`.
-
-`npm run check` also guards the ASCII renderer against inline style emission.
-The production CSP intentionally excludes `unsafe-inline` from `style-src`; an
-inline-style renderer will be rejected because it would make the Mobius vanish.
+`npm run interaction` launches system Chrome headlessly at 1440x900 and
+390x844. It checks first-load isolation, chromatic ASCII output, pause/speed,
+zoom/reset, mouse and touch raycasting, the dive, company relief, return path,
+and console errors. Screenshots are written to ignored `output/playwright/`.
 
 ## A6 deployment
 
-The production files live at `/home/humble/services/carboncaste-web/current` on `ssh humble`. The user service template is `deploy/carboncaste-web.service` and listens only on `127.0.0.1:8126`. Cloudflare Tunnel maps `carboncaste.io` and `www.carboncaste.io` to that local origin.
-
-Deploy by synchronizing the tracked working tree, installing the service template, reloading the user service manager, and restarting `carboncaste-web.service`. Validate the loopback origin before changing or confirming Cloudflare routing.
+Production files live at `/home/humble/services/carboncaste-web/current` on
+`ssh humble`. `carboncaste-web.service` serves `127.0.0.1:8126`; Cloudflare
+Tunnel maps `carboncaste.io` and `www.carboncaste.io` to that origin. Build
+`dist/portal.js` before synchronizing the tracked tree.

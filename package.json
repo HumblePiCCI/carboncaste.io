@@ -1,11 +1,22 @@
 {
   "name": "carboncaste.io",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "webpack --mode production",
     "serve": "node server/static-server.mjs",
     "check": "node scripts/check-site.mjs",
-    "smoke": "node scripts/smoke-test.mjs"
+    "interaction": "node scripts/interaction-test.mjs",
+    "smoke": "node scripts/smoke-test.mjs",
+    "test": "npm run build && npm run check"
+  },
+  "dependencies": {
+    "three": "0.162.0"
+  },
+  "devDependencies": {
+    "playwright-core": "1.61.1",
+    "webpack": "5.108.4",
+    "webpack-cli": "7.2.1"
   }
 }

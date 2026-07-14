@@ -1,51 +1,49 @@
-# Carbon Caste ASCII design system
+# Carbon Caste immersive ASCII system
 
-## Premise
+## Sequence
 
-The interface should feel discovered rather than decorated: a live signal from
-a small, deliberate system. ASCII is the image language, not a novelty layer.
-Every surface should still be legible, fast, and useful when animation or
-JavaScript is unavailable.
+The interface is discovered in three beats:
 
-## Core grammar
+1. **Signal** - black field, chromatic ASCII Mobius, `We found you.` Nothing
+   else may compete with these objects on first load.
+2. **Dive** - activating the phrase accelerates into the loop, swaps the scene
+   below the apparent surface, and settles inside a much larger ASCII field.
+3. **Relief** - the directory and company statement exist as 3D text geometry
+   in that field. They are not HTML cards, navigation bars, or a page laid over
+   the scene.
 
-- Use square brackets for actions and state: `[RUN]`, `[LIVE]`, `[PRIVACY]`.
-- Use shell paths for navigation: `./work`, `./company`, `./contact`.
-- Use slashes, periods, tildes, and arrows as semantic texture rather than
-  arbitrary ornament.
-- Use compact rails to identify section number, state, and object ID.
-- Use character fields for imagery. Do not introduce stock photography,
-  decorative SVGs, or gradient artwork.
-- Keep legal and support content plain and readable inside the same system.
+The ambiguity is intentional. Conventional legal and contact pages remain
+plain once someone chooses those routes.
 
-## Color roles
+## Geometry and material
 
-- Bone `#f1f1e8`: primary type and the lit Mobius surface.
-- Near-black `#050505`: primary field.
-- Signal green `#c8ff3d`: actions, online state, and orientation.
-- Coral `#ff735c`: transmission and contact surfaces.
-- Cyan `#76e6dc`: Rezonance visual telemetry.
+The central form follows `mobcon`: an ellipsoid twisted once around a circular
+path. It is materially closer to a continuous, dimensional Mobius object than
+the original flat strip while retaining the original site's optical premise.
+The loop and all visible portal text share `MeshNormalMaterial`, so their color
+describes orientation rather than decoration.
 
-The palette is functional. Colors identify state or surface; they do not form
-decorative gradients.
+## ASCII rendering
 
-## Motion
+The source WebGL frame is sampled into a DOM character field. Color is reduced
+to twelve fixed hue classes plus neutral, keeping the output vivid while
+remaining compatible with the production Content Security Policy. Never add
+inline `style` attributes or `.style` mutations to `CspAsciiEffect`.
 
-The Mobius is the sole persistent ambient motion. Pointer position introduces a
-small rotational bias without making the scene dependent on pointer input.
-`prefers-reduced-motion` produces a stable rendered frame and disables the
-cursor and marquee animations. The static ASCII Mobius is the no-script
-fallback.
+## Controls
 
-## Technical constraints
+The scene itself is the control surface. OrbitControls provides mouse, touch,
+pan, wheel, and pinch behavior. Raycasting targets the real text meshes; there
+are no drifting transparent hit boxes. Keyboard input covers pause, speed,
+selection, activation, and escape. Do not add a visible toolbar to the intro.
 
-- The production `style-src` CSP excludes `unsafe-inline`.
-- The ASCII renderer must not emit style attributes or mutate `.style`.
-- The renderer's source canvas remains offscreen; the public visual is real DOM
-  text so it remains crisp and inspectable.
-- Text and controls must fit at 390 px and 1440 px without horizontal overflow.
-- New public pages use `legal-page`, the shared header, and the shared footer.
-- Product-specific policies remain linked from their product surface.
+## Extension rules
 
-Run `npm run check` and `npm run smoke` after every structural or renderer
-change, then visually inspect desktop and mobile screenshots.
+- Add portal destinations as short lowercase text meshes in the directory.
+- Keep prose in the semantic document and reduce visible scene copy to relief
+  statements that remain legible in ASCII.
+- Maintain real routes for legal, privacy, contact, and product support.
+- Preserve black as the field; color must come from geometry orientation.
+- Verify 1440x900 and 390x844 after geometry, camera, font, or copy changes.
+- A first-load screenshot containing a header, footer, card, instruction, or
+  debug control is a regression.

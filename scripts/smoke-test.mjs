@@ -1,6 +1,6 @@
 const baseUrl = (process.env.BASE_URL || 'http://127.0.0.1:8126').replace(/\/$/, '');
 const expectations = [
-  ['/', 200, 'Carbon Caste Inc.'],
+  ['/', 200, 'We found you.'],
   ['/privacy.html', 200, 'Small surface.'],
   ['/terms.html', 200, 'Clear terms.'],
   ['/contact.html', 200, 'Send a signal.'],
