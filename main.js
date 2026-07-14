@@ -1,6 +1,6 @@
 import * as THREE from './3jsReqs/three.module.js';
 import { ParametricGeometry } from './3jsReqs/ParametricGeometry.js';
-import { AsciiEffect } from './3jsReqs/AsciiEffect.js';
+import { AsciiEffect } from './3jsReqs/AsciiEffect.js?v=ascii-20260714';
 
 const host = document.querySelector('#ascii-scene');
 

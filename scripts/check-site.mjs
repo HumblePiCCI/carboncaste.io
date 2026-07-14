@@ -32,6 +32,8 @@ for (const value of [
   'id="ascii-scene"',
   'class="mobius-fallback"',
   'class="ascii-window product-visual"',
+  'styles.css?v=ascii-20260714',
+  'main.js?v=ascii-20260714',
   'privacy.html',
   'terms.html',
   'contact.html',
@@ -44,6 +46,7 @@ for (const file of ['privacy.html', 'terms.html', 'contact.html']) {
   if (!content.includes('Carbon Caste Inc.')) failures.push(`${file} is missing the legal entity name`);
   if (!content.includes('admin@carboncaste.io')) failures.push(`${file} is missing the company email`);
   if (!content.includes('class="legal-page"')) failures.push(`${file} is missing the shared ASCII page shell`);
+  if (!content.includes('styles.css?v=ascii-20260714')) failures.push(`${file} is missing the versioned stylesheet`);
 }
 
 const asciiEffect = await readFile('3jsReqs/AsciiEffect.js', 'utf8');
