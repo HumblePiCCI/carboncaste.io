@@ -24,6 +24,13 @@ for (const [path, expectedStatus, expectedText] of expectations) {
     if (path === '/' && !response.headers.get('content-security-policy')) {
       failures.push('/: Content-Security-Policy header is missing');
     }
+    if (path === '/') {
+      const csp = response.headers.get('content-security-policy') || '';
+      const styleDirective = csp.split(';').find((directive) => directive.trim().startsWith('style-src')) || '';
+      if (styleDirective.includes("'unsafe-inline'")) {
+        failures.push('/: style-src must remain free of unsafe-inline');
+      }
+    }
   } catch (error) {
     failures.push(`${path}: ${error.message}`);
   }

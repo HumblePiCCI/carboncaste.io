@@ -2,6 +2,14 @@
 
 Corporate landing page and public legal/support directory for Carbon Caste Inc.
 
+The visual system is ASCII-first. The home page renders a live Three.js
+Mobius strip through a CSP-compatible character renderer, while product,
+company, contact, legal, and error surfaces use the same terminal grammar. A
+static ASCII Mobius remains in the document as the no-script and reduced-motion
+fallback.
+
+See `DESIGN.md` for the visual grammar and extension rules.
+
 ## Public routes
 
 - `/` - company landing page and Rezonance product link
@@ -21,6 +29,10 @@ BASE_URL=http://127.0.0.1:8126 npm run smoke
 ```
 
 The repository has no runtime package dependencies. The production service uses Node's built-in HTTP server from `server/static-server.mjs`.
+
+`npm run check` also guards the ASCII renderer against inline style emission.
+The production CSP intentionally excludes `unsafe-inline` from `style-src`; an
+inline-style renderer will be rejected because it would make the Mobius vanish.
 
 ## A6 deployment
 

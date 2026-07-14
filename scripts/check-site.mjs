@@ -25,9 +25,13 @@ for (const file of requiredFiles) {
 const index = await readFile('index.html', 'utf8');
 for (const value of [
   'Carbon Caste Inc.',
+  'CARBON_CASTE.INC',
   'https://carboncaste.io',
   'admin@carboncaste.io',
   'https://rezonance.carboncaste.io',
+  'id="ascii-scene"',
+  'class="mobius-fallback"',
+  'class="ascii-window product-visual"',
   'privacy.html',
   'terms.html',
   'contact.html',
@@ -39,6 +43,17 @@ for (const file of ['privacy.html', 'terms.html', 'contact.html']) {
   const content = await readFile(file, 'utf8');
   if (!content.includes('Carbon Caste Inc.')) failures.push(`${file} is missing the legal entity name`);
   if (!content.includes('admin@carboncaste.io')) failures.push(`${file} is missing the company email`);
+  if (!content.includes('class="legal-page"')) failures.push(`${file} is missing the shared ASCII page shell`);
+}
+
+const asciiEffect = await readFile('3jsReqs/AsciiEffect.js', 'utf8');
+if (/style\s*=/.test(asciiEffect) || /\.style\./.test(asciiEffect)) {
+  failures.push('AsciiEffect.js must not emit inline styles blocked by the production CSP');
+}
+
+const styles = await readFile('styles.css', 'utf8');
+for (const value of ['#ascii-scene', '#ascii table', '.ascii-window', '.legal-aside::before']) {
+  if (!styles.includes(value)) failures.push(`styles.css is missing ${value}`);
 }
 
 if (failures.length) {
