@@ -40,7 +40,7 @@ for (const value of [
   'id="company"',
   'id="contact"',
   'styles.css?v=continuity-20260715',
-  'dist/portal.js?v=continuity-20260715',
+  'dist/portal.js?v=fullbleed-20260715',
   'privacy.html',
   'terms.html',
   'contact.html',
