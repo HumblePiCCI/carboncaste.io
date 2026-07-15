@@ -33,20 +33,34 @@ async function run(viewport, label) {
   await expect(page, () => document.documentElement.classList.contains('ascii-ready'), `${label}: ASCII scene did not become ready`);
   await expect(page, () => window.__carbonPortal?.snapshot().mode === 'intro', `${label}: portal did not begin in intro mode`);
 
-  const introVisual = await page.evaluate(() => ({
-    spans: document.querySelectorAll('#ascii span').length,
-    colors: new Set([...document.querySelectorAll('#ascii span')].map((node) => node.className)).size,
-    surfaceHidden: document.querySelector('#surface-site').hidden,
-    matteHidden: document.querySelector('#ascii-matte').hidden,
-    visibleChrome: [...document.body.children].filter((node) => {
-      if (['SCRIPT', 'NOSCRIPT', 'MAIN'].includes(node.tagName) || node.classList.contains('sr-only')) return false;
-      const style = getComputedStyle(node);
-      return style.display !== 'none' && style.visibility !== 'hidden';
-    }).length,
-  }));
+  const introVisual = await page.evaluate(() => {
+    const spans = [...document.querySelectorAll('#ascii span')];
+    const rects = spans.map((node) => node.getBoundingClientRect()).filter((rect) => rect.width > 0 && rect.height > 0);
+    const bounds = {
+      left: Math.min(...rects.map((rect) => rect.left)),
+      right: Math.max(...rects.map((rect) => rect.right)),
+      top: Math.min(...rects.map((rect) => rect.top)),
+      bottom: Math.max(...rects.map((rect) => rect.bottom)),
+    };
+    return {
+      spans: spans.length,
+      colors: new Set(spans.map((node) => node.className)).size,
+      coverageWidth: (bounds.right - bounds.left) / window.innerWidth,
+      coverageHeight: (bounds.bottom - bounds.top) / window.innerHeight,
+      surfaceHidden: document.querySelector('#surface-site').hidden,
+      hasReplacementMatte: Boolean(document.querySelector('#ascii-matte')),
+      visibleChrome: [...document.body.children].filter((node) => {
+        if (['SCRIPT', 'NOSCRIPT', 'MAIN'].includes(node.tagName) || node.classList.contains('sr-only')) return false;
+        const style = getComputedStyle(node);
+        return style.display !== 'none' && style.visibility !== 'hidden';
+      }).length,
+    };
+  });
   if (introVisual.spans < 20) failures.push(`${label}: ASCII scene has too few colored runs (${introVisual.spans})`);
   if (introVisual.colors < 5) failures.push(`${label}: ASCII scene has too little color variation (${introVisual.colors})`);
-  if (!introVisual.surfaceHidden || !introVisual.matteHidden) failures.push(`${label}: corporate surface leaks into first load`);
+  if (introVisual.coverageWidth < 0.95 || introVisual.coverageHeight < 0.9) failures.push(`${label}: Mobius does not fill the viewport (${introVisual.coverageWidth.toFixed(2)} x ${introVisual.coverageHeight.toFixed(2)})`);
+  if (!introVisual.surfaceHidden) failures.push(`${label}: corporate surface leaks into first load`);
+  if (introVisual.hasReplacementMatte) failures.push(`${label}: obsolete replacement matte remains in the document`);
   if (introVisual.visibleChrome !== 0) failures.push(`${label}: first load exposes non-scene interface chrome`);
 
   const beforePause = await page.evaluate(() => window.__carbonPortal.snapshot());
@@ -84,21 +98,31 @@ async function run(viewport, label) {
   await expect(page, () => {
     const stage = getComputedStyle(document.querySelector('#ascii-stage'));
     const site = getComputedStyle(document.querySelector('#surface-site'));
-    return Number(stage.opacity) === 0 && Number(site.opacity) === 1;
-  }, `${label}: sampled site did not settle above the Mobius transition`, 2000);
+    return Number(stage.opacity) === 1 && Number(site.opacity) === 1;
+  }, `${label}: frozen ASCII frame did not remain visible beneath the site`, 2000);
+
+  await page.evaluate(() => {
+    window.__frozenAsciiFrameForTest = document.querySelector('#ascii').innerHTML;
+  });
+  await page.waitForTimeout(700);
 
   const surface = await page.evaluate(() => {
     const portal = window.__carbonPortal.snapshot();
     const site = document.querySelector('#surface-site');
-    const matte = document.querySelector('#ascii-matte');
-    const glyphs = new Set(matte.textContent.replace(/\n/g, ''));
+    const stageStyle = getComputedStyle(document.querySelector('#ascii-stage'));
     return {
       portal,
       siteHidden: site.hidden,
       siteAria: site.getAttribute('aria-hidden'),
-      matteHidden: matte.hidden,
-      matteLength: matte.textContent.length,
-      matteGlyphs: [...glyphs],
+      frozenFrameStable: document.querySelector('#ascii').innerHTML === window.__frozenAsciiFrameForTest,
+      frozenRunCount: document.querySelectorAll('#ascii span').length,
+      frozenDensity: (() => {
+        const text = document.querySelector('#ascii table').innerText;
+        const cells = text.replace(/\n/g, '');
+        return cells.length ? cells.replace(/\s/g, '').length / cells.length : 0;
+      })(),
+      stageOpacity: Number(stageStyle.opacity),
+      stagePosition: stageStyle.position,
       theme: [...document.body.classList].find((name) => name.startsWith('surface-theme-')),
       sections: document.querySelectorAll('#surface-main section').length,
       productLinks: document.querySelectorAll('.product-links a').length,
@@ -109,9 +133,10 @@ async function run(viewport, label) {
     };
   });
   if (surface.siteHidden || surface.siteAria !== 'false') failures.push(`${label}: corporate site is not exposed after the dive`);
-  if (surface.matteHidden || surface.matteLength < 20000) failures.push(`${label}: sampled ASCII matte was not built`);
-  if (surface.matteGlyphs.length !== 1) failures.push(`${label}: matte does not preserve one sampled character`);
-  if (!surface.portal.matte || surface.matteGlyphs[0] !== surface.portal.matte.character) failures.push(`${label}: matte character does not match the sampled surface`);
+  if (!surface.frozenFrameStable) failures.push(`${label}: final ASCII frame changed after the dive stopped`);
+  if (surface.frozenRunCount < 5 || surface.frozenDensity < 0.85) failures.push(`${label}: frozen substrate does not fill the view (${surface.frozenDensity.toFixed(2)} density)`);
+  if (surface.stageOpacity !== 1 || surface.stagePosition !== 'fixed') failures.push(`${label}: final ASCII renderer frame is not the fixed visible substrate`);
+  if (!surface.portal.surface) failures.push(`${label}: final surface sample is unavailable to the interface theme`);
   if (!surface.theme?.startsWith('surface-theme-ac-')) failures.push(`${label}: sampled chroma theme was not applied`);
   if (surface.sections < 4 || surface.productLinks !== 3 || surface.footerLinks !== 4) failures.push(`${label}: corporate information architecture is incomplete`);
   if (surface.scrollHeight <= surface.viewportHeight * 2) failures.push(`${label}: corporate site is not a scrollable full site`);
@@ -127,17 +152,18 @@ async function run(viewport, label) {
     return { top: rect.top, position: getComputedStyle(document.querySelector('.site-header')).position };
   });
   if (header.position !== 'fixed' || Math.abs(header.top) > 2) failures.push(`${label}: surface header did not remain fixed after navigation`);
+  const frozenAfterScroll = await page.evaluate(() => document.querySelector('#ascii').innerHTML === window.__frozenAsciiFrameForTest);
+  if (!frozenAfterScroll) failures.push(`${label}: final ASCII frame changed while the corporate site scrolled`);
   await page.screenshot({ path: `output/playwright/${label}-surface-company.png` });
 
   await page.locator('#return-signal').click();
   await expect(page, () => window.__carbonPortal.snapshot().mode === 'intro', `${label}: return-to-signal did not restore intro`, 3000);
   const restored = await page.evaluate(() => ({
     surfaceHidden: document.querySelector('#surface-site').hidden,
-    matteHidden: document.querySelector('#ascii-matte').hidden,
     surfaceClass: document.body.classList.contains('is-surface-site'),
     zoom: window.__carbonPortal.snapshot().zoom,
   }));
-  if (!restored.surfaceHidden || !restored.matteHidden || restored.surfaceClass) failures.push(`${label}: sampled site remained visible after return`);
+  if (!restored.surfaceHidden || restored.surfaceClass) failures.push(`${label}: sampled site remained visible after return`);
   if (Math.abs(restored.zoom - 1.25) > 0.02) failures.push(`${label}: intro camera was not restored`);
   await page.screenshot({ path: `output/playwright/${label}-intro.png` });
 
@@ -154,4 +180,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`Sampled-surface interaction smoke passed at desktop and mobile viewports for ${baseUrl}.`);
+console.log(`Frozen-surface continuity smoke passed at desktop and mobile viewports for ${baseUrl}.`);

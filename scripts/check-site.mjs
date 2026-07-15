@@ -34,14 +34,13 @@ for (const value of [
   'https://rezonance.carboncaste.io',
   'id="ascii-stage"',
   'id="ascii-scene"',
-  'id="ascii-matte"',
   'id="surface-site"',
   'id="return-signal"',
   'id="work"',
   'id="company"',
   'id="contact"',
-  'styles.css?v=surface-20260715',
-  'dist/portal.js?v=surface-20260715',
+  'styles.css?v=continuity-20260715',
+  'dist/portal.js?v=continuity-20260715',
   'privacy.html',
   'terms.html',
   'contact.html',
@@ -52,8 +51,8 @@ for (const value of [
 if (!/id="surface-site"[^>]*hidden/.test(index)) {
   failures.push('index.html must keep the corporate site hidden on first load');
 }
-if (!/id="ascii-matte"[^>]*hidden/.test(index)) {
-  failures.push('index.html must keep the sampled matte hidden on first load');
+if (index.includes('id="ascii-matte"')) {
+  failures.push('index.html must not replace the final renderer frame with a synthetic matte');
 }
 
 for (const file of ['privacy.html', 'terms.html', 'contact.html']) {
@@ -79,8 +78,8 @@ for (const value of [
   "makeText('We found you.'",
   'pickDiveTarget',
   'effect.sampleAt(0.5, 0.5)',
-  'buildMatte',
   'applySurfaceTheme',
+  'Math.max(baseViewWidth, baseViewHeight)',
   "mode = 'site'",
   'restoreIntro',
   "event.code === 'Space'",
@@ -95,7 +94,7 @@ const styles = await readFile('styles.css', 'utf8');
 for (const value of [
   '#ascii-stage',
   '#ascii table',
-  '#ascii-matte',
+  '.is-surface-site #ascii-stage',
   '.surface-theme-ac-0',
   '.is-surface-site',
   '.surface-hero',
@@ -107,9 +106,13 @@ for (const value of [
   if (!styles.includes(value)) failures.push(`styles.css is missing ${value}`);
 }
 
+if (portal.includes('buildMatte') || styles.includes('#ascii-matte')) {
+  failures.push('The frozen renderer frame must be the only post-entry ASCII substrate');
+}
+
 if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
 
-console.log(`Site structure and sampled-surface contracts OK (${requiredFiles.length} required public files).`);
+console.log(`Site structure and frozen-surface continuity contracts OK (${requiredFiles.length} required public files).`);

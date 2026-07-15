@@ -6,8 +6,7 @@
   --line: rgba(247, 247, 241, 0.28);
   --accent: #55d7e9;
   --accent-secondary: #e66ed6;
-  --matte-bg: #061518;
-  --matte-glyph: #55d7e9;
+  --surface-bg: #061518;
   --header-height: 64px;
   --page-pad: 5.5vw;
   font-family: "SFMono-Regular", "Cascadia Mono", Consolas, "Liberation Mono", Menlo, monospace;
@@ -74,12 +73,16 @@ a:focus-visible {
   z-index: 4;
   cursor: grab;
   opacity: 1;
-  transition: opacity 520ms linear;
 }
 
 .is-dragging #ascii-stage { cursor: grabbing; }
 .is-link #ascii-stage { cursor: pointer; }
-.is-surface-site #ascii-stage { opacity: 0; pointer-events: none; }
+.is-surface-site #ascii-stage {
+  z-index: 0;
+  cursor: default;
+  opacity: 1;
+  pointer-events: none;
+}
 
 .fallback-art {
   display: grid;
@@ -149,40 +152,20 @@ a:focus-visible {
 .ac-10 { color: #e66ed6; }
 .ac-11 { color: #ff70a6; }
 
-/* The sampled surface becomes the persistent site substrate. */
-.surface-theme-ac-g { --matte-bg: #12141a; --matte-glyph: #d8dce5; --accent: #d8dce5; --accent-secondary: #55d7e9; }
-.surface-theme-ac-0 { --matte-bg: #19070b; --matte-glyph: #ff6f7d; --accent: #ff6f7d; --accent-secondary: #55d7e9; }
-.surface-theme-ac-1 { --matte-bg: #1b0d06; --matte-glyph: #ff9863; --accent: #ff9863; --accent-secondary: #8b87ff; }
-.surface-theme-ac-2 { --matte-bg: #171506; --matte-glyph: #ded768; --accent: #ded768; --accent-secondary: #ba78f2; }
-.surface-theme-ac-3 { --matte-bg: #0e1707; --matte-glyph: #9cdb70; --accent: #9cdb70; --accent-secondary: #ff70a6; }
-.surface-theme-ac-4 { --matte-bg: #07170e; --matte-glyph: #61da91; --accent: #61da91; --accent-secondary: #e66ed6; }
-.surface-theme-ac-5 { --matte-bg: #061714; --matte-glyph: #4cd8bd; --accent: #4cd8bd; --accent-secondary: #ff9863; }
-.surface-theme-ac-6 { --matte-bg: #061518; --matte-glyph: #55d7e9; --accent: #55d7e9; --accent-secondary: #e66ed6; }
-.surface-theme-ac-7 { --matte-bg: #07101b; --matte-glyph: #6aa9ff; --accent: #6aa9ff; --accent-secondary: #ded768; }
-.surface-theme-ac-8 { --matte-bg: #0b0a1b; --matte-glyph: #8b87ff; --accent: #8b87ff; --accent-secondary: #61da91; }
-.surface-theme-ac-9 { --matte-bg: #12081a; --matte-glyph: #ba78f2; --accent: #ba78f2; --accent-secondary: #4cd8bd; }
-.surface-theme-ac-10 { --matte-bg: #190719; --matte-glyph: #e66ed6; --accent: #e66ed6; --accent-secondary: #9cdb70; }
-.surface-theme-ac-11 { --matte-bg: #1a0712; --matte-glyph: #ff70a6; --accent: #ff70a6; --accent-secondary: #55d7e9; }
-
-#ascii-matte {
-  position: fixed;
-  z-index: 0;
-  inset: -18px;
-  width: calc(100vw + 36px);
-  height: calc(100vh + 36px);
-  margin: 0;
-  overflow: hidden;
-  background: var(--matte-bg);
-  color: var(--matte-glyph);
-  font-family: "Courier New", monospace;
-  font-size: 8px;
-  font-weight: 700;
-  line-height: 8px;
-  letter-spacing: 0;
-  opacity: 0.32;
-  pointer-events: none;
-  white-space: pre;
-}
+/* The frozen final renderer frame becomes the persistent site substrate. */
+.surface-theme-ac-g { --surface-bg: #12141a; --accent: #d8dce5; --accent-secondary: #55d7e9; }
+.surface-theme-ac-0 { --surface-bg: #19070b; --accent: #ff6f7d; --accent-secondary: #55d7e9; }
+.surface-theme-ac-1 { --surface-bg: #1b0d06; --accent: #ff9863; --accent-secondary: #8b87ff; }
+.surface-theme-ac-2 { --surface-bg: #171506; --accent: #ded768; --accent-secondary: #ba78f2; }
+.surface-theme-ac-3 { --surface-bg: #0e1707; --accent: #9cdb70; --accent-secondary: #ff70a6; }
+.surface-theme-ac-4 { --surface-bg: #07170e; --accent: #61da91; --accent-secondary: #e66ed6; }
+.surface-theme-ac-5 { --surface-bg: #061714; --accent: #4cd8bd; --accent-secondary: #ff9863; }
+.surface-theme-ac-6 { --surface-bg: #061518; --accent: #55d7e9; --accent-secondary: #e66ed6; }
+.surface-theme-ac-7 { --surface-bg: #07101b; --accent: #6aa9ff; --accent-secondary: #ded768; }
+.surface-theme-ac-8 { --surface-bg: #0b0a1b; --accent: #8b87ff; --accent-secondary: #61da91; }
+.surface-theme-ac-9 { --surface-bg: #12081a; --accent: #ba78f2; --accent-secondary: #4cd8bd; }
+.surface-theme-ac-10 { --surface-bg: #190719; --accent: #e66ed6; --accent-secondary: #9cdb70; }
+.surface-theme-ac-11 { --surface-bg: #1a0712; --accent: #ff70a6; --accent-secondary: #55d7e9; }
 
 .is-surface-site {
   position: static;
@@ -190,7 +173,7 @@ a:focus-visible {
   min-height: 100%;
   overflow-x: hidden;
   overflow-y: auto;
-  background: var(--matte-bg);
+  background: var(--surface-bg);
   touch-action: pan-y;
   user-select: text;
 }
@@ -198,6 +181,7 @@ a:focus-visible {
 .surface-site {
   position: relative;
   z-index: 2;
+  isolation: isolate;
   min-height: 100svh;
   opacity: 0;
   transform: translateY(18px);
@@ -206,11 +190,17 @@ a:focus-visible {
 
 .surface-site::before {
   position: fixed;
-  z-index: -1;
+  z-index: 0;
   inset: 0;
-  background: rgba(0, 0, 0, 0.58);
+  background: rgba(0, 0, 0, 0.5);
   content: "";
   pointer-events: none;
+}
+
+#surface-main,
+.site-footer {
+  position: relative;
+  z-index: 1;
 }
 
 .is-surface-site .surface-site {
@@ -697,7 +687,6 @@ h2 {
 @media (max-width: 700px) {
   :root { --header-height: 58px; --page-pad: 20px; }
   .fallback-art { font-size: 7px; }
-  #ascii-matte { font-size: 7px; line-height: 7px; }
   .site-header { padding: 0 var(--page-pad); }
   .wordmark span:last-child { display: none; }
   .site-nav { gap: 13px; font-size: 0.6rem; }

@@ -6,13 +6,12 @@ import { CspAsciiEffect } from './CspAsciiEffect.js';
 
 const stage = document.querySelector('#ascii-stage');
 const sceneHost = document.querySelector('#ascii-scene');
-const matte = document.querySelector('#ascii-matte');
 const surfaceSite = document.querySelector('#surface-site');
 const surfaceReadout = document.querySelector('#surface-sample-readout');
 const returnSignal = document.querySelector('#return-signal');
 const status = document.querySelector('#scene-status');
 
-if (!stage || !sceneHost || !matte || !surfaceSite || !surfaceReadout || !returnSignal || !status) {
+if (!stage || !sceneHost || !surfaceSite || !surfaceReadout || !returnSignal || !status) {
   throw new Error('Portal shell is incomplete.');
 }
 
@@ -114,7 +113,7 @@ let hoveredMesh = null;
 let pointerStart = null;
 let lastTouchTap = 0;
 let pendingTouchPause = 0;
-let matteSample = null;
+let surfaceSample = null;
 let returnTimer = 0;
 
 const themeClasses = [
@@ -169,21 +168,50 @@ function ease(value) {
 
 function pickDiveTarget() {
   mobius.updateMatrixWorld(true);
-  const candidates = [];
-  for (let radius = 0.1; radius <= 0.75; radius += 0.08) {
-    for (let step = 0; step < 16; step += 1) {
-      const angle = (step / 16) * Math.PI * 2;
-      candidates.push(new THREE.Vector2(Math.cos(angle) * radius, Math.sin(angle) * radius - 0.08));
+  const gridSize = 25;
+  const extent = 0.92;
+  const samples = [];
+
+  for (let row = 0; row < gridSize; row += 1) {
+    for (let column = 0; column < gridSize; column += 1) {
+      const x = -extent + (column / (gridSize - 1)) * extent * 2;
+      const y = extent - (row / (gridSize - 1)) * extent * 2;
+      const screenPoint = new THREE.Vector2(x, y);
+      raycaster.setFromCamera(screenPoint, camera);
+      samples.push({
+        row,
+        column,
+        screenPoint,
+        hit: raycaster.intersectObject(mobius, false)[0] || null,
+      });
     }
   }
 
-  for (const candidate of candidates) {
-    raycaster.setFromCamera(candidate, camera);
-    const hit = raycaster.intersectObject(mobius, false)[0];
-    if (hit) return hit.point.clone();
+  const misses = samples.filter((sample) => !sample.hit);
+  let best = null;
+
+  for (const sample of samples) {
+    if (!sample.hit) continue;
+    const edgeMargin = Math.min(
+      sample.row + 1,
+      sample.column + 1,
+      gridSize - sample.row,
+      gridSize - sample.column,
+    );
+    let marginSquared = edgeMargin ** 2;
+
+    for (const miss of misses) {
+      const rowDistance = sample.row - miss.row;
+      const columnDistance = sample.column - miss.column;
+      marginSquared = Math.min(marginSquared, rowDistance ** 2 + columnDistance ** 2);
+    }
+
+    const centerPenalty = (sample.screenPoint.x ** 2 + sample.screenPoint.y ** 2) * 0.08;
+    const score = marginSquared - centerPenalty;
+    if (!best || score > best.score) best = { score, point: sample.hit.point.clone() };
   }
 
-  return new THREE.Vector3(1.8, -0.25, 0);
+  return best?.point || new THREE.Vector3(1.8, -0.25, 0);
 }
 
 function startDive() {
@@ -222,28 +250,18 @@ function updateTransition(now) {
   return raw >= 1;
 }
 
-function buildMatte(character) {
-  const glyph = character && character !== ' ' ? character : '.';
-  const columns = Math.max(280, Math.ceil((window.innerWidth + 72) / 4));
-  const rows = Math.max(180, Math.ceil((window.innerHeight + 72) / 7));
-  const line = glyph.repeat(columns);
-  return Array.from({ length: rows }, () => line).join('\n');
-}
-
 function applySurfaceTheme(sample) {
   const safeClass = sample.className === 'ac-g' || /^ac-(?:[0-9]|1[01])$/.test(sample.className)
     ? sample.className
     : 'ac-6';
   document.body.classList.remove(...themeClasses);
   document.body.classList.add(`surface-theme-${safeClass}`);
-  matte.textContent = buildMatte(sample.character);
   surfaceReadout.textContent = `${sample.character} / ${safeClass.toUpperCase()}`;
 }
 
 function finishDive() {
-  matteSample = effect.sampleAt(0.5, 0.5);
-  applySurfaceTheme(matteSample);
-  matte.hidden = false;
+  surfaceSample = effect.sampleAt(0.5, 0.5);
+  applySurfaceTheme(surfaceSample);
   surfaceSite.hidden = false;
   surfaceSite.setAttribute('aria-hidden', 'false');
   stage.setAttribute('aria-hidden', 'true');
@@ -252,7 +270,7 @@ function finishDive() {
   document.body.classList.remove('is-transitioning');
   window.scrollTo(0, 0);
   requestAnimationFrame(() => document.body.classList.add('is-surface-site'));
-  status.textContent = `Surface sampled at ${matteSample.character}, ${matteSample.className}. Corporate site ready.`;
+  status.textContent = `Surface held at ${surfaceSample.character}, ${surfaceSample.className}. Corporate site ready.`;
 }
 
 function restoreIntro() {
@@ -264,8 +282,6 @@ function restoreIntro() {
   mode = 'returning';
   returnTimer = window.setTimeout(() => {
     surfaceSite.hidden = true;
-    matte.hidden = true;
-    matte.textContent = '';
     stage.setAttribute('aria-hidden', 'false');
     document.body.classList.remove(...themeClasses);
     camera.position.copy(initialCameraPosition);
@@ -274,7 +290,7 @@ function restoreIntro() {
     controls.enabled = true;
     mobius.rotation.copy(initialMobiusRotation);
     paused = pausedBeforeDive;
-    matteSample = null;
+    surfaceSample = null;
     mode = 'intro';
     applyResponsiveLayout();
     camera.updateProjectionMatrix();
@@ -293,7 +309,10 @@ function isMobile() {
 }
 
 function introScale() {
-  return isMobile() ? 0.68 : 1;
+  const aspect = Math.max(0.1, window.innerWidth / Math.max(1, window.innerHeight));
+  const baseViewWidth = (frustumSize * aspect) / 1.25;
+  const baseViewHeight = frustumSize / 1.25;
+  return (Math.max(baseViewWidth, baseViewHeight) / 6) * 1.12;
 }
 
 function applyResponsiveLayout() {
@@ -302,7 +321,7 @@ function applyResponsiveLayout() {
   introGroup.scale.setScalar(mobile ? 0.44 : 1);
   introGroup.position.y = mobile ? 0.55 : 0;
   mobius.scale.setScalar(introScale());
-  mobius.position.set(0, mobile ? -0.55 : -0.25, 0);
+  mobius.position.set(0, 0, 0);
 }
 
 function resize() {
@@ -315,7 +334,6 @@ function resize() {
   camera.bottom = -frustumSize / 2;
   camera.updateProjectionMatrix();
   effect.setSize(width * 2, height * 2);
-  if (mode === 'site' && matteSample) matte.textContent = buildMatte(matteSample.character);
   applyResponsiveLayout();
 }
 
@@ -445,10 +463,10 @@ window.__carbonPortal = {
       zoom: camera.zoom,
       mobiusRotation: [mobius.rotation.x, mobius.rotation.y, mobius.rotation.z],
       activeActions: mode === 'intro' && introMesh ? ['enter'] : [],
-      matte: matteSample ? {
-        character: matteSample.character,
-        className: matteSample.className,
-        brightness: matteSample.brightness,
+      surface: surfaceSample ? {
+        character: surfaceSample.character,
+        className: surfaceSample.className,
+        brightness: surfaceSample.brightness,
       } : null,
     };
   },

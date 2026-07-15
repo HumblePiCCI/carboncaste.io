@@ -2,22 +2,24 @@
 
 ## Premise
 
-The conventional website is not a separate layer pasted over the Mobius. The
-visitor enters the object, the renderer samples the destination, and the same
-character and material hue become the substrate on which the company site is
-displayed. The result combines mystery before entry with clarity after entry.
+The conventional website is not a separate environment pasted over the
+Mobius. The visitor enters the object, its motion eases to rest, and that exact
+final renderer frame becomes the substrate on which the company site is
+displayed. The result combines mystery before entry with clarity after entry,
+without a visual substitution between them.
 
 ## Sequence
 
-1. **Signal** - black field, chromatic ASCII Mobius, `We found you.` No header,
-   footer, instruction panel, or corporate copy is visible.
+1. **Signal** - a full-bleed chromatic ASCII Mobius and `We found you.` No
+   header, footer, instruction panel, or corporate copy is visible.
 2. **Dive** - activating the phrase raycasts the visible loop, freezes its
    orientation, and moves the camera into the selected surface point.
-3. **Sample** - the final deep render yields one ASCII character and one of the
-   CSP-safe normal-material hue classes.
-4. **Site** - the sampled character repeats as a fixed matte; its hue controls
-   the background, accents, focus rings, and status readout. The full corporate
-   information architecture becomes scrollable above it.
+3. **Hold** - the final deep render stops. Its existing characters, positions,
+   colors, and density remain byte-for-byte unchanged in the fixed renderer
+   DOM. One pixel sample selects a CSP-safe interface hue class only.
+4. **Site** - the full corporate information architecture becomes scrollable
+   above the held renderer frame. A translucent readability veil and section
+   surfaces preserve contrast without replacing the ASCII field.
 
 ## Surface site
 
@@ -45,7 +47,11 @@ the spectrum rail and secondary accents without using gradients.
   fallback.
 - Dynamic theming must use fixed body classes. Do not add inline `style`
   attributes or `.style` mutations.
-- The sampled matte must preserve exactly one rendered character.
+- The intro Mobius foreground must overscan the viewport on wide and tall
+  screens, eliminating the detached-object presentation.
+- The final renderer DOM must remain unchanged while the site is active,
+  including during scroll and navigation.
+- Never synthesize a replacement matte or repeat a sampled character.
 - Stop WebGL/ASCII rendering while the corporate site is active.
 - Restore the exact initial camera, target, loop orientation, and interaction
   model on return.
