@@ -108,6 +108,7 @@ let mode = 'intro';
 let paused = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 let pausedBeforeDive = paused;
 let rotationSpeed = 0.006;
+let rotationPhase = 0;
 let transition = null;
 let hoveredMesh = null;
 let pointerStart = null;
@@ -289,6 +290,7 @@ function restoreIntro() {
     controls.target.copy(initialTarget);
     controls.enabled = true;
     mobius.rotation.copy(initialMobiusRotation);
+    rotationPhase = 0;
     paused = pausedBeforeDive;
     surfaceSample = null;
     mode = 'intro';
@@ -312,7 +314,7 @@ function introScale() {
   const aspect = Math.max(0.1, window.innerWidth / Math.max(1, window.innerHeight));
   const baseViewWidth = (frustumSize * aspect) / 1.25;
   const baseViewHeight = frustumSize / 1.25;
-  return (Math.max(baseViewWidth, baseViewHeight) / 6) * 1.12;
+  return (Math.max(baseViewWidth, baseViewHeight) / 6) * 1.35;
 }
 
 function applyResponsiveLayout() {
@@ -446,8 +448,10 @@ function animate(now) {
 
   const diveComplete = updateTransition(now);
   if (!paused && mode === 'intro') {
-    mobius.rotation.x -= rotationSpeed;
-    mobius.rotation.y += rotationSpeed * 0.24;
+    rotationPhase += rotationSpeed;
+    mobius.rotation.x = initialMobiusRotation.x + Math.sin(rotationPhase) * 0.2;
+    mobius.rotation.y = initialMobiusRotation.y + Math.sin(rotationPhase * 0.73) * 0.18;
+    mobius.rotation.z = initialMobiusRotation.z + rotationPhase * 0.22;
   }
   controls.update();
   effect.render(scene, camera);

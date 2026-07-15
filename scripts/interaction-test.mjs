@@ -63,6 +63,21 @@ async function run(viewport, label) {
   if (introVisual.hasReplacementMatte) failures.push(`${label}: obsolete replacement matte remains in the document`);
   if (introVisual.visibleChrome !== 0) failures.push(`${label}: first load exposes non-scene interface chrome`);
 
+  for (let sampleIndex = 0; sampleIndex < 3; sampleIndex += 1) {
+    await page.waitForTimeout(500);
+    const coverage = await page.evaluate(() => {
+      const rects = [...document.querySelectorAll('#ascii span')]
+        .map((node) => node.getBoundingClientRect())
+        .filter((rect) => rect.width > 0 && rect.height > 0);
+      const left = Math.min(...rects.map((rect) => rect.left));
+      const right = Math.max(...rects.map((rect) => rect.right));
+      const top = Math.min(...rects.map((rect) => rect.top));
+      const bottom = Math.max(...rects.map((rect) => rect.bottom));
+      return { width: (right - left) / window.innerWidth, height: (bottom - top) / window.innerHeight };
+    });
+    if (coverage.width < 0.95 || coverage.height < 0.9) failures.push(`${label}: moving Mobius lost full-screen coverage (${coverage.width.toFixed(2)} x ${coverage.height.toFixed(2)})`);
+  }
+
   const beforePause = await page.evaluate(() => window.__carbonPortal.snapshot());
   await page.keyboard.press('Space');
   await page.waitForTimeout(120);
