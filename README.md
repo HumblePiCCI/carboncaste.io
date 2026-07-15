@@ -1,33 +1,43 @@
 # carboncaste.io
 
-The public company surface for Carbon Caste Inc. The home route is an
-interactive, ASCII-rendered Three.js world derived from the original Carbon
-Caste Mobius experiment and the later `mobcon` interaction model.
+The public company surface for Carbon Caste Inc. The home route combines the
+original ASCII Mobius experiment, the later `mobcon` direct-manipulation model,
+and a complete corporate information surface.
 
-First load intentionally exposes only two scene objects: the toroidal Mobius
-and `We found you.` Activating the text dives through the surface and reveals a
-directory made from the same 3D text geometry and normal material. There is no
-conventional landing-page shell over the experience.
+First load intentionally exposes only the live toroidal Mobius and
+`We found you.` Activating the text raycasts a visible point on the loop, moves
+the orthographic camera to that point, and zooms until the rendered surface
+fills the viewport. The final frame is sampled for its character and quantized
+normal-material hue. Those values become the fixed ASCII matte and color theme
+behind the company site.
 
-## Interaction model
+## Experience states
+
+1. **Signal** - interactive Mobius plus `We found you.` and nothing else.
+2. **Dive** - the loop stops rotating and the camera enters a real visible
+   surface intersection.
+3. **Surface site** - a scrollable corporate site appears over the sampled
+   character and chroma, with product, company, contact, legal, and support
+   destinations.
+4. **Return** - the wordmark or Escape restores the original camera, loop,
+   controls, and first-load isolation.
+
+## Intro controls
 
 - Drag or one-finger move: orbit the scene.
 - Wheel or pinch: zoom.
 - Click or tap empty space, or press Space: pause/resume motion.
 - Double-click or double-tap: reset the camera.
 - `[` / `-` and `]` / `=`: decrease/increase rotation speed.
-- Tab and Shift+Tab: move through active scene links.
-- Enter: activate the selected link or enter from the opening scene.
-- Escape: company relief -> directory -> opening scene.
+- Enter: enter the surface.
 
-Visible links are real `TextGeometry` meshes selected by Three.js raycasting.
-The off-screen semantic directory preserves the company copy and destinations
-for assistive technology. The custom ASCII renderer quantizes surface color to
-CSS classes, avoiding the inline styles emitted by Three's stock color effect.
+The sampled theme uses fixed CSS classes rather than inline styles, preserving
+the production Content Security Policy. The matte is a real DOM character
+field, while the corporate site uses ordinary semantic HTML and links.
 
 ## Public routes
 
-- `/` - interactive company portal and product directory
+- `/` - interactive entrance and sampled corporate surface
 - `/privacy.html` - corporate website privacy policy
 - `/terms.html` - corporate website terms
 - `/contact.html` - company and Rezonance support contacts
@@ -47,10 +57,11 @@ BASE_URL=http://127.0.0.1:8126 npm run interaction
 npm audit
 ```
 
-`npm run interaction` launches system Chrome headlessly at 1440x900 and
-390x844. It checks first-load isolation, chromatic ASCII output, pause/speed,
-zoom/reset, mouse and touch raycasting, the dive, company relief, return path,
-and console errors. Screenshots are written to ignored `output/playwright/`.
+`npm run interaction` launches system Chrome at 1440x900 and 390x844. It
+checks first-load isolation, chromatic ASCII output, intro controls, live
+surface zoom, sampled character and theme persistence, complete corporate
+information architecture, scrolling, section navigation, return, and console
+errors. Screenshots are written to ignored `output/playwright/`.
 
 ## A6 deployment
 

@@ -6,16 +6,24 @@ import { CspAsciiEffect } from './CspAsciiEffect.js';
 
 const stage = document.querySelector('#ascii-stage');
 const sceneHost = document.querySelector('#ascii-scene');
+const matte = document.querySelector('#ascii-matte');
+const surfaceSite = document.querySelector('#surface-site');
+const surfaceReadout = document.querySelector('#surface-sample-readout');
+const returnSignal = document.querySelector('#return-signal');
 const status = document.querySelector('#scene-status');
 
-if (!stage || !sceneHost || !status) throw new Error('Portal shell is incomplete.');
+if (!stage || !sceneHost || !matte || !surfaceSite || !surfaceReadout || !returnSignal || !status) {
+  throw new Error('Portal shell is incomplete.');
+}
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 
 const frustumSize = 10;
+const initialCameraPosition = new THREE.Vector3(0, 0.35, 20);
+const initialTarget = new THREE.Vector3(0, 0, 0);
 const camera = new THREE.OrthographicCamera(-5, 5, 5, -5, 0.1, 1000);
-camera.position.set(0, 0.35, 20);
+camera.position.copy(initialCameraPosition);
 camera.zoom = 1.25;
 
 const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false });
@@ -35,8 +43,8 @@ controls.dampingFactor = 0.055;
 controls.enablePan = true;
 controls.screenSpacePanning = true;
 controls.minZoom = 0.65;
-controls.maxZoom = 7;
-controls.target.set(0, 0, 0);
+controls.maxZoom = 20;
+controls.target.copy(initialTarget);
 
 const normalMaterial = new THREE.MeshNormalMaterial({
   side: THREE.DoubleSide,
@@ -86,36 +94,32 @@ function createToroidalMobius() {
 }
 
 const mobius = createToroidalMobius();
-mobius.rotation.set(-0.38, 0.18, -0.2);
+const initialMobiusRotation = new THREE.Euler(-0.38, 0.18, -0.2);
+mobius.rotation.copy(initialMobiusRotation);
 scene.add(mobius);
 
 const introGroup = new THREE.Group();
-const directoryGroup = new THREE.Group();
-const companyGroup = new THREE.Group();
-directoryGroup.visible = false;
-companyGroup.visible = false;
-scene.add(introGroup, directoryGroup, companyGroup);
+scene.add(introGroup);
 
-const interactiveMeshes = [];
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
 let font;
 let introMesh;
 let mode = 'intro';
 let paused = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let pausedBeforeDive = paused;
 let rotationSpeed = 0.006;
 let transition = null;
 let hoveredMesh = null;
-let keyboardIndex = -1;
 let pointerStart = null;
 let lastTouchTap = 0;
 let pendingTouchPause = 0;
+let matteSample = null;
+let returnTimer = 0;
 
-const directoryItems = [
-  { text: 'rezonance', action: 'https://rezonance.carboncaste.io' },
-  { text: 'company', action: 'company' },
-  { text: 'support', action: 'https://rezonance.carboncaste.io/support.html' },
-  { text: 'privacy', action: 'privacy.html' },
-  { text: 'terms', action: 'terms.html' },
-  { text: 'contact', action: 'contact.html' },
+const themeClasses = [
+  'surface-theme-ac-g',
+  ...Array.from({ length: 12 }, (_, index) => `surface-theme-ac-${index}`),
 ];
 
 function makeText(text, size, action = null) {
@@ -133,7 +137,6 @@ function makeText(text, size, action = null) {
   const mesh = new THREE.Mesh(geometry, normalMaterial);
   mesh.userData.action = action;
   mesh.userData.baseScale = 1;
-  if (action) interactiveMeshes.push(mesh);
   return mesh;
 }
 
@@ -148,36 +151,8 @@ function buildTextWorld() {
   introMesh.position.y = 3;
   introMesh.position.z = 2.8;
   introGroup.add(introMesh);
-
-  directoryItems.forEach((item, index) => {
-    const mesh = makeText(item.text, 0.7, item.action);
-    mesh.position.set(-7.2, 3.2 - index * 1.28, 3.2);
-    directoryGroup.add(mesh);
-  });
-
-  const companyLines = [
-    { text: 'carbon caste inc.', size: 0.66 },
-    { text: 'same substrate.', size: 0.5 },
-    { text: 'shared value.', size: 0.5 },
-    { text: 'tools for attention / agency', size: 0.34 },
-    { text: 'guelph / ontario / canada', size: 0.34 },
-    { text: '< directory', size: 0.42, action: 'directory' },
-  ];
-  companyLines.forEach((item, index) => {
-    const mesh = makeText(item.text, item.size, item.action || null);
-    mesh.position.set(-7.2, 3.2 - index * 1.2, 3.2);
-    companyGroup.add(mesh);
-  });
-
   applyResponsiveLayout();
   document.documentElement.classList.add('ascii-ready');
-}
-
-function activeLinks() {
-  if (mode === 'intro') return introMesh ? [introMesh] : [];
-  if (mode === 'company') return interactiveMeshes.filter((mesh) => mesh.userData.action === 'directory');
-  if (mode === 'directory') return interactiveMeshes.filter((mesh) => directoryItems.some((item) => item.action === mesh.userData.action));
-  return [];
 }
 
 function setHovered(mesh) {
@@ -188,95 +163,129 @@ function setHovered(mesh) {
   document.body.classList.toggle('is-link', Boolean(mesh));
 }
 
-function activate(action) {
-  if (!action || transition) return;
-  if (action === 'enter') {
-    startTransition('enter');
-    return;
-  }
-  if (action === 'company') {
-    directoryGroup.visible = false;
-    companyGroup.visible = true;
-    mode = 'company';
-    keyboardIndex = -1;
-    setHovered(null);
-    status.textContent = 'Carbon Caste Inc. Same substrate. Shared value. Press Escape to return to the directory.';
-    return;
-  }
-  if (action === 'directory') {
-    companyGroup.visible = false;
-    directoryGroup.visible = true;
-    mode = 'directory';
-    keyboardIndex = -1;
-    setHovered(null);
-    status.textContent = 'Carbon Caste directory. Use Tab and Enter to choose a link. Press Escape to return to the Mobius.';
-    return;
-  }
-  window.location.assign(action);
-}
-
 function ease(value) {
   return value < 0.5 ? 4 * value ** 3 : 1 - ((-2 * value + 2) ** 3) / 2;
 }
 
-function startTransition(kind) {
+function pickDiveTarget() {
+  mobius.updateMatrixWorld(true);
+  const candidates = [];
+  for (let radius = 0.1; radius <= 0.75; radius += 0.08) {
+    for (let step = 0; step < 16; step += 1) {
+      const angle = (step / 16) * Math.PI * 2;
+      candidates.push(new THREE.Vector2(Math.cos(angle) * radius, Math.sin(angle) * radius - 0.08));
+    }
+  }
+
+  for (const candidate of candidates) {
+    raycaster.setFromCamera(candidate, camera);
+    const hit = raycaster.intersectObject(mobius, false)[0];
+    if (hit) return hit.point.clone();
+  }
+
+  return new THREE.Vector3(1.8, -0.25, 0);
+}
+
+function startDive() {
+  if (mode !== 'intro' || transition) return;
+  pausedBeforeDive = paused;
+  paused = true;
+  const diveTarget = pickDiveTarget();
   transition = {
-    kind,
     startedAt: performance.now(),
+    duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 700 : 1900,
+    startCamera: camera.position.clone(),
+    startTarget: controls.target.clone(),
     startZoom: camera.zoom,
-    startScale: mobius.scale.x,
+    diveTarget,
   };
   mode = 'transition';
   controls.enabled = false;
   setHovered(null);
-  status.textContent = kind === 'enter' ? 'Entering the Carbon Caste surface.' : 'Returning to the Mobius.';
-}
-
-function finishTransition(kind) {
-  transition = null;
-  controls.enabled = true;
-  controls.target.set(0, 0, 0);
-  camera.position.set(0, 0.35, 20);
-  if (kind === 'enter') {
-    mode = 'directory';
-    status.textContent = 'Carbon Caste directory. Use Tab and Enter to choose a link. Press Escape to return to the Mobius.';
-  } else {
-    mode = 'intro';
-    status.textContent = 'We found you. Press Enter to enter Carbon Caste.';
-  }
-  applyResponsiveLayout();
-  controls.update();
+  document.body.classList.add('is-transitioning');
+  status.textContent = 'Entering the Carbon Caste surface.';
 }
 
 function updateTransition(now) {
-  if (!transition) return;
-  const duration = 1800;
-  const raw = Math.min(1, (now - transition.startedAt) / duration);
+  if (!transition) return false;
+  const raw = Math.min(1, (now - transition.startedAt) / transition.duration);
   const progress = ease(raw);
-  const entering = transition.kind === 'enter';
-  const switchPoint = 0.52;
-
-  if (raw < switchPoint) {
-    const local = ease(raw / switchPoint);
-    camera.zoom = THREE.MathUtils.lerp(transition.startZoom, 6.4, local);
-    mobius.scale.setScalar(THREE.MathUtils.lerp(transition.startScale, 2.65, local));
-  } else {
-    if (entering) {
-      introGroup.visible = false;
-      directoryGroup.visible = true;
-    } else {
-      directoryGroup.visible = false;
-      companyGroup.visible = false;
-      introGroup.visible = true;
-    }
-    const local = ease((raw - switchPoint) / (1 - switchPoint));
-    const destinationZoom = 1.25;
-    const destinationScale = entering ? surfaceScale() : introScale();
-    camera.zoom = THREE.MathUtils.lerp(6.4, destinationZoom, local);
-    mobius.scale.setScalar(THREE.MathUtils.lerp(2.65, destinationScale, local));
-  }
+  const cameraDestination = new THREE.Vector3(
+    transition.diveTarget.x,
+    transition.diveTarget.y + 0.35,
+    20,
+  );
+  camera.position.lerpVectors(transition.startCamera, cameraDestination, progress);
+  controls.target.lerpVectors(transition.startTarget, transition.diveTarget, progress);
+  camera.zoom = THREE.MathUtils.lerp(transition.startZoom, isMobile() ? 18 : 15, progress);
   camera.updateProjectionMatrix();
-  if (raw >= 1) finishTransition(transition.kind);
+  return raw >= 1;
+}
+
+function buildMatte(character) {
+  const glyph = character && character !== ' ' ? character : '.';
+  const columns = Math.max(280, Math.ceil((window.innerWidth + 72) / 4));
+  const rows = Math.max(180, Math.ceil((window.innerHeight + 72) / 7));
+  const line = glyph.repeat(columns);
+  return Array.from({ length: rows }, () => line).join('\n');
+}
+
+function applySurfaceTheme(sample) {
+  const safeClass = sample.className === 'ac-g' || /^ac-(?:[0-9]|1[01])$/.test(sample.className)
+    ? sample.className
+    : 'ac-6';
+  document.body.classList.remove(...themeClasses);
+  document.body.classList.add(`surface-theme-${safeClass}`);
+  matte.textContent = buildMatte(sample.character);
+  surfaceReadout.textContent = `${sample.character} / ${safeClass.toUpperCase()}`;
+}
+
+function finishDive() {
+  matteSample = effect.sampleAt(0.5, 0.5);
+  applySurfaceTheme(matteSample);
+  matte.hidden = false;
+  surfaceSite.hidden = false;
+  surfaceSite.setAttribute('aria-hidden', 'false');
+  stage.setAttribute('aria-hidden', 'true');
+  transition = null;
+  mode = 'site';
+  document.body.classList.remove('is-transitioning');
+  window.scrollTo(0, 0);
+  requestAnimationFrame(() => document.body.classList.add('is-surface-site'));
+  status.textContent = `Surface sampled at ${matteSample.character}, ${matteSample.className}. Corporate site ready.`;
+}
+
+function restoreIntro() {
+  if (mode !== 'site') return;
+  window.clearTimeout(returnTimer);
+  document.body.classList.remove('is-surface-site');
+  surfaceSite.setAttribute('aria-hidden', 'true');
+  status.textContent = 'Returning to the Mobius.';
+  mode = 'returning';
+  returnTimer = window.setTimeout(() => {
+    surfaceSite.hidden = true;
+    matte.hidden = true;
+    matte.textContent = '';
+    stage.setAttribute('aria-hidden', 'false');
+    document.body.classList.remove(...themeClasses);
+    camera.position.copy(initialCameraPosition);
+    camera.zoom = 1.25;
+    controls.target.copy(initialTarget);
+    controls.enabled = true;
+    mobius.rotation.copy(initialMobiusRotation);
+    paused = pausedBeforeDive;
+    matteSample = null;
+    mode = 'intro';
+    applyResponsiveLayout();
+    camera.updateProjectionMatrix();
+    controls.update();
+    window.scrollTo(0, 0);
+    status.textContent = 'We found you. Press Enter to enter Carbon Caste.';
+  }, 460);
+}
+
+function activate(action) {
+  if (action === 'enter') startDive();
 }
 
 function isMobile() {
@@ -287,27 +296,13 @@ function introScale() {
   return isMobile() ? 0.68 : 1;
 }
 
-function surfaceScale() {
-  return isMobile() ? 1.55 : 2.15;
-}
-
 function applyResponsiveLayout() {
-  if (!font) return;
+  if (!font || mode === 'transition') return;
   const mobile = isMobile();
   introGroup.scale.setScalar(mobile ? 0.44 : 1);
   introGroup.position.y = mobile ? 0.55 : 0;
-  directoryGroup.scale.setScalar(mobile ? 0.52 : 1);
-  directoryGroup.position.set(mobile ? 1.72 : 0, mobile ? -0.05 : 0, 0);
-  companyGroup.scale.setScalar(mobile ? 0.48 : 1);
-  companyGroup.position.set(mobile ? 1.72 : 0, mobile ? -0.05 : 0, 0);
-
-  if (mode === 'intro') {
-    mobius.scale.setScalar(introScale());
-    mobius.position.set(0, mobile ? -0.55 : -0.25, 0);
-  } else if (mode !== 'transition') {
-    mobius.scale.setScalar(surfaceScale());
-    mobius.position.set(mobile ? 0 : 1.8, 0, 0);
-  }
+  mobius.scale.setScalar(introScale());
+  mobius.position.set(0, mobile ? -0.55 : -0.25, 0);
 }
 
 function resize() {
@@ -320,43 +315,44 @@ function resize() {
   camera.bottom = -frustumSize / 2;
   camera.updateProjectionMatrix();
   effect.setSize(width * 2, height * 2);
+  if (mode === 'site' && matteSample) matte.textContent = buildMatte(matteSample.character);
   applyResponsiveLayout();
 }
 
-const raycaster = new THREE.Raycaster();
-const pointer = new THREE.Vector2();
-
 function hitTest(event) {
+  if (mode !== 'intro' || !introMesh) return null;
   const rect = effect.domElement.getBoundingClientRect();
   pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
   pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(pointer, camera);
-  return raycaster.intersectObjects(activeLinks(), false)[0]?.object || null;
+  return raycaster.intersectObject(introMesh, false)[0]?.object || null;
 }
 
 function resetView() {
-  camera.position.set(0, 0.35, 20);
+  if (mode !== 'intro') return;
+  camera.position.copy(initialCameraPosition);
   camera.zoom = 1.25;
-  controls.target.set(0, 0, 0);
+  controls.target.copy(initialTarget);
   camera.updateProjectionMatrix();
   controls.update();
   status.textContent = 'View reset.';
 }
 
 effect.domElement.addEventListener('pointerdown', (event) => {
+  if (mode !== 'intro') return;
   pointerStart = { x: event.clientX, y: event.clientY, time: performance.now() };
   document.body.classList.add('is-dragging');
 });
 
 effect.domElement.addEventListener('pointermove', (event) => {
-  if (event.pointerType === 'mouse' && !transition) setHovered(hitTest(event));
+  if (event.pointerType === 'mouse' && mode === 'intro') setHovered(hitTest(event));
 });
 
 effect.domElement.addEventListener('pointerleave', () => setHovered(null));
 
 effect.domElement.addEventListener('pointerup', (event) => {
   document.body.classList.remove('is-dragging');
-  if (!pointerStart || transition) return;
+  if (!pointerStart || mode !== 'intro') return;
   const distance = Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y);
   const elapsed = performance.now() - pointerStart.time;
   pointerStart = null;
@@ -387,7 +383,15 @@ effect.domElement.addEventListener('dblclick', (event) => {
   resetView();
 });
 
+returnSignal.addEventListener('click', restoreIntro);
+
 window.addEventListener('keydown', (event) => {
+  if (mode === 'site' && event.key === 'Escape') {
+    restoreIntro();
+    return;
+  }
+  if (mode !== 'intro') return;
+
   if (event.code === 'Space') {
     event.preventDefault();
     paused = !paused;
@@ -398,20 +402,8 @@ window.addEventListener('keydown', (event) => {
   } else if (event.key === ']' || event.key === '=') {
     rotationSpeed = Math.min(0.03, rotationSpeed + 0.0015);
     status.textContent = `Motion speed ${rotationSpeed.toFixed(4)}.`;
-  } else if (event.key === 'Escape') {
-    if (mode === 'company') activate('directory');
-    else if (mode === 'directory') startTransition('exit');
-  } else if (event.key === 'Tab') {
-    const links = activeLinks();
-    if (!links.length) return;
-    event.preventDefault();
-    keyboardIndex = (keyboardIndex + (event.shiftKey ? -1 : 1) + links.length) % links.length;
-    setHovered(links[keyboardIndex]);
-    status.textContent = `Selected ${links[keyboardIndex].userData.action}. Press Enter to activate.`;
   } else if (event.key === 'Enter') {
-    const links = activeLinks();
-    const selected = links[keyboardIndex] || (mode === 'intro' ? introMesh : null);
-    if (selected) activate(selected.userData.action);
+    startDive();
   }
 });
 
@@ -426,19 +418,22 @@ loader.load(
   },
   undefined,
   () => {
-    status.textContent = 'The text signal could not be decoded. Company links remain available to assistive technology.';
+    status.textContent = 'The text signal could not be decoded. Company links remain available without animation.';
   },
 );
 
 function animate(now) {
   requestAnimationFrame(animate);
-  updateTransition(now);
-  if (!paused) {
+  if (mode === 'site' || mode === 'returning') return;
+
+  const diveComplete = updateTransition(now);
+  if (!paused && mode === 'intro') {
     mobius.rotation.x -= rotationSpeed;
     mobius.rotation.y += rotationSpeed * 0.24;
   }
   controls.update();
   effect.render(scene, camera);
+  if (diveComplete) finishDive();
 }
 
 window.__carbonPortal = {
@@ -449,19 +444,25 @@ window.__carbonPortal = {
       rotationSpeed,
       zoom: camera.zoom,
       mobiusRotation: [mobius.rotation.x, mobius.rotation.y, mobius.rotation.z],
-      activeActions: activeLinks().map((mesh) => mesh.userData.action),
+      activeActions: mode === 'intro' && introMesh ? ['enter'] : [],
+      matte: matteSample ? {
+        character: matteSample.character,
+        className: matteSample.className,
+        brightness: matteSample.brightness,
+      } : null,
     };
   },
   targets() {
-    return Object.fromEntries(activeLinks().map((mesh) => {
-      mesh.geometry.computeBoundingBox();
-      const center = mesh.geometry.boundingBox.getCenter(new THREE.Vector3());
-      center.applyMatrix4(mesh.matrixWorld).project(camera);
-      return [mesh.userData.action, {
+    if (mode !== 'intro' || !introMesh) return {};
+    introMesh.geometry.computeBoundingBox();
+    const center = introMesh.geometry.boundingBox.getCenter(new THREE.Vector3());
+    center.applyMatrix4(introMesh.matrixWorld).project(camera);
+    return {
+      enter: {
         x: ((center.x + 1) / 2) * window.innerWidth,
         y: ((1 - center.y) / 2) * window.innerHeight,
-      }];
-    }));
+      },
+    };
   },
 };
 
