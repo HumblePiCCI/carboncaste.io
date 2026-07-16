@@ -34,13 +34,15 @@ for (const value of [
   'https://rezonance.carboncaste.io',
   'id="ascii-stage"',
   'id="ascii-scene"',
+  'id="portal-enter"',
+  'class="portal-enter-label"',
   'id="surface-site"',
   'id="return-signal"',
   'id="work"',
   'id="company"',
   'id="contact"',
-  'styles.css?v=continuity-20260715',
-  'dist/portal.js?v=flight-20260715',
+  'styles.css?v=signal-lock-20260716',
+  'dist/portal.js?v=axis-lock-20260716',
   'privacy.html',
   'terms.html',
   'contact.html',
@@ -73,22 +75,28 @@ for (const value of ['this.sampleAt', 'class="${nextClass}"', 'colorClass(red, g
 const portal = await readFile('src/portal.js', 'utf8');
 for (const value of [
   'OrbitControls',
+  'FontLoader',
   'TextGeometry',
   'createToroidalMobius',
   'const majorAxis = 1',
   'const minorAxis = 0.125',
   'const pathRadius = 2',
-  "makeText('We found you.'",
+  "document.querySelector('#portal-enter')",
+  "new TextGeometry('We found you.'",
+  'height: 0.03',
+  'const signalStartQuaternion',
+  'introMesh.visible = false',
+  "textMode: signalTransition ? 'ascii-3d-aligning' : 'viewport-fixed'",
+  'const mobiusAxisLocal = new THREE.Vector3(1, 0, 0)',
+  'mobiusAxisFrame.rotation.z = Math.PI / 2',
+  'mobiusSpinPivot.rotation.x = rotationPhase',
+  "portalEnter.addEventListener('click', startDive)",
+  'startSignalAlignment',
+  'revealFixedSignal',
   'pickDiveTarget',
   'effect.sampleAt(0.5, 0.5)',
   'applySurfaceTheme',
-  'const initialMobiusRotation = new THREE.Euler(0, 0, 0)',
-  'mobius.rotation.y = initialMobiusRotation.y + rotationPhase',
   '(baseViewHeight / mobiusBaseHeight) * 1.1',
-  "makeText('We found you.', 0.24",
-  'depth: 0.012',
-  'bevelEnabled: false',
-  'introMesh.position.z = 0',
   'side: THREE.DoubleSide',
   'THREE.CubicBezierCurve3',
   'camera.quaternion.slerpQuaternions',
@@ -103,14 +111,21 @@ for (const value of [
   if (!portal.includes(value)) failures.push(`src/portal.js is missing interaction contract ${value}`);
 }
 
-if (/mobius\.rotation\.(?:x|z)\s*=/.test(portal)) {
-  failures.push('The Mobius animation must rotate only around its vertical Y axis');
+if (portal.includes('makeText(') || !portal.includes('signalHandoffCount')) {
+  failures.push('We found you must hand off from transient ASCII 3D geometry to the fixed viewport control');
+}
+
+if (/mobiusSpinPivot\.rotation\.(?:y|z)\s*=/.test(portal)) {
+  failures.push('The Mobius animation must rotate only around the authored local-X ellipse centerline');
 }
 
 const styles = await readFile('styles.css', 'utf8');
 for (const value of [
   '#ascii-stage',
   '#ascii table',
+  '.portal-enter',
+  '.portal-enter-label',
+  '.is-signal-ready .portal-enter',
   '.is-surface-site #ascii-stage',
   '.surface-theme-ac-0',
   '.is-surface-site',
@@ -121,6 +136,10 @@ for (const value of [
   '.legal-aside::before',
 ]) {
   if (!styles.includes(value)) failures.push(`styles.css is missing ${value}`);
+}
+
+if (/translateZ|rotateX|rotateY|perspective\s*:/.test(styles)) {
+  failures.push('The viewport-locked text must not use CSS depth or 3D transforms');
 }
 
 if (portal.includes('buildMatte') || styles.includes('#ascii-matte')) {

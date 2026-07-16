@@ -5,7 +5,11 @@ original ASCII Mobius experiment, the later `mobcon` direct-manipulation model,
 and a complete corporate information surface.
 
 First load intentionally exposes only the centered twisted elliptical torus
-and `We found you.` Activating the text raycasts a visible point on the form, moves
+and `We found you.` The phrase begins as modest-depth geometry inside the ASCII
+renderer, eases from an askew pose into camera-square alignment, then hands off
+in place to a fixed viewport control. The 3D mesh is removed before camera
+control unlocks, so it can never become a side-on band. Activating the fixed text
+raycasts a visible point on the form, moves
 the orthographic camera along a curved flight path into that surface, and
 smoothly aligns the view with its normal. The final ASCII renderer frame is not
 replaced or redrawn: it stops in place and remains fixed behind the company
@@ -15,8 +19,11 @@ any of the visible characters.
 ## Experience states
 
 1. **Signal** - interactive twisted elliptical torus plus `We found you.` and
-   nothing else. The form is 110% of viewport height and spins only around its centered,
-   vertical Y axis. The phrase is a shallow block form centered in its hole.
+   nothing else. The authored local-X line through the first ellipse, shared
+   offset origin, and perpendicular opposite ellipse is mapped to vertical
+   world Y. A dedicated pivot spins only around that line. After its dimensional
+   arrival, the phrase remains centered in the viewport while the torus moves
+   around it.
 2. **Dive** - the loop stops rotating and the camera follows a cubic path from
    its current position, orientation, pan, and zoom into a real visible surface
    intersection.
@@ -63,8 +70,8 @@ npm audit
 ```
 
 `npm run interaction` launches system Chrome at 1440x900 and 390x844. It
-checks first-load isolation, 110% centered geometry, vertical-axis-only motion,
-centered shallow text, chromatic ASCII output, intro controls, gradual curved
+checks first-load isolation, 110% centered geometry, authored-axis-only motion,
+ASCII-3D-to-fixed text handoff, chromatic ASCII output, intro controls, gradual curved
 surface flight, exact frozen-frame continuity, sampled theme persistence,
 complete corporate information architecture, scrolling, section navigation,
 return, and console errors. Screenshots are written to ignored

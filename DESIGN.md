@@ -11,8 +11,11 @@ without a visual substitution between them.
 ## Sequence
 
 1. **Signal** - a chromatic ASCII twisted elliptical torus centered at 110% of
-   viewport height and `We found you.` centered in its void. The form rotates only around the
-   world-Y diameter that crosses opposite half-twist regions. No header,
+   viewport height and `We found you.` centered in its void. The phrase begins
+   as ASCII-rendered 3D geometry, eases from an askew pose into front alignment,
+   then hands off in place to a fixed viewport plane. The form rotates only
+   around the authored line joining the first ellipse, shared offset origin,
+   and perpendicular opposite ellipse. No header,
    footer, instruction panel, or corporate copy is visible.
 2. **Dive** - activating the phrase raycasts the deepest visible loop region,
    freezes its orientation, and flies the camera along a cubic path from its
@@ -55,10 +58,16 @@ the spectrum rail and secondary accents without using gradients.
   attributes or `.style` mutations.
 - The intro Mobius diameter must be 110% of viewport height and its world
   position must remain centered.
-- Default motion may change only `mobius.rotation.y`; X and Z define the
-  straight vertical spin axis and must remain fixed.
-- `We found you.` must be centered in the loop, use shallow unbevelled block
-  geometry, and remain visually separate from the strip.
+- Keep the authored first-to-opposite ellipse line as mesh-local X, map it to
+  world Y with a fixed parent frame, and change only the child pivot's local-X
+  rotation during default motion. Never rewrite or rotate the mesh vertices.
+- `We found you.` must begin as modest-depth WebGL text in the ASCII renderer,
+  settle from an askew pose into front alignment, and then hand off in place to
+  a fixed semantic HTML control. Hide the 3D mesh before unlocking camera
+  controls; the settled control must never use perspective, Z translation, or
+  camera-coupled motion.
+- In the pinned Three.js `0.162.0`, use `height` for `TextGeometry` extrusion.
+  `depth` is ignored and falls back to a 50-unit slab.
 - Entry must derive from the current camera state, follow a curved path, align
   with the chosen surface normal, and ease position, orientation, and zoom to
   rest without a discontinuity.

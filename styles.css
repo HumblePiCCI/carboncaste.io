@@ -76,7 +76,6 @@ a:focus-visible {
 }
 
 .is-dragging #ascii-stage { cursor: grabbing; }
-.is-link #ascii-stage { cursor: pointer; }
 .is-surface-site #ascii-stage {
   z-index: 0;
   cursor: default;
@@ -107,6 +106,53 @@ a:focus-visible {
 }
 
 .ascii-ready #ascii-scene { opacity: 1; }
+
+.portal-enter {
+  position: fixed;
+  z-index: 7;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: min(220px, 72vw);
+  height: 56px;
+  margin: 0;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--paper);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  transition: color 180ms linear;
+}
+
+.portal-enter-label {
+  display: block;
+  font-size: clamp(12px, 1.15vw, 17px);
+  font-weight: 800;
+  line-height: 1;
+  text-shadow: 0 1px 8px #000, 0 0 2px #000;
+  white-space: nowrap;
+  opacity: 1;
+  transform: none;
+}
+
+.is-signal-ready .portal-enter {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.portal-enter:hover,
+.portal-enter:focus-visible { color: var(--accent); }
+
+.is-transitioning .portal-enter,
+.is-surface-site .portal-enter,
+.portal-enter[aria-hidden="true"] {
+  opacity: 0;
+  pointer-events: none;
+}
 
 #ascii {
   position: absolute;

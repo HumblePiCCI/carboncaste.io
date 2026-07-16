@@ -32,6 +32,7 @@ async function run(viewport, label) {
   await page.goto(baseUrl, { waitUntil: 'networkidle' });
   await expect(page, () => document.documentElement.classList.contains('ascii-ready'), `${label}: ASCII scene did not become ready`);
   await expect(page, () => window.__carbonPortal?.snapshot().mode === 'intro', `${label}: portal did not begin in intro mode`);
+  await expect(page, () => window.__carbonPortal?.snapshot().signalSettled, `${label}: viewport signal did not settle into alignment`, 3000);
 
   const introVisual = await page.evaluate(() => {
     const spans = [...document.querySelectorAll('#ascii span')];
@@ -65,11 +66,33 @@ async function run(viewport, label) {
   const layout = await page.evaluate(() => ({
     portal: window.__carbonPortal.snapshot(),
     enter: window.__carbonPortal.targets().enter,
+    signal: (() => {
+      const button = document.querySelector('#portal-enter');
+      const label = button.querySelector('.portal-enter-label');
+      const buttonStyle = getComputedStyle(button);
+      const labelStyle = getComputedStyle(label);
+      return {
+        position: buttonStyle.position,
+        perspective: buttonStyle.perspective,
+        labelTransform: labelStyle.transform,
+        depthTransforms: /matrix3d|translateZ|rotate[XY]/.test(labelStyle.transform),
+      };
+    })(),
   }));
   const expectedScale = ((10 / 1.25) / layout.portal.mobiusBaseHeight) * 1.1;
   if (Math.abs(layout.portal.mobiusScale - expectedScale) > 0.02) failures.push(`${label}: Mobius is not scaled to 110% of viewport height`);
   if (layout.portal.mobiusPosition.some((value) => Math.abs(value) > 0.001)) failures.push(`${label}: Mobius is not centered at the world origin`);
   if (Math.abs(layout.enter.x - viewport.width / 2) > viewport.width * 0.035 || Math.abs(layout.enter.y - viewport.height / 2) > viewport.height * 0.035) failures.push(`${label}: We found you is not centered inside the loop`);
+  if (layout.signal.position !== 'fixed' || layout.signal.perspective !== 'none') failures.push(`${label}: We found you is not locked to the viewport plane`);
+  if (layout.signal.depthTransforms || layout.signal.labelTransform.startsWith('matrix3d')) failures.push(`${label}: We found you retains a 3D transform`);
+  if (!layout.portal.signalStartedInScene || layout.portal.signalHandoffCount < 1) failures.push(`${label}: We found you did not begin as ASCII 3D geometry`);
+  if (layout.portal.signalGeometryDepth === null || layout.portal.signalGeometryDepth > 0.031) failures.push(`${label}: transient text extrusion is too deep (${layout.portal.signalGeometryDepth})`);
+  if (layout.portal.signalMeshVisible) failures.push(`${label}: settled 3D text remained in the scene and can still become a side-on band`);
+  if (layout.portal.textMode !== 'viewport-fixed') failures.push(`${label}: text is still coupled to the WebGL scene`);
+  if (layout.portal.spinAxisLocal.some((value, index) => Math.abs(value - [1, 0, 0][index]) > 0.001)) failures.push(`${label}: authored first-to-fourth ellipse axis is not local X`);
+  if (layout.portal.spinAxisWorld.some((value, index) => Math.abs(value - [0, 1, 0][index]) > 0.001)) failures.push(`${label}: authored ellipse axis is not aligned to vertical world Y`);
+  if (Math.abs(layout.portal.axisFrameRotation[2] - Math.PI / 2) > 0.001) failures.push(`${label}: ellipse axis frame does not preserve the authored quarter-turn alignment`);
+  if (layout.portal.mobiusGeometryRotation.some((value) => Math.abs(value) > 0.001)) failures.push(`${label}: torus geometry was rotated instead of its authored centerline pivot`);
   const rotationBeforeCoverage = layout.portal.mobiusRotation;
 
   for (let sampleIndex = 0; sampleIndex < 3; sampleIndex += 1) {
@@ -93,8 +116,10 @@ async function run(viewport, label) {
   }
 
   const rotationAfterCoverage = await page.evaluate(() => window.__carbonPortal.snapshot().mobiusRotation);
-  if (Math.abs(rotationAfterCoverage[0] - rotationBeforeCoverage[0]) > 0.001 || Math.abs(rotationAfterCoverage[2] - rotationBeforeCoverage[2]) > 0.001) failures.push(`${label}: Mobius rotated away from its vertical Y axis`);
-  if (Math.abs(rotationAfterCoverage[1] - rotationBeforeCoverage[1]) < 0.05) failures.push(`${label}: Mobius did not spin around its vertical Y axis`);
+  if (Math.abs(rotationAfterCoverage[1] - rotationBeforeCoverage[1]) > 0.001 || Math.abs(rotationAfterCoverage[2] - rotationBeforeCoverage[2]) > 0.001) failures.push(`${label}: Mobius rotated away from its authored ellipse-center axis`);
+  if (Math.abs(rotationAfterCoverage[0] - rotationBeforeCoverage[0]) < 0.05) failures.push(`${label}: Mobius did not spin around the first-to-fourth ellipse centerline`);
+  const enterAfterRotation = await page.evaluate(() => window.__carbonPortal.targets().enter);
+  if (Math.abs(enterAfterRotation.x - layout.enter.x) > 0.5 || Math.abs(enterAfterRotation.y - layout.enter.y) > 0.5) failures.push(`${label}: rotating the loop moved the viewport-locked text`);
 
   const beforePause = await page.evaluate(() => window.__carbonPortal.snapshot());
   await page.keyboard.press('Space');
@@ -108,8 +133,13 @@ async function run(viewport, label) {
 
   await page.mouse.wheel(0, -500);
   await page.waitForTimeout(180);
-  const zoomed = await page.evaluate(() => window.__carbonPortal.snapshot().zoom);
+  const zoomResult = await page.evaluate(() => ({
+    zoom: window.__carbonPortal.snapshot().zoom,
+    enter: window.__carbonPortal.targets().enter,
+  }));
+  const zoomed = zoomResult.zoom;
   if (zoomed <= beforePause.zoom) failures.push(`${label}: wheel did not zoom the scene`);
+  if (Math.abs(zoomResult.enter.x - layout.enter.x) > 0.5 || Math.abs(zoomResult.enter.y - layout.enter.y) > 0.5) failures.push(`${label}: zooming the loop moved the viewport-locked text`);
   if (label === 'mobile') {
     await page.touchscreen.tap(viewport.width - 30, viewport.height - 30);
     await page.waitForTimeout(90);
@@ -205,6 +235,7 @@ async function run(viewport, label) {
 
   await page.locator('#return-signal').click();
   await expect(page, () => window.__carbonPortal.snapshot().mode === 'intro', `${label}: return-to-signal did not restore intro`, 3000);
+  await expect(page, () => window.__carbonPortal.snapshot().signalSettled, `${label}: returned viewport signal did not settle`, 3000);
   const restored = await page.evaluate(() => ({
     surfaceHidden: document.querySelector('#surface-site').hidden,
     surfaceClass: document.body.classList.contains('is-surface-site'),

@@ -10,8 +10,10 @@ const surfaceSite = document.querySelector('#surface-site');
 const surfaceReadout = document.querySelector('#surface-sample-readout');
 const returnSignal = document.querySelector('#return-signal');
 const status = document.querySelector('#scene-status');
+const portalEnter = document.querySelector('#portal-enter');
+const portalEnterLabel = portalEnter?.querySelector('.portal-enter-label');
 
-if (!stage || !sceneHost || !surfaceSite || !surfaceReadout || !returnSignal || !status) {
+if (!stage || !sceneHost || !surfaceSite || !surfaceReadout || !returnSignal || !status || !portalEnter || !portalEnterLabel) {
   throw new Error('Portal shell is incomplete.');
 }
 
@@ -44,17 +46,17 @@ controls.screenSpacePanning = true;
 controls.minZoom = 0.65;
 controls.maxZoom = 20;
 controls.target.copy(initialTarget);
+controls.enabled = false;
 
 const normalMaterial = new THREE.MeshNormalMaterial({
   side: THREE.DoubleSide,
   flatShading: false,
 });
-
-const textMaterial = new THREE.MeshBasicMaterial({
-  color: 0x303030,
+const signalMaterial = new THREE.MeshBasicMaterial({
+  color: 0xd8dce5,
+  side: THREE.DoubleSide,
   depthTest: false,
   depthWrite: false,
-  side: THREE.DoubleSide,
 });
 
 function createToroidalMobius() {
@@ -101,91 +103,115 @@ function createToroidalMobius() {
 }
 
 const mobius = createToroidalMobius();
-const mobiusBaseHeight = mobius.geometry.boundingBox.max.y - mobius.geometry.boundingBox.min.y;
-const initialMobiusRotation = new THREE.Euler(0, 0, 0);
-mobius.rotation.copy(initialMobiusRotation);
-scene.add(mobius);
+const mobiusAxisLocal = new THREE.Vector3(1, 0, 0);
+const mobiusSpinPivot = new THREE.Group();
+const mobiusAxisFrame = new THREE.Group();
 
-const introGroup = new THREE.Group();
-scene.add(introGroup);
+// The phi=0 and phi=PI ellipse centers lie on local X. Map that authored
+// centerline to world Y, then rotate only around the unchanged local X axis.
+mobiusAxisFrame.rotation.z = Math.PI / 2;
+mobiusSpinPivot.add(mobius);
+mobiusAxisFrame.add(mobiusSpinPivot);
+scene.add(mobiusAxisFrame);
+mobiusAxisFrame.updateMatrixWorld(true);
+const initialMobiusBounds = new THREE.Box3().setFromObject(mobiusAxisFrame);
+const mobiusBaseHeight = initialMobiusBounds.max.y - initialMobiusBounds.min.y;
 
 const raycaster = new THREE.Raycaster();
-const pointer = new THREE.Vector2();
-let font;
-let introMesh;
-let introHitMesh;
 let mode = 'intro';
 let paused = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 let pausedBeforeDive = paused;
 let rotationSpeed = 0.006;
 let rotationPhase = 0;
 let transition = null;
-let hoveredMesh = null;
 let pointerStart = null;
 let lastTouchTap = 0;
 let pendingTouchPause = 0;
 let surfaceSample = null;
 let returnTimer = 0;
+let introMesh = null;
+let signalTransition = null;
+let signalHandoffPending = false;
+let signalStartedInScene = false;
+let signalHandoffCount = 0;
+let signalGeometryDepth = null;
 
 const themeClasses = [
   'surface-theme-ac-g',
   ...Array.from({ length: 12 }, (_, index) => `surface-theme-ac-${index}`),
 ];
 
-function makeText(text, size, action = null) {
-  const geometry = new TextGeometry(text, {
-    font,
-    size,
-    depth: 0.012,
-    curveSegments: 2,
-    bevelEnabled: false,
-  });
-  geometry.center();
-  geometry.computeBoundingBox();
-  const mesh = new THREE.Mesh(geometry, textMaterial);
-  mesh.renderOrder = 10;
-  mesh.userData.action = action;
-  mesh.userData.baseScale = 1;
-  return mesh;
+const signalStartPosition = new THREE.Vector3(-0.22, 0.14, 0.35);
+const signalEndPosition = new THREE.Vector3(0, 0, 0);
+const signalStartQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.18, 0.38, -0.14));
+const signalEndQuaternion = new THREE.Quaternion();
+
+function revealFixedSignal() {
+  if (introMesh) introMesh.visible = false;
+  signalTransition = null;
+  signalHandoffPending = false;
+  signalHandoffCount += 1;
+  controls.enabled = true;
+  portalEnter.disabled = false;
+  portalEnter.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('is-signal-ready', 'is-signal-settled');
 }
 
-function buildTextWorld() {
-  introMesh = makeText('We found you.', 0.24, 'enter');
-  introMesh.position.z = 0;
-  introGroup.add(introMesh);
-  const box = introMesh.geometry.boundingBox;
-  const hitWidth = (box.max.x - box.min.x) * 1.08;
-  const hitHeight = (box.max.y - box.min.y) * 1.5;
-  introHitMesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(hitWidth, hitHeight),
-    new THREE.MeshBasicMaterial({
-      transparent: true,
-      opacity: 0,
-      depthWrite: false,
-      colorWrite: false,
-    }),
-  );
-  introHitMesh.position.z = 0.02;
-  introHitMesh.userData.action = 'enter';
-  introGroup.add(introHitMesh);
-  applyResponsiveLayout();
-  document.documentElement.classList.add('ascii-ready');
+function startSignalAlignment() {
+  document.body.classList.remove('is-signal-ready', 'is-signal-settled');
+  portalEnter.disabled = true;
+  portalEnter.setAttribute('aria-hidden', 'true');
+  controls.enabled = false;
+  if (!introMesh) {
+    revealFixedSignal();
+    return;
+  }
+  introMesh.visible = true;
+  introMesh.position.copy(signalStartPosition);
+  introMesh.quaternion.copy(signalStartQuaternion);
+  introMesh.scale.setScalar(0.92);
+  signalStartedInScene = true;
+  signalHandoffPending = false;
+  signalTransition = {
+    startedAt: performance.now(),
+    duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 1500,
+  };
 }
 
-function setHovered(mesh) {
-  if (hoveredMesh === mesh) return;
-  if (hoveredMesh) hoveredMesh.scale.setScalar(hoveredMesh.userData.baseScale || 1);
-  hoveredMesh = mesh;
-  if (hoveredMesh) hoveredMesh.scale.setScalar((hoveredMesh.userData.baseScale || 1) * 1.08);
-  document.body.classList.toggle('is-link', Boolean(mesh));
+function updateSignalAlignment(now) {
+  if (!signalTransition || !introMesh) return false;
+  const raw = Math.min(1, (now - signalTransition.startedAt) / signalTransition.duration);
+  const progress = ease(raw);
+  introMesh.position.lerpVectors(signalStartPosition, signalEndPosition, progress);
+  introMesh.quaternion.slerpQuaternions(signalStartQuaternion, signalEndQuaternion, progress);
+  introMesh.scale.setScalar(THREE.MathUtils.lerp(0.92, 1, progress));
+  return raw >= 1;
 }
 
 function ease(value) {
   return value ** 3 * (value * (value * 6 - 15) + 10);
 }
 
+function buildSignalMesh(font) {
+  // Three.js 0.162 TextGeometry uses `height`; `depth` is ignored and falls
+  // back to a 50-unit extrusion, which turns this phrase into a side-on slab.
+  const geometry = new TextGeometry('We found you.', {
+    font,
+    size: 0.24,
+    height: 0.03,
+    curveSegments: 4,
+    bevelEnabled: false,
+  });
+  geometry.center();
+  geometry.computeBoundingBox();
+  signalGeometryDepth = geometry.boundingBox.max.z - geometry.boundingBox.min.z;
+  introMesh = new THREE.Mesh(geometry, signalMaterial);
+  introMesh.renderOrder = 10;
+  scene.add(introMesh);
+}
+
 function pickDiveTarget() {
-  mobius.updateMatrixWorld(true);
+  mobiusAxisFrame.updateMatrixWorld(true);
   const normalMatrix = new THREE.Matrix3().getNormalMatrix(mobius.matrixWorld);
   const gridSize = 25;
   const extent = 0.92;
@@ -243,7 +269,7 @@ function pickDiveTarget() {
 }
 
 function startDive() {
-  if (mode !== 'intro' || transition) return;
+  if (mode !== 'intro' || transition || signalTransition || !document.body.classList.contains('is-signal-settled')) return;
   pausedBeforeDive = paused;
   paused = true;
   const dive = pickDiveTarget();
@@ -283,7 +309,8 @@ function startDive() {
   };
   mode = 'transition';
   controls.enabled = false;
-  setHovered(null);
+  portalEnter.disabled = true;
+  portalEnter.setAttribute('aria-hidden', 'true');
   document.body.classList.add('is-transitioning');
   status.textContent = 'Entering the Carbon Caste surface.';
 }
@@ -342,7 +369,7 @@ function restoreIntro() {
     camera.zoom = 1.25;
     controls.target.copy(initialTarget);
     controls.enabled = true;
-    mobius.rotation.copy(initialMobiusRotation);
+    mobiusSpinPivot.rotation.set(0, 0, 0);
     rotationPhase = 0;
     paused = pausedBeforeDive;
     surfaceSample = null;
@@ -351,12 +378,9 @@ function restoreIntro() {
     camera.updateProjectionMatrix();
     controls.update();
     window.scrollTo(0, 0);
+    startSignalAlignment();
     status.textContent = 'We found you. Press Enter to enter Carbon Caste.';
   }, 460);
-}
-
-function activate(action) {
-  if (action === 'enter') startDive();
 }
 
 function isMobile() {
@@ -369,11 +393,9 @@ function introScale() {
 }
 
 function applyResponsiveLayout() {
-  if (!font || mode === 'transition') return;
-  introGroup.scale.setScalar(1);
-  introGroup.position.set(0, 0, 0);
-  mobius.scale.setScalar(introScale());
-  mobius.position.set(0, 0, 0);
+  if (mode === 'transition') return;
+  mobiusAxisFrame.scale.setScalar(introScale());
+  mobiusAxisFrame.position.set(0, 0, 0);
 }
 
 function resize() {
@@ -387,15 +409,6 @@ function resize() {
   camera.updateProjectionMatrix();
   effect.setSize(width * 2, height * 2);
   applyResponsiveLayout();
-}
-
-function hitTest(event) {
-  if (mode !== 'intro' || !introMesh || !introHitMesh) return null;
-  const rect = effect.domElement.getBoundingClientRect();
-  pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-  pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-  raycaster.setFromCamera(pointer, camera);
-  return raycaster.intersectObject(introHitMesh, false).length ? introMesh : null;
 }
 
 function resetView() {
@@ -414,12 +427,6 @@ effect.domElement.addEventListener('pointerdown', (event) => {
   document.body.classList.add('is-dragging');
 });
 
-effect.domElement.addEventListener('pointermove', (event) => {
-  if (event.pointerType === 'mouse' && mode === 'intro') setHovered(hitTest(event));
-});
-
-effect.domElement.addEventListener('pointerleave', () => setHovered(null));
-
 effect.domElement.addEventListener('pointerup', (event) => {
   document.body.classList.remove('is-dragging');
   if (!pointerStart || mode !== 'intro') return;
@@ -427,9 +434,7 @@ effect.domElement.addEventListener('pointerup', (event) => {
   const elapsed = performance.now() - pointerStart.time;
   pointerStart = null;
   if (distance > 9 || elapsed > 600) return;
-  const mesh = hitTest(event);
-  if (mesh) activate(mesh.userData.action);
-  else if (event.pointerType === 'touch') {
+  if (event.pointerType === 'touch') {
     const now = performance.now();
     if (now - lastTouchTap < 320) {
       window.clearTimeout(pendingTouchPause);
@@ -453,6 +458,7 @@ effect.domElement.addEventListener('dblclick', (event) => {
   resetView();
 });
 
+portalEnter.addEventListener('click', startDive);
 returnSignal.addEventListener('click', restoreIntro);
 
 window.addEventListener('keydown', (event) => {
@@ -482,13 +488,16 @@ window.addEventListener('resize', resize, { passive: true });
 const loader = new FontLoader();
 loader.load(
   'fonts/helvetiker_regular.typeface.json',
-  (loadedFont) => {
-    font = loadedFont;
-    buildTextWorld();
+  (font) => {
+    buildSignalMesh(font);
+    document.documentElement.classList.add('ascii-ready');
+    startSignalAlignment();
   },
   undefined,
   () => {
-    status.textContent = 'The text signal could not be decoded. Company links remain available without animation.';
+    document.documentElement.classList.add('ascii-ready');
+    revealFixedSignal();
+    status.textContent = 'The dimensional signal could not be decoded. The fixed entrance remains available.';
   },
 );
 
@@ -496,13 +505,18 @@ function animate(now) {
   requestAnimationFrame(animate);
   if (mode === 'site' || mode === 'returning') return;
 
+  const handoffNow = signalHandoffPending;
+  if (handoffNow && introMesh) introMesh.visible = false;
+  const signalComplete = handoffNow ? false : updateSignalAlignment(now);
   const diveComplete = updateTransition(now);
   if (!paused && mode === 'intro') {
     rotationPhase += rotationSpeed;
-    mobius.rotation.y = initialMobiusRotation.y + rotationPhase;
+    mobiusSpinPivot.rotation.x = rotationPhase;
   }
   if (mode === 'intro') controls.update();
   effect.render(scene, camera);
+  if (handoffNow) revealFixedSignal();
+  else if (signalComplete) signalHandoffPending = true;
   if (diveComplete) finishDive();
 }
 
@@ -513,13 +527,23 @@ window.__carbonPortal = {
       paused,
       rotationSpeed,
       zoom: camera.zoom,
-      mobiusRotation: [mobius.rotation.x, mobius.rotation.y, mobius.rotation.z],
-      mobiusScale: mobius.scale.x,
+      mobiusRotation: [mobiusSpinPivot.rotation.x, mobiusSpinPivot.rotation.y, mobiusSpinPivot.rotation.z],
+      mobiusGeometryRotation: [mobius.rotation.x, mobius.rotation.y, mobius.rotation.z],
+      spinAxisLocal: [mobiusAxisLocal.x, mobiusAxisLocal.y, mobiusAxisLocal.z],
+      spinAxisWorld: mobiusAxisLocal.clone().applyQuaternion(mobiusAxisFrame.quaternion).toArray(),
+      axisFrameRotation: [mobiusAxisFrame.rotation.x, mobiusAxisFrame.rotation.y, mobiusAxisFrame.rotation.z],
+      mobiusScale: mobiusAxisFrame.scale.x,
       mobiusBaseHeight,
-      mobiusPosition: [mobius.position.x, mobius.position.y, mobius.position.z],
+      mobiusPosition: [mobiusAxisFrame.position.x, mobiusAxisFrame.position.y, mobiusAxisFrame.position.z],
       cameraPosition: [camera.position.x, camera.position.y, camera.position.z],
       transitionDuration: transition?.duration || null,
-      activeActions: mode === 'intro' && introMesh ? ['enter'] : [],
+      signalSettled: document.body.classList.contains('is-signal-settled'),
+      signalStartedInScene,
+      signalMeshVisible: Boolean(introMesh?.visible),
+      signalHandoffCount,
+      signalGeometryDepth,
+      textMode: signalTransition ? 'ascii-3d-aligning' : 'viewport-fixed',
+      activeActions: mode === 'intro' && !portalEnter.disabled ? ['enter'] : [],
       surface: surfaceSample ? {
         character: surfaceSample.character,
         className: surfaceSample.className,
@@ -528,18 +552,17 @@ window.__carbonPortal = {
     };
   },
   targets() {
-    if (mode !== 'intro' || !introMesh) return {};
-    introMesh.geometry.computeBoundingBox();
-    const center = introMesh.geometry.boundingBox.getCenter(new THREE.Vector3());
-    center.applyMatrix4(introMesh.matrixWorld).project(camera);
+    if (mode !== 'intro' || portalEnter.disabled) return {};
+    const rect = portalEnter.getBoundingClientRect();
     return {
       enter: {
-        x: ((center.x + 1) / 2) * window.innerWidth,
-        y: ((1 - center.y) / 2) * window.innerHeight,
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
       },
     };
   },
 };
 
 resize();
+effect.render(scene, camera);
 animate(performance.now());
