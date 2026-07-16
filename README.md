@@ -4,18 +4,22 @@ The public company surface for Carbon Caste Inc. The home route combines the
 original ASCII Mobius experiment, the later `mobcon` direct-manipulation model,
 and a complete corporate information surface.
 
-First load intentionally exposes only the full-bleed toroidal Mobius and
-`We found you.` Activating the text raycasts a visible point on the loop, moves
-the orthographic camera to that point, and eases into the rendered surface. The
-final ASCII renderer frame is not replaced or redrawn: it stops in place and
-remains fixed behind the company site. A final pixel sample chooses the
-interface accent theme without changing any of the visible characters.
+First load intentionally exposes only the centered twisted elliptical torus
+and `We found you.` Activating the text raycasts a visible point on the form, moves
+the orthographic camera along a curved flight path into that surface, and
+smoothly aligns the view with its normal. The final ASCII renderer frame is not
+replaced or redrawn: it stops in place and remains fixed behind the company
+site. A final pixel sample chooses the interface accent theme without changing
+any of the visible characters.
 
 ## Experience states
 
-1. **Signal** - interactive Mobius plus `We found you.` and nothing else.
-2. **Dive** - the loop stops rotating and the camera enters a real visible
-   surface intersection.
+1. **Signal** - interactive twisted elliptical torus plus `We found you.` and
+   nothing else. The form is 110% of viewport height and spins only around its centered,
+   vertical Y axis. The phrase is a shallow block form centered in its hole.
+2. **Dive** - the loop stops rotating and the camera follows a cubic path from
+   its current position, orientation, pan, and zoom into a real visible surface
+   intersection.
 3. **Surface site** - the exact final character field remains fixed while a
    scrollable corporate site appears over it, with product, company, contact,
    legal, and support destinations.
@@ -59,11 +63,12 @@ npm audit
 ```
 
 `npm run interaction` launches system Chrome at 1440x900 and 390x844. It
-checks first-load isolation, full-viewport Mobius coverage, chromatic ASCII
-output, intro controls, live surface zoom, exact frozen-frame continuity,
-sampled theme persistence, complete corporate information architecture,
-scrolling, section navigation, return, and console errors. Screenshots are
-written to ignored `output/playwright/`.
+checks first-load isolation, 110% centered geometry, vertical-axis-only motion,
+centered shallow text, chromatic ASCII output, intro controls, gradual curved
+surface flight, exact frozen-frame continuity, sampled theme persistence,
+complete corporate information architecture, scrolling, section navigation,
+return, and console errors. Screenshots are written to ignored
+`output/playwright/`.
 
 ## A6 deployment
 

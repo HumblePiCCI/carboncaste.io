@@ -40,7 +40,7 @@ for (const value of [
   'id="company"',
   'id="contact"',
   'styles.css?v=continuity-20260715',
-  'dist/portal.js?v=fullbleed-20260715',
+  'dist/portal.js?v=flight-20260715',
   'privacy.html',
   'terms.html',
   'contact.html',
@@ -75,11 +75,24 @@ for (const value of [
   'OrbitControls',
   'TextGeometry',
   'createToroidalMobius',
+  'const majorAxis = 1',
+  'const minorAxis = 0.125',
+  'const pathRadius = 2',
   "makeText('We found you.'",
   'pickDiveTarget',
   'effect.sampleAt(0.5, 0.5)',
   'applySurfaceTheme',
-  'Math.max(baseViewWidth, baseViewHeight)',
+  'const initialMobiusRotation = new THREE.Euler(0, 0, 0)',
+  'mobius.rotation.y = initialMobiusRotation.y + rotationPhase',
+  '(baseViewHeight / mobiusBaseHeight) * 1.1',
+  "makeText('We found you.', 0.24",
+  'depth: 0.012',
+  'bevelEnabled: false',
+  'introMesh.position.z = 0',
+  'side: THREE.DoubleSide',
+  'THREE.CubicBezierCurve3',
+  'camera.quaternion.slerpQuaternions',
+  'value ** 3 * (value * (value * 6 - 15) + 10)',
   "mode = 'site'",
   'restoreIntro',
   "event.code === 'Space'",
@@ -88,6 +101,10 @@ for (const value of [
   'raycaster.intersectObject',
 ]) {
   if (!portal.includes(value)) failures.push(`src/portal.js is missing interaction contract ${value}`);
+}
+
+if (/mobius\.rotation\.(?:x|z)\s*=/.test(portal)) {
+  failures.push('The Mobius animation must rotate only around its vertical Y axis');
 }
 
 const styles = await readFile('styles.css', 'utf8');

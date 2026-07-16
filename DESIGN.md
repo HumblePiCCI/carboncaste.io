@@ -10,10 +10,14 @@ without a visual substitution between them.
 
 ## Sequence
 
-1. **Signal** - a full-bleed chromatic ASCII Mobius and `We found you.` No
-   header, footer, instruction panel, or corporate copy is visible.
-2. **Dive** - activating the phrase raycasts the visible loop, freezes its
-   orientation, and moves the camera into the selected surface point.
+1. **Signal** - a chromatic ASCII twisted elliptical torus centered at 110% of
+   viewport height and `We found you.` centered in its void. The form rotates only around the
+   world-Y diameter that crosses opposite half-twist regions. No header,
+   footer, instruction panel, or corporate copy is visible.
+2. **Dive** - activating the phrase raycasts the deepest visible loop region,
+   freezes its orientation, and flies the camera along a cubic path from its
+   current state into the selected surface normal. Position, quaternion, and
+   exponential zoom all use zero-velocity-endpoint easing.
 3. **Hold** - the final deep render stops. Its existing characters, positions,
    colors, and density remain byte-for-byte unchanged in the fixed renderer
    DOM. One pixel sample selects a CSP-safe interface hue class only.
@@ -41,14 +45,23 @@ the spectrum rail and secondary accents without using gradients.
 ## Technical constraints
 
 - Never expose corporate chrome before the dive completes.
+- Preserve the existing twisted elliptical torus mesh, including its elliptical
+  cross-section and volume. Never substitute a flat Mobius strip.
 - The camera must end on a raycast intersection with the live Mobius whenever
   one is visible; fallback coordinates are only for pathological orientations.
 - `CspAsciiEffect.sampleAt()` owns surface sampling and nearest-lit-pixel
   fallback.
 - Dynamic theming must use fixed body classes. Do not add inline `style`
   attributes or `.style` mutations.
-- The intro Mobius foreground must overscan the viewport on wide and tall
-  screens, eliminating the detached-object presentation.
+- The intro Mobius diameter must be 110% of viewport height and its world
+  position must remain centered.
+- Default motion may change only `mobius.rotation.y`; X and Z define the
+  straight vertical spin axis and must remain fixed.
+- `We found you.` must be centered in the loop, use shallow unbevelled block
+  geometry, and remain visually separate from the strip.
+- Entry must derive from the current camera state, follow a curved path, align
+  with the chosen surface normal, and ease position, orientation, and zoom to
+  rest without a discontinuity.
 - The final renderer DOM must remain unchanged while the site is active,
   including during scroll and navigation.
 - Never synthesize a replacement matte or repeat a sampled character.

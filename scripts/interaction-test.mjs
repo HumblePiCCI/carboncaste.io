@@ -58,10 +58,19 @@ async function run(viewport, label) {
   });
   if (introVisual.spans < 20) failures.push(`${label}: ASCII scene has too few colored runs (${introVisual.spans})`);
   if (introVisual.colors < 5) failures.push(`${label}: ASCII scene has too little color variation (${introVisual.colors})`);
-  if (introVisual.coverageWidth < 0.95 || introVisual.coverageHeight < 0.9) failures.push(`${label}: Mobius does not fill the viewport (${introVisual.coverageWidth.toFixed(2)} x ${introVisual.coverageHeight.toFixed(2)})`);
   if (!introVisual.surfaceHidden) failures.push(`${label}: corporate surface leaks into first load`);
   if (introVisual.hasReplacementMatte) failures.push(`${label}: obsolete replacement matte remains in the document`);
   if (introVisual.visibleChrome !== 0) failures.push(`${label}: first load exposes non-scene interface chrome`);
+
+  const layout = await page.evaluate(() => ({
+    portal: window.__carbonPortal.snapshot(),
+    enter: window.__carbonPortal.targets().enter,
+  }));
+  const expectedScale = ((10 / 1.25) / layout.portal.mobiusBaseHeight) * 1.1;
+  if (Math.abs(layout.portal.mobiusScale - expectedScale) > 0.02) failures.push(`${label}: Mobius is not scaled to 110% of viewport height`);
+  if (layout.portal.mobiusPosition.some((value) => Math.abs(value) > 0.001)) failures.push(`${label}: Mobius is not centered at the world origin`);
+  if (Math.abs(layout.enter.x - viewport.width / 2) > viewport.width * 0.035 || Math.abs(layout.enter.y - viewport.height / 2) > viewport.height * 0.035) failures.push(`${label}: We found you is not centered inside the loop`);
+  const rotationBeforeCoverage = layout.portal.mobiusRotation;
 
   for (let sampleIndex = 0; sampleIndex < 3; sampleIndex += 1) {
     await page.waitForTimeout(500);
@@ -73,10 +82,19 @@ async function run(viewport, label) {
       const right = Math.max(...rects.map((rect) => rect.right));
       const top = Math.min(...rects.map((rect) => rect.top));
       const bottom = Math.max(...rects.map((rect) => rect.bottom));
-      return { width: (right - left) / window.innerWidth, height: (bottom - top) / window.innerHeight };
+      return {
+        width: (right - left) / window.innerWidth,
+        height: (bottom - top) / window.innerHeight,
+        centerX: (left + right) / (2 * window.innerWidth),
+        centerY: (top + bottom) / (2 * window.innerHeight),
+      };
     });
-    if (coverage.width < 0.95 || coverage.height < 0.9) failures.push(`${label}: moving Mobius lost full-screen coverage (${coverage.width.toFixed(2)} x ${coverage.height.toFixed(2)})`);
+    if (coverage.height < 0.94) failures.push(`${label}: rotating Mobius stopped reaching the vertical viewport edges (${coverage.height.toFixed(2)})`);
   }
+
+  const rotationAfterCoverage = await page.evaluate(() => window.__carbonPortal.snapshot().mobiusRotation);
+  if (Math.abs(rotationAfterCoverage[0] - rotationBeforeCoverage[0]) > 0.001 || Math.abs(rotationAfterCoverage[2] - rotationBeforeCoverage[2]) > 0.001) failures.push(`${label}: Mobius rotated away from its vertical Y axis`);
+  if (Math.abs(rotationAfterCoverage[1] - rotationBeforeCoverage[1]) < 0.05) failures.push(`${label}: Mobius did not spin around its vertical Y axis`);
 
   const beforePause = await page.evaluate(() => window.__carbonPortal.snapshot());
   await page.keyboard.press('Space');
@@ -107,8 +125,22 @@ async function run(viewport, label) {
   if (label === 'mobile') await page.touchscreen.tap(enterPoint.x, enterPoint.y);
   else await page.mouse.click(enterPoint.x, enterPoint.y);
   await expect(page, () => window.__carbonPortal.snapshot().mode === 'transition', `${label}: surface dive did not start`);
-  await expect(page, () => window.__carbonPortal.snapshot().zoom > 10, `${label}: dive never reached the Mobius surface`, 4000);
-  await expect(page, () => window.__carbonPortal.snapshot().mode === 'site', `${label}: sampled corporate surface did not appear`, 5000);
+  const swoopFrames = [];
+  for (let frameIndex = 0; frameIndex < 18; frameIndex += 1) {
+    await page.waitForTimeout(300);
+    const frame = await page.evaluate(() => window.__carbonPortal.snapshot());
+    swoopFrames.push(frame);
+    if (frame.mode === 'site') break;
+  }
+  const transitionFrames = swoopFrames.filter((frame) => frame.mode === 'transition');
+  if (transitionFrames.length < 8) failures.push(`${label}: surface flight was not gradual enough (${transitionFrames.length} sampled frames)`);
+  if (!swoopFrames.some((frame) => frame.mode === 'site')) failures.push(`${label}: sampled corporate surface did not appear after the flight`);
+  if (transitionFrames[0]?.transitionDuration < 3400) failures.push(`${label}: surface flight duration is too abrupt`);
+  const zoomFrames = [resetZoom, ...swoopFrames.map((frame) => frame.zoom)];
+  if (zoomFrames.some((zoom, index) => index > 0 && zoom + 0.001 < zoomFrames[index - 1])) failures.push(`${label}: surface flight reversed zoom direction`);
+  if (zoomFrames.some((zoom, index) => index > 0 && zoom / Math.max(0.01, zoomFrames[index - 1]) > 1.8)) failures.push(`${label}: surface flight contains an abrupt zoom step`);
+  if (Math.max(...zoomFrames) <= 10) failures.push(`${label}: surface flight never reached the Mobius surface`);
+  await expect(page, () => window.__carbonPortal.snapshot().mode === 'site', `${label}: sampled corporate surface did not settle`, 1000);
   await expect(page, () => document.body.classList.contains('is-surface-site'), `${label}: site reveal class was not applied`);
   await expect(page, () => {
     const stage = getComputedStyle(document.querySelector('#ascii-stage'));

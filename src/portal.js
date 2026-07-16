@@ -19,7 +19,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 
 const frustumSize = 10;
-const initialCameraPosition = new THREE.Vector3(0, 0.35, 20);
+const initialCameraPosition = new THREE.Vector3(0, 0, 20);
 const initialTarget = new THREE.Vector3(0, 0, 0);
 const camera = new THREE.OrthographicCamera(-5, 5, 5, -5, 0.1, 1000);
 camera.position.copy(initialCameraPosition);
@@ -48,6 +48,13 @@ controls.target.copy(initialTarget);
 const normalMaterial = new THREE.MeshNormalMaterial({
   side: THREE.DoubleSide,
   flatShading: false,
+});
+
+const textMaterial = new THREE.MeshBasicMaterial({
+  color: 0x303030,
+  depthTest: false,
+  depthWrite: false,
+  side: THREE.DoubleSide,
 });
 
 function createToroidalMobius() {
@@ -89,11 +96,13 @@ function createToroidalMobius() {
   geometry.setIndex(indices);
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.computeVertexNormals();
+  geometry.computeBoundingBox();
   return new THREE.Mesh(geometry, normalMaterial);
 }
 
 const mobius = createToroidalMobius();
-const initialMobiusRotation = new THREE.Euler(-0.38, 0.18, -0.2);
+const mobiusBaseHeight = mobius.geometry.boundingBox.max.y - mobius.geometry.boundingBox.min.y;
+const initialMobiusRotation = new THREE.Euler(0, 0, 0);
 mobius.rotation.copy(initialMobiusRotation);
 scene.add(mobius);
 
@@ -104,6 +113,7 @@ const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 let font;
 let introMesh;
+let introHitMesh;
 let mode = 'intro';
 let paused = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 let pausedBeforeDive = paused;
@@ -126,31 +136,38 @@ function makeText(text, size, action = null) {
   const geometry = new TextGeometry(text, {
     font,
     size,
-    depth: 0.1,
-    curveSegments: 8,
-    bevelEnabled: true,
-    bevelThickness: 0.025,
-    bevelSize: 0.014,
-    bevelSegments: 3,
+    depth: 0.012,
+    curveSegments: 2,
+    bevelEnabled: false,
   });
+  geometry.center();
   geometry.computeBoundingBox();
-  const mesh = new THREE.Mesh(geometry, normalMaterial);
+  const mesh = new THREE.Mesh(geometry, textMaterial);
+  mesh.renderOrder = 10;
   mesh.userData.action = action;
   mesh.userData.baseScale = 1;
   return mesh;
 }
 
-function centerText(mesh) {
-  const box = mesh.geometry.boundingBox;
-  mesh.position.x = -(box.max.x - box.min.x) / 2;
-}
-
 function buildTextWorld() {
-  introMesh = makeText('We found you.', 0.62, 'enter');
-  centerText(introMesh);
-  introMesh.position.y = 3;
-  introMesh.position.z = 2.8;
+  introMesh = makeText('We found you.', 0.24, 'enter');
+  introMesh.position.z = 0;
   introGroup.add(introMesh);
+  const box = introMesh.geometry.boundingBox;
+  const hitWidth = (box.max.x - box.min.x) * 1.08;
+  const hitHeight = (box.max.y - box.min.y) * 1.5;
+  introHitMesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(hitWidth, hitHeight),
+    new THREE.MeshBasicMaterial({
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      colorWrite: false,
+    }),
+  );
+  introHitMesh.position.z = 0.02;
+  introHitMesh.userData.action = 'enter';
+  introGroup.add(introHitMesh);
   applyResponsiveLayout();
   document.documentElement.classList.add('ascii-ready');
 }
@@ -164,11 +181,12 @@ function setHovered(mesh) {
 }
 
 function ease(value) {
-  return value < 0.5 ? 4 * value ** 3 : 1 - ((-2 * value + 2) ** 3) / 2;
+  return value ** 3 * (value * (value * 6 - 15) + 10);
 }
 
 function pickDiveTarget() {
   mobius.updateMatrixWorld(true);
+  const normalMatrix = new THREE.Matrix3().getNormalMatrix(mobius.matrixWorld);
   const gridSize = 25;
   const extent = 0.92;
   const samples = [];
@@ -209,24 +227,59 @@ function pickDiveTarget() {
 
     const centerPenalty = (sample.screenPoint.x ** 2 + sample.screenPoint.y ** 2) * 0.08;
     const score = marginSquared - centerPenalty;
-    if (!best || score > best.score) best = { score, point: sample.hit.point.clone() };
+    if (!best || score > best.score) {
+      const normal = sample.hit.face.normal.clone().applyMatrix3(normalMatrix).normalize();
+      const towardCamera = camera.position.clone().sub(sample.hit.point);
+      if (normal.dot(towardCamera) < 0) normal.negate();
+      best = { score, point: sample.hit.point.clone(), normal };
+    }
   }
 
-  return best?.point || new THREE.Vector3(1.8, -0.25, 0);
+  if (best) return best;
+  return {
+    point: new THREE.Vector3(1.8, -0.25, 0),
+    normal: camera.position.clone().sub(controls.target).normalize(),
+  };
 }
 
 function startDive() {
   if (mode !== 'intro' || transition) return;
   pausedBeforeDive = paused;
   paused = true;
-  const diveTarget = pickDiveTarget();
+  const dive = pickDiveTarget();
+  const startCamera = camera.position.clone();
+  const startTarget = controls.target.clone();
+  const startQuaternion = camera.quaternion.clone();
+  const cameraDistance = Math.max(8, startCamera.distanceTo(startTarget));
+  const destinationCamera = dive.point.clone().addScaledVector(dive.normal, cameraDistance);
+  const travelDistance = startCamera.distanceTo(destinationCamera);
+  const startForward = startTarget.clone().sub(startCamera).normalize();
+  const approachLength = Math.min(4.5, Math.max(1.2, travelDistance * 0.28));
+  const cameraCurve = new THREE.CubicBezierCurve3(
+    startCamera,
+    startCamera.clone().addScaledVector(startForward, approachLength),
+    destinationCamera.clone().addScaledVector(dive.normal, approachLength),
+    destinationCamera,
+  );
+  const destinationUp = Math.abs(dive.normal.dot(camera.up)) > 0.92
+    ? new THREE.Vector3(0, 0, 1)
+    : camera.up.clone();
+  const destinationRotation = new THREE.Matrix4().lookAt(destinationCamera, dive.point, destinationUp);
+  const destinationQuaternion = new THREE.Quaternion().setFromRotationMatrix(destinationRotation);
+  const targetZoom = Math.min(42, Math.max(isMobile() ? 18 : 15, camera.zoom * 1.8));
+  const zoomTravel = Math.abs(Math.log2(targetZoom / Math.max(0.01, camera.zoom)));
   transition = {
     startedAt: performance.now(),
-    duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 700 : 1900,
-    startCamera: camera.position.clone(),
-    startTarget: controls.target.clone(),
+    duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? 900
+      : THREE.MathUtils.clamp(3100 + zoomTravel * 260 + travelDistance * 28, 3400, 4800),
+    startTarget,
     startZoom: camera.zoom,
-    diveTarget,
+    targetZoom,
+    diveTarget: dive.point,
+    cameraCurve,
+    startQuaternion,
+    destinationQuaternion,
   };
   mode = 'transition';
   controls.enabled = false;
@@ -239,14 +292,14 @@ function updateTransition(now) {
   if (!transition) return false;
   const raw = Math.min(1, (now - transition.startedAt) / transition.duration);
   const progress = ease(raw);
-  const cameraDestination = new THREE.Vector3(
-    transition.diveTarget.x,
-    transition.diveTarget.y + 0.35,
-    20,
+  camera.position.copy(transition.cameraCurve.getPoint(progress));
+  camera.quaternion.slerpQuaternions(
+    transition.startQuaternion,
+    transition.destinationQuaternion,
+    progress,
   );
-  camera.position.lerpVectors(transition.startCamera, cameraDestination, progress);
   controls.target.lerpVectors(transition.startTarget, transition.diveTarget, progress);
-  camera.zoom = THREE.MathUtils.lerp(transition.startZoom, isMobile() ? 18 : 15, progress);
+  camera.zoom = transition.startZoom * ((transition.targetZoom / transition.startZoom) ** progress);
   camera.updateProjectionMatrix();
   return raw >= 1;
 }
@@ -311,17 +364,14 @@ function isMobile() {
 }
 
 function introScale() {
-  const aspect = Math.max(0.1, window.innerWidth / Math.max(1, window.innerHeight));
-  const baseViewWidth = (frustumSize * aspect) / 1.25;
   const baseViewHeight = frustumSize / 1.25;
-  return (Math.max(baseViewWidth, baseViewHeight) / 6) * 1.35;
+  return (baseViewHeight / mobiusBaseHeight) * 1.1;
 }
 
 function applyResponsiveLayout() {
   if (!font || mode === 'transition') return;
-  const mobile = isMobile();
-  introGroup.scale.setScalar(mobile ? 0.44 : 1);
-  introGroup.position.y = mobile ? 0.55 : 0;
+  introGroup.scale.setScalar(1);
+  introGroup.position.set(0, 0, 0);
   mobius.scale.setScalar(introScale());
   mobius.position.set(0, 0, 0);
 }
@@ -340,12 +390,12 @@ function resize() {
 }
 
 function hitTest(event) {
-  if (mode !== 'intro' || !introMesh) return null;
+  if (mode !== 'intro' || !introMesh || !introHitMesh) return null;
   const rect = effect.domElement.getBoundingClientRect();
   pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
   pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(pointer, camera);
-  return raycaster.intersectObject(introMesh, false)[0]?.object || null;
+  return raycaster.intersectObject(introHitMesh, false).length ? introMesh : null;
 }
 
 function resetView() {
@@ -449,11 +499,9 @@ function animate(now) {
   const diveComplete = updateTransition(now);
   if (!paused && mode === 'intro') {
     rotationPhase += rotationSpeed;
-    mobius.rotation.x = initialMobiusRotation.x + Math.sin(rotationPhase) * 0.2;
-    mobius.rotation.y = initialMobiusRotation.y + Math.sin(rotationPhase * 0.73) * 0.18;
-    mobius.rotation.z = initialMobiusRotation.z + rotationPhase * 0.22;
+    mobius.rotation.y = initialMobiusRotation.y + rotationPhase;
   }
-  controls.update();
+  if (mode === 'intro') controls.update();
   effect.render(scene, camera);
   if (diveComplete) finishDive();
 }
@@ -466,6 +514,11 @@ window.__carbonPortal = {
       rotationSpeed,
       zoom: camera.zoom,
       mobiusRotation: [mobius.rotation.x, mobius.rotation.y, mobius.rotation.z],
+      mobiusScale: mobius.scale.x,
+      mobiusBaseHeight,
+      mobiusPosition: [mobius.position.x, mobius.position.y, mobius.position.z],
+      cameraPosition: [camera.position.x, camera.position.y, camera.position.z],
+      transitionDuration: transition?.duration || null,
       activeActions: mode === 'intro' && introMesh ? ['enter'] : [],
       surface: surfaceSample ? {
         character: surfaceSample.character,
