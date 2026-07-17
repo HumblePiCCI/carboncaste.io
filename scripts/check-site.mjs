@@ -35,14 +35,14 @@ for (const value of [
   'id="ascii-stage"',
   'id="ascii-scene"',
   'id="portal-enter"',
-  'class="portal-enter-label"',
+  'class="portal-enter-label sr-only"',
   'id="surface-site"',
   'id="return-signal"',
   'id="work"',
   'id="company"',
   'id="contact"',
-  'styles.css?v=signal-lock-20260716',
-  'dist/portal.js?v=axis-lock-20260716',
+  'styles.css?v=signal-mesh-20260717',
+  'dist/portal.js?v=ascii-link-20260717',
   'privacy.html',
   'terms.html',
   'contact.html',
@@ -84,15 +84,22 @@ for (const value of [
   "document.querySelector('#portal-enter')",
   "new TextGeometry('We found you.'",
   'height: 0.03',
-  'const signalStartQuaternion',
-  'introMesh.visible = false',
-  "textMode: signalTransition ? 'ascii-3d-aligning' : 'viewport-fixed'",
+  'const signalStartAngle = -Math.PI / 4',
+  'const signalEaseStartAngle = -Math.PI / 6',
+  'hermiteEaseToZero',
+  'camera.attach(introMesh)',
+  'syncLockedSignalScale',
+  "'ascii-3d-camera-locked'",
+  'geometry.userData.sweep',
+  "centerline: 'circle'",
+  'twistRadians: Math.PI',
+  'maxCenterlineError',
   'const mobiusAxisLocal = new THREE.Vector3(1, 0, 0)',
   'mobiusAxisFrame.rotation.z = Math.PI / 2',
   'mobiusSpinPivot.rotation.x = rotationPhase',
   "portalEnter.addEventListener('click', startDive)",
-  'startSignalAlignment',
-  'revealFixedSignal',
+  'startSignalOrbit',
+  'lockSignalToCamera',
   'pickDiveTarget',
   'effect.sampleAt(0.5, 0.5)',
   'applySurfaceTheme',
@@ -111,8 +118,8 @@ for (const value of [
   if (!portal.includes(value)) failures.push(`src/portal.js is missing interaction contract ${value}`);
 }
 
-if (portal.includes('makeText(') || !portal.includes('signalHandoffCount')) {
-  failures.push('We found you must hand off from transient ASCII 3D geometry to the fixed viewport control');
+if (portal.includes('makeText(') || portal.includes('signalHandoff')) {
+  failures.push('We found you must remain the same ASCII 3D mesh after it becomes the link');
 }
 
 if (/mobiusSpinPivot\.rotation\.(?:y|z)\s*=/.test(portal)) {

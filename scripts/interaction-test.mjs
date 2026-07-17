@@ -71,11 +71,14 @@ async function run(viewport, label) {
       const label = button.querySelector('.portal-enter-label');
       const buttonStyle = getComputedStyle(button);
       const labelStyle = getComputedStyle(label);
+      const labelRect = label.getBoundingClientRect();
       return {
         position: buttonStyle.position,
         perspective: buttonStyle.perspective,
         labelTransform: labelStyle.transform,
         depthTransforms: /matrix3d|translateZ|rotate[XY]/.test(labelStyle.transform),
+        labelWidth: labelRect.width,
+        labelHeight: labelRect.height,
       };
     })(),
   }));
@@ -85,10 +88,19 @@ async function run(viewport, label) {
   if (Math.abs(layout.enter.x - viewport.width / 2) > viewport.width * 0.035 || Math.abs(layout.enter.y - viewport.height / 2) > viewport.height * 0.035) failures.push(`${label}: We found you is not centered inside the loop`);
   if (layout.signal.position !== 'fixed' || layout.signal.perspective !== 'none') failures.push(`${label}: We found you is not locked to the viewport plane`);
   if (layout.signal.depthTransforms || layout.signal.labelTransform.startsWith('matrix3d')) failures.push(`${label}: We found you retains a 3D transform`);
-  if (!layout.portal.signalStartedInScene || layout.portal.signalHandoffCount < 1) failures.push(`${label}: We found you did not begin as ASCII 3D geometry`);
+  if (layout.signal.labelWidth > 1.5 || layout.signal.labelHeight > 1.5) failures.push(`${label}: a visible HTML phrase still replaces the ASCII mesh`);
   if (layout.portal.signalGeometryDepth === null || layout.portal.signalGeometryDepth > 0.031) failures.push(`${label}: transient text extrusion is too deep (${layout.portal.signalGeometryDepth})`);
-  if (layout.portal.signalMeshVisible) failures.push(`${label}: settled 3D text remained in the scene and can still become a side-on band`);
-  if (layout.portal.textMode !== 'viewport-fixed') failures.push(`${label}: text is still coupled to the WebGL scene`);
+  if (layout.portal.signalState !== 'locked' || Math.abs(layout.portal.signalAngle) > 0.001) failures.push(`${label}: ASCII phrase did not stop at viewer alignment`);
+  if (!['following', 'easing', 'locked'].every((state) => layout.portal.signalStatesVisited.includes(state))) failures.push(`${label}: ASCII phrase did not follow, ease, and lock in sequence`);
+  if (layout.portal.signalMaxFollowError > 0.000001) failures.push(`${label}: ASCII phrase did not initially share the loop's angular phase`);
+  if (layout.portal.signalLockTransformError === null || layout.portal.signalLockTransformError > 0.000001) failures.push(`${label}: camera lock changed the ASCII phrase transform`);
+  if (!layout.portal.signalMeshVisible || layout.portal.signalParent !== 'camera') failures.push(`${label}: settled ASCII phrase is not the persistent camera-locked link`);
+  if (layout.portal.textMode !== 'ascii-3d-camera-locked') failures.push(`${label}: text was replaced instead of preserving its ASCII 3D mesh`);
+  if (Math.abs(layout.portal.signalStartAngle + Math.PI / 4) > 0.001) failures.push(`${label}: ASCII phrase does not begin 45 degrees askew in X-Z`);
+  if (Math.abs(layout.portal.signalScreenScale - 1.25) > 0.02) failures.push(`${label}: camera-locked signal has the wrong initial screen scale`);
+  if (layout.portal.sweep?.centerline !== 'circle' || layout.portal.sweep?.crossSection !== 'ellipse') failures.push(`${label}: Mobius sweep contract is not an ellipse on a circular centerline`);
+  if (Math.abs(layout.portal.sweep?.majorAxis - 1) > 0.001 || Math.abs(layout.portal.sweep?.minorAxis - 0.125) > 0.001 || Math.abs(layout.portal.sweep?.pathRadius - 2) > 0.001) failures.push(`${label}: Mobius sweep dimensions changed`);
+  if (Math.abs(layout.portal.sweep?.twistRadians - Math.PI) > 0.001 || layout.portal.sweep?.maxCenterlineError > 0.00001) failures.push(`${label}: Mobius centerline is not a measured perfect circle`);
   if (layout.portal.spinAxisLocal.some((value, index) => Math.abs(value - [1, 0, 0][index]) > 0.001)) failures.push(`${label}: authored first-to-fourth ellipse axis is not local X`);
   if (layout.portal.spinAxisWorld.some((value, index) => Math.abs(value - [0, 1, 0][index]) > 0.001)) failures.push(`${label}: authored ellipse axis is not aligned to vertical world Y`);
   if (Math.abs(layout.portal.axisFrameRotation[2] - Math.PI / 2) > 0.001) failures.push(`${label}: ellipse axis frame does not preserve the authored quarter-turn alignment`);
@@ -115,9 +127,11 @@ async function run(viewport, label) {
     if (coverage.height < 0.94) failures.push(`${label}: rotating Mobius stopped reaching the vertical viewport edges (${coverage.height.toFixed(2)})`);
   }
 
-  const rotationAfterCoverage = await page.evaluate(() => window.__carbonPortal.snapshot().mobiusRotation);
+  const afterCoverage = await page.evaluate(() => window.__carbonPortal.snapshot());
+  const rotationAfterCoverage = afterCoverage.mobiusRotation;
   if (Math.abs(rotationAfterCoverage[1] - rotationBeforeCoverage[1]) > 0.001 || Math.abs(rotationAfterCoverage[2] - rotationBeforeCoverage[2]) > 0.001) failures.push(`${label}: Mobius rotated away from its authored ellipse-center axis`);
   if (Math.abs(rotationAfterCoverage[0] - rotationBeforeCoverage[0]) < 0.05) failures.push(`${label}: Mobius did not spin around the first-to-fourth ellipse centerline`);
+  if (!afterCoverage.signalMeshVisible || afterCoverage.signalParent !== 'camera' || Math.abs(afterCoverage.signalAngle) > 0.001) failures.push(`${label}: rotating the loop disturbed the locked ASCII link`);
   const enterAfterRotation = await page.evaluate(() => window.__carbonPortal.targets().enter);
   if (Math.abs(enterAfterRotation.x - layout.enter.x) > 0.5 || Math.abs(enterAfterRotation.y - layout.enter.y) > 0.5) failures.push(`${label}: rotating the loop moved the viewport-locked text`);
 
@@ -136,10 +150,12 @@ async function run(viewport, label) {
   const zoomResult = await page.evaluate(() => ({
     zoom: window.__carbonPortal.snapshot().zoom,
     enter: window.__carbonPortal.targets().enter,
+    signalScreenScale: window.__carbonPortal.snapshot().signalScreenScale,
   }));
   const zoomed = zoomResult.zoom;
   if (zoomed <= beforePause.zoom) failures.push(`${label}: wheel did not zoom the scene`);
   if (Math.abs(zoomResult.enter.x - layout.enter.x) > 0.5 || Math.abs(zoomResult.enter.y - layout.enter.y) > 0.5) failures.push(`${label}: zooming the loop moved the viewport-locked text`);
+  if (Math.abs(zoomResult.signalScreenScale - layout.portal.signalScreenScale) > 0.02) failures.push(`${label}: zooming the loop resized the locked ASCII link`);
   if (label === 'mobile') {
     await page.touchscreen.tap(viewport.width - 30, viewport.height - 30);
     await page.waitForTimeout(90);
@@ -155,6 +171,8 @@ async function run(viewport, label) {
   if (label === 'mobile') await page.touchscreen.tap(enterPoint.x, enterPoint.y);
   else await page.mouse.click(enterPoint.x, enterPoint.y);
   await expect(page, () => window.__carbonPortal.snapshot().mode === 'transition', `${label}: surface dive did not start`);
+  const signalDuringDive = await page.evaluate(() => window.__carbonPortal.snapshot().signalMeshVisible);
+  if (signalDuringDive) failures.push(`${label}: ASCII link remained visible after activation`);
   const swoopFrames = [];
   for (let frameIndex = 0; frameIndex < 18; frameIndex += 1) {
     await page.waitForTimeout(300);
@@ -239,10 +257,11 @@ async function run(viewport, label) {
   const restored = await page.evaluate(() => ({
     surfaceHidden: document.querySelector('#surface-site').hidden,
     surfaceClass: document.body.classList.contains('is-surface-site'),
-    zoom: window.__carbonPortal.snapshot().zoom,
+    portal: window.__carbonPortal.snapshot(),
   }));
   if (!restored.surfaceHidden || restored.surfaceClass) failures.push(`${label}: sampled site remained visible after return`);
-  if (Math.abs(restored.zoom - 1.25) > 0.02) failures.push(`${label}: intro camera was not restored`);
+  if (Math.abs(restored.portal.zoom - 1.25) > 0.02) failures.push(`${label}: intro camera was not restored`);
+  if (!restored.portal.signalMeshVisible || restored.portal.signalParent !== 'camera') failures.push(`${label}: return did not restore the same ASCII link mesh`);
   await page.screenshot({ path: `output/playwright/${label}-intro.png` });
 
   if (consoleErrors.length) failures.push(`${label}: console errors: ${consoleErrors.join(' | ')}`);

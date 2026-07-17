@@ -12,8 +12,10 @@ without a visual substitution between them.
 
 1. **Signal** - a chromatic ASCII twisted elliptical torus centered at 110% of
    viewport height and `We found you.` centered in its void. The phrase begins
-   as ASCII-rendered 3D geometry, eases from an askew pose into front alignment,
-   then hands off in place to a fixed viewport plane. The form rotates only
+   as ASCII-rendered 3D geometry at -45 degrees in X-Z, initially shares the
+   loop's angular phase, then decelerates into front alignment. The same mesh is
+   attached to the camera without a transform discontinuity and becomes the
+   link. The form rotates only
    around the authored line joining the first ellipse, shared offset origin,
    and perpendicular opposite ellipse. No header,
    footer, instruction panel, or corporate copy is visible.
@@ -61,13 +63,15 @@ the spectrum rail and secondary accents without using gradients.
 - Keep the authored first-to-opposite ellipse line as mesh-local X, map it to
   world Y with a fixed parent frame, and change only the child pivot's local-X
   rotation during default motion. Never rewrite or rotate the mesh vertices.
-- `We found you.` must begin as modest-depth WebGL text in the ASCII renderer,
-  settle from an askew pose into front alignment, and then hand off in place to
-  a fixed semantic HTML control. Hide the 3D mesh before unlocking camera
-  controls; the settled control must never use perspective, Z translation, or
-  camera-coupled motion.
+- `We found you.` must remain one modest-depth WebGL mesh. Begin it at -45
+  degrees around world Y, match the loop's phase, decelerate continuously over
+  the final 30 degrees, and attach that mesh to the camera at alignment. The
+  HTML control is an invisible accessible hit target, never a visual replacement.
 - In the pinned Three.js `0.162.0`, use `height` for `TextGeometry` extrusion.
   `depth` is ignored and falls back to a 50-unit slab.
+- The ellipse centers must measure as a circle of radius `2` within `0.00001`
+  world units. Preserve semiaxes `1` and `0.125` and the `phi / 2` twist unless
+  an explicit geometry redesign changes those authored proportions.
 - Entry must derive from the current camera state, follow a curved path, align
   with the chosen surface normal, and ease position, orientation, and zoom to
   rest without a discontinuity.

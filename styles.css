@@ -129,14 +129,7 @@ a:focus-visible {
 }
 
 .portal-enter-label {
-  display: block;
-  font-size: clamp(12px, 1.15vw, 17px);
-  font-weight: 800;
-  line-height: 1;
-  text-shadow: 0 1px 8px #000, 0 0 2px #000;
-  white-space: nowrap;
-  opacity: 1;
-  transform: none;
+  pointer-events: none;
 }
 
 .is-signal-ready .portal-enter {
@@ -146,6 +139,22 @@ a:focus-visible {
 
 .portal-enter:hover,
 .portal-enter:focus-visible { color: var(--accent); }
+
+.is-signal-fallback .portal-enter-label {
+  position: static;
+  display: block;
+  width: auto;
+  height: auto;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  color: var(--paper);
+  font-size: clamp(12px, 1.15vw, 17px);
+  font-weight: 800;
+  line-height: 1;
+  text-shadow: 0 1px 8px #000, 0 0 2px #000;
+  white-space: nowrap;
+}
 
 .is-transitioning .portal-enter,
 .is-surface-site .portal-enter,

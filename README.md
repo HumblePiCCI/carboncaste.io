@@ -5,11 +5,11 @@ original ASCII Mobius experiment, the later `mobcon` direct-manipulation model,
 and a complete corporate information surface.
 
 First load intentionally exposes only the centered twisted elliptical torus
-and `We found you.` The phrase begins as modest-depth geometry inside the ASCII
-renderer, eases from an askew pose into camera-square alignment, then hands off
-in place to a fixed viewport control. The 3D mesh is removed before camera
-control unlocks, so it can never become a side-on band. Activating the fixed text
-raycasts a visible point on the form, moves
+and `We found you.` The phrase is one persistent modest-depth mesh inside the
+ASCII renderer. It begins 45 degrees askew in X-Z, follows the loop's angular
+phase, then decelerates into viewer alignment and attaches to the camera without
+changing its world transform. An invisible semantic hit target makes that same
+ASCII phrase the link. Activating it raycasts a visible point on the form, moves
 the orthographic camera along a curved flight path into that surface, and
 smoothly aligns the view with its normal. The final ASCII renderer frame is not
 replaced or redrawn: it stops in place and remains fixed behind the company
@@ -21,9 +21,9 @@ any of the visible characters.
 1. **Signal** - interactive twisted elliptical torus plus `We found you.` and
    nothing else. The authored local-X line through the first ellipse, shared
    offset origin, and perpendicular opposite ellipse is mapped to vertical
-   world Y. A dedicated pivot spins only around that line. After its dimensional
-   arrival, the phrase remains centered in the viewport while the torus moves
-   around it.
+   world Y. A dedicated pivot spins only around that line. The phrase initially
+   shares that spin, eases to rest at the viewer, and remains the same visible
+   ASCII mesh while the torus moves around it.
 2. **Dive** - the loop stops rotating and the camera follows a cubic path from
    its current position, orientation, pan, and zoom into a real visible surface
    intersection.
@@ -71,11 +71,23 @@ npm audit
 
 `npm run interaction` launches system Chrome at 1440x900 and 390x844. It
 checks first-load isolation, 110% centered geometry, authored-axis-only motion,
-ASCII-3D-to-fixed text handoff, chromatic ASCII output, intro controls, gradual curved
+single-mesh ASCII link lock, chromatic ASCII output, intro controls, gradual curved
 surface flight, exact frozen-frame continuity, sampled theme persistence,
 complete corporate information architecture, scrolling, section navigation,
 return, and console errors. Screenshots are written to ignored
 `output/playwright/`.
+
+## Torus construction
+
+The form sweeps an ellipse with semiaxes `1` and `0.125` around an exact circle
+of radius `2`. The cross-section twist is `phi / 2`, producing exactly 180
+degrees of twist over one revolution. Browser verification averages every
+generated cross-section and fails if its center departs from that circle by more
+than `0.00001` world units.
+
+The broad appearance is not a noncircular path: the ellipse's semimajor axis is
+half the path radius, so the radial body is intentionally substantial. The 110%
+viewport framing and end-on views around the authored spin axis emphasize it.
 
 ## A6 deployment
 

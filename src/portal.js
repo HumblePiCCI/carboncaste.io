@@ -21,11 +21,13 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 
 const frustumSize = 10;
+const initialCameraZoom = 1.25;
 const initialCameraPosition = new THREE.Vector3(0, 0, 20);
 const initialTarget = new THREE.Vector3(0, 0, 0);
 const camera = new THREE.OrthographicCamera(-5, 5, 5, -5, 0.1, 1000);
 camera.position.copy(initialCameraPosition);
-camera.zoom = 1.25;
+camera.zoom = initialCameraZoom;
+scene.add(camera);
 
 const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false });
 renderer.setPixelRatio(1);
@@ -84,6 +86,25 @@ function createToroidalMobius() {
     }
   }
 
+  let maxCenterlineError = 0;
+  for (let j = 0; j < segments; j += 1) {
+    const phi = (j / segments) * Math.PI * 2;
+    const center = new THREE.Vector3();
+    for (let i = 0; i < segments; i += 1) {
+      const offset = (i * (segments + 1) + j) * 3;
+      center.x += positions[offset];
+      center.y += positions[offset + 1];
+      center.z += positions[offset + 2];
+    }
+    center.divideScalar(segments);
+    const expectedCenter = new THREE.Vector3(
+      pathRadius * Math.cos(phi),
+      pathRadius * Math.sin(phi),
+      0,
+    );
+    maxCenterlineError = Math.max(maxCenterlineError, center.distanceTo(expectedCenter));
+  }
+
   for (let i = 0; i < segments; i += 1) {
     for (let j = 0; j < segments; j += 1) {
       const a = i * (segments + 1) + j;
@@ -99,6 +120,15 @@ function createToroidalMobius() {
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.computeVertexNormals();
   geometry.computeBoundingBox();
+  geometry.userData.sweep = {
+    crossSection: 'ellipse',
+    centerline: 'circle',
+    majorAxis,
+    minorAxis,
+    pathRadius,
+    twistRadians: Math.PI,
+    maxCenterlineError,
+  };
   return new THREE.Mesh(geometry, normalMaterial);
 }
 
@@ -130,62 +160,134 @@ let pendingTouchPause = 0;
 let surfaceSample = null;
 let returnTimer = 0;
 let introMesh = null;
-let signalTransition = null;
-let signalHandoffPending = false;
-let signalStartedInScene = false;
-let signalHandoffCount = 0;
 let signalGeometryDepth = null;
+let signalState = 'loading';
+let signalAngle = -Math.PI / 4;
+let signalStartPhase = 0;
+let signalMaxFollowError = 0;
+let signalLockTransformError = null;
+const signalStatesVisited = new Set();
 
 const themeClasses = [
   'surface-theme-ac-g',
   ...Array.from({ length: 12 }, (_, index) => `surface-theme-ac-${index}`),
 ];
 
-const signalStartPosition = new THREE.Vector3(-0.22, 0.14, 0.35);
-const signalEndPosition = new THREE.Vector3(0, 0, 0);
-const signalStartQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.18, 0.38, -0.14));
-const signalEndQuaternion = new THREE.Quaternion();
+const signalStartAngle = -Math.PI / 4;
+const signalEaseStartAngle = -Math.PI / 6;
+const signalAxisWorld = new THREE.Vector3(0, 1, 0);
+const signalBaseColor = 0xd8dce5;
+const signalActiveColor = 0x55d7e9;
 
-function revealFixedSignal() {
-  if (introMesh) introMesh.visible = false;
-  signalTransition = null;
-  signalHandoffPending = false;
-  signalHandoffCount += 1;
-  controls.enabled = true;
-  portalEnter.disabled = false;
-  portalEnter.setAttribute('aria-hidden', 'false');
-  document.body.classList.add('is-signal-ready', 'is-signal-settled');
+function setSignalLinkEnabled(enabled, fallback = false) {
+  portalEnter.disabled = !enabled;
+  portalEnter.setAttribute('aria-hidden', enabled ? 'false' : 'true');
+  document.body.classList.toggle('is-signal-ready', enabled);
+  document.body.classList.toggle('is-signal-settled', enabled);
+  document.body.classList.toggle('is-signal-fallback', fallback);
 }
 
-function startSignalAlignment() {
-  document.body.classList.remove('is-signal-ready', 'is-signal-settled');
-  portalEnter.disabled = true;
-  portalEnter.setAttribute('aria-hidden', 'true');
+function syncLockedSignalScale() {
+  if (signalState !== 'locked' || !introMesh) return;
+  introMesh.scale.setScalar(initialCameraZoom / camera.zoom);
+}
+
+function lockSignalToCamera() {
+  if (!introMesh || signalState === 'locked') return;
+  introMesh.position.set(0, 0, 0);
+  introMesh.quaternion.identity();
+  introMesh.scale.setScalar(1);
+  introMesh.updateMatrixWorld(true);
+
+  const beforePosition = introMesh.getWorldPosition(new THREE.Vector3());
+  const beforeQuaternion = introMesh.getWorldQuaternion(new THREE.Quaternion());
+  const beforeScale = introMesh.getWorldScale(new THREE.Vector3());
+  camera.attach(introMesh);
+  camera.updateMatrixWorld(true);
+  introMesh.updateMatrixWorld(true);
+  const afterPosition = introMesh.getWorldPosition(new THREE.Vector3());
+  const afterQuaternion = introMesh.getWorldQuaternion(new THREE.Quaternion());
+  const afterScale = introMesh.getWorldScale(new THREE.Vector3());
+
+  signalLockTransformError = Math.max(
+    beforePosition.distanceTo(afterPosition),
+    1 - Math.abs(beforeQuaternion.dot(afterQuaternion)),
+    beforeScale.distanceTo(afterScale),
+  );
+  signalAngle = 0;
+  signalState = 'locked';
+  signalStatesVisited.add(signalState);
+  controls.enabled = true;
+  syncLockedSignalScale();
+  setSignalLinkEnabled(true);
+  status.textContent = 'We found you. Press Enter to enter Carbon Caste.';
+}
+
+function startSignalOrbit() {
+  setSignalLinkEnabled(false);
   controls.enabled = false;
+  signalMaterial.color.setHex(signalBaseColor);
+  signalLockTransformError = null;
+  signalMaxFollowError = 0;
+  signalStatesVisited.clear();
+  signalStartPhase = rotationPhase;
+  signalAngle = signalStartAngle;
+
   if (!introMesh) {
-    revealFixedSignal();
+    signalState = 'fallback';
+    controls.enabled = true;
+    setSignalLinkEnabled(true, true);
     return;
   }
+
+  if (introMesh.parent !== scene) scene.attach(introMesh);
   introMesh.visible = true;
-  introMesh.position.copy(signalStartPosition);
-  introMesh.quaternion.copy(signalStartQuaternion);
-  introMesh.scale.setScalar(0.92);
-  signalStartedInScene = true;
-  signalHandoffPending = false;
-  signalTransition = {
-    startedAt: performance.now(),
-    duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 1500,
-  };
+  introMesh.position.set(0, 0, 0);
+  introMesh.quaternion.setFromAxisAngle(signalAxisWorld, signalStartAngle);
+  introMesh.scale.setScalar(1);
+  signalState = 'following';
+  signalStatesVisited.add(signalState);
+
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) lockSignalToCamera();
 }
 
-function updateSignalAlignment(now) {
-  if (!signalTransition || !introMesh) return false;
-  const raw = Math.min(1, (now - signalTransition.startedAt) / signalTransition.duration);
-  const progress = ease(raw);
-  introMesh.position.lerpVectors(signalStartPosition, signalEndPosition, progress);
-  introMesh.quaternion.slerpQuaternions(signalStartQuaternion, signalEndQuaternion, progress);
-  introMesh.scale.setScalar(THREE.MathUtils.lerp(0.92, 1, progress));
-  return raw >= 1;
+function hermiteEaseToZero(startAngle, progress) {
+  const t2 = progress * progress;
+  const t3 = t2 * progress;
+  const h00 = 2 * t3 - 3 * t2 + 1;
+  const h10 = t3 - 2 * t2 + progress;
+  return startAngle * h00 + (-startAngle) * h10;
+}
+
+function updateSignalOrbit() {
+  if (!introMesh || !['following', 'easing'].includes(signalState)) return;
+  const phaseDelta = rotationPhase - signalStartPhase;
+  const rawAngle = signalStartAngle + phaseDelta;
+
+  if (rawAngle >= 0) {
+    lockSignalToCamera();
+    return;
+  }
+
+  if (rawAngle < signalEaseStartAngle) {
+    signalState = 'following';
+    signalAngle = rawAngle;
+    signalMaxFollowError = Math.max(
+      signalMaxFollowError,
+      Math.abs((signalAngle - signalStartAngle) - phaseDelta),
+    );
+  } else {
+    signalState = 'easing';
+    signalStatesVisited.add(signalState);
+    const progress = THREE.MathUtils.clamp(
+      (rawAngle - signalEaseStartAngle) / -signalEaseStartAngle,
+      0,
+      1,
+    );
+    signalAngle = hermiteEaseToZero(signalEaseStartAngle, progress);
+  }
+
+  introMesh.quaternion.setFromAxisAngle(signalAxisWorld, signalAngle);
 }
 
 function ease(value) {
@@ -269,9 +371,12 @@ function pickDiveTarget() {
 }
 
 function startDive() {
-  if (mode !== 'intro' || transition || signalTransition || !document.body.classList.contains('is-signal-settled')) return;
+  if (mode !== 'intro' || transition || !['locked', 'fallback'].includes(signalState)) return;
   pausedBeforeDive = paused;
   paused = true;
+  if (introMesh) introMesh.visible = false;
+  signalMaterial.color.setHex(signalBaseColor);
+  setSignalLinkEnabled(false);
   const dive = pickDiveTarget();
   const startCamera = camera.position.clone();
   const startTarget = controls.target.clone();
@@ -366,9 +471,8 @@ function restoreIntro() {
     stage.setAttribute('aria-hidden', 'false');
     document.body.classList.remove(...themeClasses);
     camera.position.copy(initialCameraPosition);
-    camera.zoom = 1.25;
+    camera.zoom = initialCameraZoom;
     controls.target.copy(initialTarget);
-    controls.enabled = true;
     mobiusSpinPivot.rotation.set(0, 0, 0);
     rotationPhase = 0;
     paused = pausedBeforeDive;
@@ -378,7 +482,7 @@ function restoreIntro() {
     camera.updateProjectionMatrix();
     controls.update();
     window.scrollTo(0, 0);
-    startSignalAlignment();
+    startSignalOrbit();
     status.textContent = 'We found you. Press Enter to enter Carbon Caste.';
   }, 460);
 }
@@ -388,7 +492,7 @@ function isMobile() {
 }
 
 function introScale() {
-  const baseViewHeight = frustumSize / 1.25;
+  const baseViewHeight = frustumSize / initialCameraZoom;
   return (baseViewHeight / mobiusBaseHeight) * 1.1;
 }
 
@@ -414,7 +518,7 @@ function resize() {
 function resetView() {
   if (mode !== 'intro') return;
   camera.position.copy(initialCameraPosition);
-  camera.zoom = 1.25;
+  camera.zoom = initialCameraZoom;
   controls.target.copy(initialTarget);
   camera.updateProjectionMatrix();
   controls.update();
@@ -459,6 +563,14 @@ effect.domElement.addEventListener('dblclick', (event) => {
 });
 
 portalEnter.addEventListener('click', startDive);
+portalEnter.addEventListener('pointerenter', () => {
+  if (signalState === 'locked') signalMaterial.color.setHex(signalActiveColor);
+});
+portalEnter.addEventListener('pointerleave', () => signalMaterial.color.setHex(signalBaseColor));
+portalEnter.addEventListener('focus', () => {
+  if (signalState === 'locked') signalMaterial.color.setHex(signalActiveColor);
+});
+portalEnter.addEventListener('blur', () => signalMaterial.color.setHex(signalBaseColor));
 returnSignal.addEventListener('click', restoreIntro);
 
 window.addEventListener('keydown', (event) => {
@@ -491,12 +603,12 @@ loader.load(
   (font) => {
     buildSignalMesh(font);
     document.documentElement.classList.add('ascii-ready');
-    startSignalAlignment();
+    startSignalOrbit();
   },
   undefined,
   () => {
     document.documentElement.classList.add('ascii-ready');
-    revealFixedSignal();
+    startSignalOrbit();
     status.textContent = 'The dimensional signal could not be decoded. The fixed entrance remains available.';
   },
 );
@@ -505,18 +617,17 @@ function animate(now) {
   requestAnimationFrame(animate);
   if (mode === 'site' || mode === 'returning') return;
 
-  const handoffNow = signalHandoffPending;
-  if (handoffNow && introMesh) introMesh.visible = false;
-  const signalComplete = handoffNow ? false : updateSignalAlignment(now);
   const diveComplete = updateTransition(now);
   if (!paused && mode === 'intro') {
     rotationPhase += rotationSpeed;
     mobiusSpinPivot.rotation.x = rotationPhase;
   }
-  if (mode === 'intro') controls.update();
+  updateSignalOrbit();
+  if (mode === 'intro') {
+    controls.update();
+    syncLockedSignalScale();
+  }
   effect.render(scene, camera);
-  if (handoffNow) revealFixedSignal();
-  else if (signalComplete) signalHandoffPending = true;
   if (diveComplete) finishDive();
 }
 
@@ -538,11 +649,19 @@ window.__carbonPortal = {
       cameraPosition: [camera.position.x, camera.position.y, camera.position.z],
       transitionDuration: transition?.duration || null,
       signalSettled: document.body.classList.contains('is-signal-settled'),
-      signalStartedInScene,
+      signalState,
+      signalAngle,
+      signalStartAngle,
+      signalEaseStartAngle,
+      signalStatesVisited: [...signalStatesVisited],
+      signalMaxFollowError,
+      signalLockTransformError,
       signalMeshVisible: Boolean(introMesh?.visible),
-      signalHandoffCount,
+      signalParent: introMesh?.parent === camera ? 'camera' : introMesh?.parent === scene ? 'scene' : 'none',
+      signalScreenScale: introMesh ? introMesh.scale.x * camera.zoom : null,
       signalGeometryDepth,
-      textMode: signalTransition ? 'ascii-3d-aligning' : 'viewport-fixed',
+      textMode: signalState === 'locked' ? 'ascii-3d-camera-locked' : `ascii-3d-${signalState}`,
+      sweep: mobius.geometry.userData.sweep,
       activeActions: mode === 'intro' && !portalEnter.disabled ? ['enter'] : [],
       surface: surfaceSample ? {
         character: surfaceSample.character,
