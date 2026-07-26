@@ -1,4 +1,6 @@
 User-agent: *
 Allow: /
+Disallow: /iceland26/
+Disallow: /api/iceland26
 
 Sitemap: https://carboncaste.io/sitemap.xml

@@ -11,6 +11,17 @@ const requiredFiles = [
   '.well-known/security.txt',
   'fonts/helvetiker_regular.typeface.json',
   'dist/portal.js',
+  'iceland26/index.html',
+  'iceland26/styles.css',
+  'iceland26/app.js',
+  'iceland26/itinerary.json',
+  'iceland26/access.html',
+  'iceland26/access.css',
+  'iceland26/access.js',
+  'server/iceland26-store.mjs',
+  'scripts/deploy-a6.sh',
+  'scripts/rollback-a6.sh',
+  'deploy/a6-promote-release.sh',
 ];
 
 const failures = [];
@@ -62,6 +73,112 @@ for (const file of ['privacy.html', 'terms.html', 'contact.html']) {
   if (!content.includes('Carbon Caste Inc.')) failures.push(`${file} is missing the legal entity name`);
   if (!content.includes('admin@carboncaste.io')) failures.push(`${file} is missing the company email`);
   if (!content.includes('class="legal-page"')) failures.push(`${file} is missing the shared ASCII page shell`);
+}
+
+const icelandIndex = await readFile('iceland26/index.html', 'utf8');
+for (const value of [
+  'Iceland 2026 — Our shared route',
+  'id="participant-select"',
+  'id="leg-picker"',
+  'id="option-list"',
+  'id="consensus"',
+  'id="idea-dialog"',
+  '/iceland26/styles.css?v=20260726',
+  '/iceland26/app.js?v=20260726',
+  'noindex, nofollow',
+]) {
+  if (!icelandIndex.includes(value)) failures.push(`iceland26/index.html is missing ${value}`);
+}
+
+const icelandAccess = await readFile('iceland26/access.html', 'utf8');
+for (const value of [
+  'Enter the Iceland 2026 board',
+  'id="access-form"',
+  'id="trip-code"',
+  '/iceland26/access.css?v=20260726',
+  '/iceland26/access.js?v=20260726',
+  'noindex, nofollow',
+]) {
+  if (!icelandAccess.includes(value)) failures.push(`iceland26/access.html is missing ${value}`);
+}
+
+const itineraryText = await readFile('iceland26/itinerary.json', 'utf8');
+let itinerary;
+try {
+  itinerary = JSON.parse(itineraryText);
+} catch (error) {
+  failures.push(`iceland26/itinerary.json is invalid JSON: ${error.message}`);
+}
+if (itinerary) {
+  const options = itinerary.legs?.flatMap((leg) => leg.options || []) || [];
+  const ids = options.map((option) => option.id);
+  if (itinerary.schemaVersion !== 1) failures.push('Iceland itinerary schemaVersion must be 1');
+  if (itinerary.legs?.length < 7) failures.push('Iceland itinerary must cover all seven route chapters');
+  if (options.length < 28) failures.push('Iceland itinerary must retain a full route-wide option set');
+  if (options.filter((option) => option.standout).length < 8) {
+    failures.push('Iceland itinerary must identify the strongest review-backed experiences');
+  }
+  if (new Set(ids).size !== ids.length) failures.push('Iceland itinerary option IDs must be unique');
+  for (const option of options) {
+    if (!option.id || !option.title || !option.hook || !Array.isArray(option.sources)) {
+      failures.push(`Iceland itinerary option is incomplete: ${option.id || '(missing id)'}`);
+    }
+    for (const source of option.sources || []) {
+      try {
+        if (new URL(source.url).protocol !== 'https:') throw new Error('not https');
+      } catch {
+        failures.push(`Iceland source must be a valid HTTPS URL: ${source.url}`);
+      }
+    }
+  }
+}
+
+const icelandClient = await readFile('iceland26/app.js', 'utf8');
+for (const value of [
+  "'/api/iceland26/preference'",
+  "'/api/iceland26/comment'",
+  "'/api/iceland26/suggestion'",
+  'textContent',
+  'localStorage',
+  'positivePreferences',
+  'all four are in',
+]) {
+  if (!icelandClient.includes(value)) failures.push(`iceland26/app.js is missing ${value}`);
+}
+if (icelandClient.includes('.innerHTML')) {
+  failures.push('Iceland client must not render shared user content with innerHTML');
+}
+
+const icelandServer = await readFile('server/static-server.mjs', 'utf8');
+for (const value of [
+  'ICELAND26_ACCESS_HASH',
+  'ICELAND26_SESSION_SECRET',
+  "'HttpOnly'",
+  "'SameSite=Strict'",
+  "'/api/iceland26/login'",
+  "'/api/iceland26/logout'",
+  'timingSafeEqual',
+  'isPublicStaticPath',
+  'publicRootFiles',
+  'publicIcelandFiles',
+]) {
+  if (!icelandServer.includes(value)) failures.push(`Iceland server access gate is missing ${value}`);
+}
+
+const icelandPublicText = `${icelandIndex}\n${itineraryText}\n${icelandClient}`;
+for (const [label, pattern] of [
+  ['campsite-style reservation identifier', /\b\d{3}-\d{3}-\d{5}-\d{6}\b/],
+  ['private Google Drive URL', /https?:\/\/(?:drive|docs)\.google\.com\//i],
+  ['motorhome terms document', /Motorhome Iceland Terms & Conditions/i],
+]) {
+  if (pattern.test(icelandPublicText)) {
+    failures.push(`Iceland public client leaks private planning data: ${label}`);
+  }
+}
+
+const robots = await readFile('robots.txt', 'utf8');
+for (const value of ['Disallow: /iceland26/', 'Disallow: /api/iceland26']) {
+  if (!robots.includes(value)) failures.push(`robots.txt is missing ${value}`);
 }
 
 const effect = await readFile('src/CspAsciiEffect.js', 'utf8');

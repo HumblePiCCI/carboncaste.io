@@ -8,9 +8,13 @@ WorkingDirectory=/home/humble/services/carboncaste-web/current
 Environment=CARBONCASTE_WEB_ROOT=/home/humble/services/carboncaste-web/current
 Environment=CARBONCASTE_WEB_HOST=127.0.0.1
 Environment=CARBONCASTE_WEB_PORT=8126
+Environment=ICELAND26_DATA_PATH=/home/humble/services/carboncaste-web/state/iceland26-state.json
+Environment=ICELAND26_COOKIE_SECURE=true
+EnvironmentFile=-/home/humble/services/carboncaste-web/config/iceland26.env
 ExecStart=/home/humble/.hermes/node/bin/node /home/humble/services/carboncaste-web/current/server/static-server.mjs
 Restart=always
 RestartSec=5
+UMask=0077
 
 [Install]
 WantedBy=default.target

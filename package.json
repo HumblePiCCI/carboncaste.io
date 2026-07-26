@@ -7,9 +7,11 @@
     "build": "webpack --mode production",
     "serve": "node server/static-server.mjs",
     "check": "node scripts/check-site.mjs",
+    "test:iceland26": "node scripts/iceland26-api-test.mjs",
+    "interaction:iceland26": "node scripts/iceland26-interaction-test.mjs",
     "interaction": "node scripts/interaction-test.mjs",
     "smoke": "node scripts/smoke-test.mjs",
-    "test": "npm run build && npm run check"
+    "test": "npm run build && npm run check && npm run test:iceland26"
   },
   "dependencies": {
     "three": "0.162.0"

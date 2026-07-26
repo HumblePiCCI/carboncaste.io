@@ -53,6 +53,7 @@ ordinary semantic HTML and links.
 - `/privacy.html` - corporate website privacy policy
 - `/terms.html` - corporate website terms
 - `/contact.html` - company and Rezonance support contacts
+- `/iceland26/` - private Iceland 2026 planning and four-person decision board
 - `/.well-known/security.txt` - security contact
 
 Rezonance keeps its product-specific support, privacy, and terms at
@@ -66,6 +67,7 @@ npm test
 npm run serve
 BASE_URL=http://127.0.0.1:8126 npm run smoke
 BASE_URL=http://127.0.0.1:8126 npm run interaction
+npm run interaction:iceland26
 npm audit
 ```
 
@@ -76,6 +78,65 @@ surface flight, exact frozen-frame continuity, sampled theme persistence,
 complete corporate information architecture, scrolling, section navigation,
 return, and console errors. Screenshots are written to ignored
 `output/playwright/`.
+
+## Iceland 2026 coordination board
+
+`/iceland26/` is a full-stack, same-origin planning surface for Ben, Mary,
+Laura, and Brad. The editorial route is sourced from the shared planning
+document, while preferences, notes, and new group suggestions are persisted by
+the Node service.
+
+The board:
+
+- separates booked/fixed anchors from open and conditional experiences;
+- highlights research-backed standouts with direct official, review, and travel
+  post links;
+- records `Love`, `Interested`, and `Not for me` independently for each of the
+  four adult planners;
+- calls something a group yes only when all four planners are positive;
+- stores discussion and group-added ideas without placing shared text into
+  `innerHTML`;
+- keeps private reservation numbers, costs, and Drive links out of the client;
+- sends `noindex, nofollow` at both HTML and HTTP-header levels.
+
+Trip content and the API are protected by a shared code. The server stores only
+the code's SHA-256 digest and issues a signed, HttpOnly, SameSite session cookie.
+Production requires:
+
+```sh
+ICELAND26_ACCESS_HASH=<sha256-hex>
+ICELAND26_SESSION_SECRET=<at-least-32-random-characters>
+ICELAND26_DATA_PATH=/absolute/persistent/path/iceland26-state.json
+ICELAND26_COOKIE_SECURE=true
+```
+
+If either credential variable is missing or invalid, the trip data fails
+closed while the corporate homepage stays available. Coordination state lives
+outside release directories and is written through a serialized,
+fsync-and-rename atomic publisher. Every successful mutation also checkpoints
+the preceding valid revision beside the live file as
+`iceland26-state.json.previous`; restoring it remains an explicit operator
+action so a damaged live file is never silently substituted.
+
+`GET /api/iceland26/health` exposes no trip data and returns 200 only when both
+the access configuration and persistent state are usable. A6 promotion treats
+that readiness result, a deliberately invalid-login response, and the protected
+API response as separate acceptance gates.
+
+Verification is split intentionally:
+
+```sh
+npm test
+npm run interaction:iceland26
+```
+
+The first command covers the existing portal, static contract, access/session
+gate, schema validation, cross-site rejection, concurrent granular updates,
+atomic persistence, restart recovery, and logout. The interaction run opens a
+task-owned local server and headless Chrome, exercises access, preferences,
+discussion, and suggestions at desktop/mobile sizes, records screenshots, and
+tears down its browser, listener, temporary state, and child process in a
+`finally` path.
 
 ## Torus construction
 
@@ -95,3 +156,13 @@ Production files live at `/home/humble/services/carboncaste-web/current` on
 `ssh humble`. `carboncaste-web.service` serves `127.0.0.1:8126`; Cloudflare
 Tunnel maps `carboncaste.io` and `www.carboncaste.io` to that origin. Build
 `dist/portal.js` before synchronizing the tracked tree.
+
+Deployments should stage an immutable full-SHA release under
+`/home/humble/services/carboncaste-web/releases/`, validate it on an alternate
+loopback port and temporary state file, then atomically switch `current`.
+Persistent Iceland state belongs under
+`/home/humble/services/carboncaste-web/state/`, and the access hash/session
+secret belong in the mode-0600
+`/home/humble/services/carboncaste-web/config/iceland26.env`. Roll back code by
+switching the release symlink; never roll back the coordination state unless a
+separately verified data restore is explicitly intended.

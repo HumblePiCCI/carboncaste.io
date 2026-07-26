@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#102a2b">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Iceland 2026 — Our shared route</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/iceland26/styles.css?v=20260726">
+  <script type="module" src="/iceland26/app.js?v=20260726"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to the trip</a>
+  <header class="trip-header">
+    <a class="trip-mark" href="/iceland26/" aria-label="Iceland 2026 home">
+      <span class="trip-mark__glyph" aria-hidden="true">↗</span>
+      <span><strong>IS / 26</strong><small>shared field notes</small></span>
+    </a>
+    <nav class="trip-nav" aria-label="Trip sections">
+      <a href="#route">Route</a>
+      <a href="#consensus">Group pulse</a>
+      <a href="#field-notes">Field notes</a>
+    </nav>
+    <div class="identity-wrap">
+      <label class="identity">
+        <span>I’m</span>
+        <select id="participant-select" aria-label="Choose your name">
+          <option value="">Choose name</option>
+          <option value="ben">Ben</option>
+          <option value="mary">Mary</option>
+          <option value="laura">Laura</option>
+          <option value="brad">Brad</option>
+        </select>
+      </label>
+      <button class="lock-button" id="logout-button" type="button" title="Lock this trip board">Lock</button>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" aria-labelledby="trip-title">
+      <div class="hero__sky" aria-hidden="true">
+        <span class="hero__sun"></span>
+        <span class="hero__ridge hero__ridge--far"></span>
+        <span class="hero__ridge hero__ridge--near"></span>
+        <span class="hero__road"></span>
+      </div>
+      <div class="hero__copy">
+        <p class="kicker" id="trip-date">August 8–24, 2026 · 17 days · clockwise</p>
+        <h1 id="trip-title">Iceland,<br><em>decided together.</em></h1>
+        <p class="hero__lede">The booked bones of the trip, the experiences worth crossing the island for, and one live place for Ben, Mary, Laura and Brad to find the yes.</p>
+        <div class="hero__actions">
+          <a class="button button--primary" href="#route">Explore the route <span aria-hidden="true">↓</span></a>
+          <button class="button button--quiet" id="open-idea-dialog" type="button">+ Add an idea</button>
+        </div>
+      </div>
+      <aside class="hero__status" aria-label="Current planning baseline">
+        <p class="status-label">Already in place</p>
+        <ol id="baseline-list">
+          <li><span>01</span> Flights booked</li>
+          <li><span>02</span> Two motorhomes booked</li>
+          <li><span>03</span> First Westfjords base booked</li>
+          <li><span>04</span> Clockwise Ring Road route</li>
+        </ol>
+        <p class="sync-line"><span class="sync-dot" id="sync-dot"></span><span id="sync-status">Connecting to the shared board…</span></p>
+      </aside>
+    </section>
+
+    <section class="decision-strip" aria-label="Trip planning summary">
+      <div><strong id="count-legs">—</strong><span>route chapters</span></div>
+      <div><strong id="count-options">—</strong><span>curated experiences</span></div>
+      <div><strong id="count-standouts">—</strong><span>review standouts</span></div>
+      <div><strong id="count-agreements">0</strong><span>group yeses</span></div>
+    </section>
+
+    <section class="route-section" id="route" aria-labelledby="route-title">
+      <div class="section-heading">
+        <div>
+          <p class="kicker">Route board</p>
+          <h2 id="route-title">Follow the road.<br>Mark what calls.</h2>
+        </div>
+        <p>The route reflects the planning document as it stands. “Booked” and “fixed” items are anchors; everything else stays open until the four planners align.</p>
+      </div>
+
+      <div class="route-controls">
+        <div class="leg-picker" id="leg-picker" role="tablist" aria-label="Route chapters"></div>
+        <div class="filter-picker" aria-label="Filter experiences">
+          <button class="filter is-active" type="button" data-filter="all">All</button>
+          <button class="filter" type="button" data-filter="standout">★ Standouts</button>
+          <button class="filter" type="button" data-filter="family">Family fit</button>
+          <button class="filter" type="button" data-filter="book-ahead">Book ahead</button>
+          <button class="filter" type="button" data-filter="weather-flex">Weather-flex</button>
+        </div>
+      </div>
+
+      <div class="route-layout">
+        <div class="route-stage">
+          <header class="leg-header" id="leg-header"></header>
+          <div class="option-list" id="option-list" aria-live="polite"></div>
+        </div>
+        <aside class="decision-rail" id="consensus" aria-labelledby="pulse-title">
+          <div class="decision-rail__sticky">
+            <p class="kicker">Live group pulse</p>
+            <h2 id="pulse-title">Where the signal is strongest</h2>
+            <div id="pulse-summary" class="pulse-summary"></div>
+            <div id="top-alignment" class="alignment-list"></div>
+            <p class="rail-note">A <strong>group yes</strong> appears only when all four planners choose Love or Interested. Undecided stays undecided.</p>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="field-notes" id="field-notes" aria-labelledby="notes-title">
+      <div class="section-heading section-heading--light">
+        <div>
+          <p class="kicker">Field notes</p>
+          <h2 id="notes-title">The practical layer.</h2>
+        </div>
+        <p>What is fixed, what still needs a call, and the conditions that should shape a safe, unhurried route.</p>
+      </div>
+      <div class="notes-grid" id="notes-grid"></div>
+    </section>
+
+    <section class="method-section" aria-labelledby="method-title">
+      <div>
+        <p class="kicker">How recommendations were chosen</p>
+        <h2 id="method-title">Signal over hype.</h2>
+      </div>
+      <div class="method-copy">
+        <p>Standouts are experiences that repeatedly rise to the top in independent trip reports and travel writing, then survive a logistics check against official or local sources. The source links live on every card.</p>
+        <p>Weather, road conditions, eclipse traffic controls and operator availability can change. This board helps the group decide; official conditions still make the final call on the day.</p>
+      </div>
+    </section>
+  </main>
+
+  <dialog class="idea-dialog" id="idea-dialog">
+    <form method="dialog" id="idea-form">
+      <div class="dialog-heading">
+        <div>
+          <p class="kicker">Shared idea</p>
+          <h2>Add something to the road</h2>
+        </div>
+        <button class="dialog-close" type="button" id="close-idea-dialog" aria-label="Close">×</button>
+      </div>
+      <label>Title<input name="title" maxlength="90" required placeholder="A place, hike, swim or detour"></label>
+      <label>Where<input name="location" maxlength="70" required placeholder="Route chapter or nearby town"></label>
+      <label>Why it might belong<textarea name="details" maxlength="500" required rows="5" placeholder="What makes this worth considering?"></textarea></label>
+      <p class="form-hint">Your idea will be added to the shared board and marked “Interested” for you.</p>
+      <div class="dialog-actions">
+        <button class="button button--quiet" type="button" id="cancel-idea-dialog">Cancel</button>
+        <button class="button button--primary" type="submit">Add to the board</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <noscript><p class="noscript">This shared board needs JavaScript to load preferences and discussion.</p></noscript>
+
+  <footer class="trip-footer">
+    <p><strong>ICELAND / 2026</strong><span>Built for Ben · Mary · Laura · Brad</span></p>
+    <p><a href="/">carboncaste.io</a><span>Last planning refresh: July 26, 2026</span></p>
+  </footer>
+</body>
+</html>

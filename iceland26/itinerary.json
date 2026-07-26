@@ -1,0 +1,782 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-07-26",
+  "trip": {
+    "title": "Iceland, Summer 2026",
+    "travellers": ["Ben", "Mary", "Laura", "Brad"],
+    "dateLabel": "August 8–24, 2026",
+    "summary": "A 17-day clockwise family circuit, coordinated by four adult planners with two young travellers in mind.",
+    "baseline": [
+      "Icelandair flights are booked",
+      "Two motorhomes are booked",
+      "Bjarkalundur is booked for August 9–12",
+      "The Ring Road direction is clockwise"
+    ]
+  },
+  "legs": [
+    {
+      "id": "westfjords",
+      "number": "01",
+      "title": "Arrival, Westfjords & totality",
+      "dates": "Aug 8–12",
+      "route": "Keflavík → Borgarnes → Bjarkalundur → southern Westfjords",
+      "summary": "The most settled chapter: the long first drive, four booked nights at Bjarkalundur, and a fixed eclipse date. The remaining decision is how much of the Westfjords to attempt around weather and traffic controls.",
+      "options": [
+        {
+          "id": "arrival-bjarkalundur",
+          "title": "Arrival day to Bjarkalundur",
+          "status": "booked",
+          "standout": false,
+          "hook": "Pick up the motorhomes at 10 a.m., provision in Borgarnes, and land at the booked Westfjords base without turning the first day into a race.",
+          "planningContext": "Flights, motorhomes and the August 9–12 campsite are already booked. The campsite still needs the vehicle licence plate added.",
+          "tags": ["family", "fixed"],
+          "logistics": ["Aug 9", "5+ hours before stops", "Booked sleeping base"],
+          "sources": [
+            {
+              "label": "Bjarkalundur campsite",
+              "url": "https://www.hotelbjarkalundur.is/campsite",
+              "type": "official"
+            }
+          ]
+        },
+        {
+          "id": "borgarfjordur-waterfalls",
+          "title": "Deildartunguhver + Hraunfossar",
+          "status": "planned",
+          "standout": false,
+          "hook": "A compact first taste of geothermal power and lava-fed waterfalls, both built around short, easy walks.",
+          "planningContext": "The planning document places both between the Borgarnes grocery stop and Bjarkalundur; Eiríksstaðir is a separate optional add-on.",
+          "tags": ["family", "weather-flex"],
+          "logistics": ["Short walks", "Easy terrain", "Keep the first day light"],
+          "sources": [
+            {
+              "label": "Deildartunguhver",
+              "url": "https://guidetoiceland.is/travel-iceland/drive/deildartunguhver",
+              "type": "guide"
+            },
+            {
+              "label": "Hraunfossar",
+              "url": "https://guidetoiceland.is/travel-iceland/drive/hraunfossar",
+              "type": "guide"
+            }
+          ]
+        },
+        {
+          "id": "hellulaug-coast",
+          "title": "Hellulaug + Barðastrandarsandur",
+          "status": "open",
+          "standout": false,
+          "hook": "A natural shore-side soak and a broad beach-and-mountain landscape on the route toward the southern fjords.",
+          "planningContext": "These are proposed August 10 stops, not commitments. Hellulaug has no changing facilities; weather and crowding should decide.",
+          "tags": ["family", "weather-flex"],
+          "logistics": ["Natural pool", "No booking", "Pack towels and a change layer"],
+          "sources": [
+            {
+              "label": "Hellulaug",
+              "url": "https://guidetoiceland.is/travel-iceland/drive/hellulaug",
+              "type": "guide"
+            }
+          ]
+        },
+        {
+          "id": "dynjandi",
+          "title": "Dynjandi, the Westfjords’ cascade",
+          "status": "priority",
+          "standout": true,
+          "reviewSignal": "The recurring Westfjords highlight: recent trip reports call it one of the region’s most stunning stops, and the official trail is short enough to protect the rest of the day.",
+          "hook": "A 100-metre bridal-veil waterfall with six lower cascades unfolding on the walk up.",
+          "planningContext": "The document asks Dynjandi or Látrabjarg on August 11. Research strongly favours making Dynjandi the anchor rather than trying to fit everything.",
+          "tags": ["family", "standout"],
+          "logistics": ["Allow 60–90 minutes", "About 15 minutes uphill", "Weather-aware drive"],
+          "sources": [
+            {
+              "label": "Visit Westfjords",
+              "url": "https://www.westfjords.is/en/place/dynjandi",
+              "type": "official"
+            },
+            {
+              "label": "Recent traveller report",
+              "url": "https://www.reddit.com/r/VisitingIceland/comments/1pz71th/dynjandi_doesnt_get_enough_love/",
+              "type": "travel post"
+            }
+          ]
+        },
+        {
+          "id": "latrabjarg-raudasandur",
+          "title": "Látrabjarg + Rauðasandur",
+          "status": "conditional",
+          "standout": false,
+          "reviewSignal": "Travellers love the scale and close bird encounters, but just as consistently warn about the remote, rough approach.",
+          "hook": "Europe-scale sea cliffs and a red-gold beach at the far edge of the Westfjords.",
+          "planningContext": "Keep only if weather, vehicle guidance and spare time all agree. Puffins are already nearing the end of their dependable season.",
+          "tags": ["family", "weather-flex"],
+          "logistics": ["Remote gravel roads", "No drones at Látrabjarg", "Stay behind barriers"],
+          "sources": [
+            {
+              "label": "Nature-reserve guidelines",
+              "url": "https://www.westfjords.is/en/moya/news/latrabjarg-guidelines-for-the-nature-reserve-1",
+              "type": "official"
+            },
+            {
+              "label": "Traveller reviews",
+              "url": "https://www.tripadvisor.com/Attraction_Review-g2242596-d2313153-Reviews-Latrabjarg_bird_cliffs-Latrabjarg_Westfjords_Region.html",
+              "type": "reviews"
+            }
+          ]
+        },
+        {
+          "id": "eclipse-patreksfjordur",
+          "title": "Total eclipse from Patreksfjörður",
+          "status": "fixed",
+          "standout": true,
+          "reviewSignal": "Eclipse specialists favour Patreksfjörður’s services and staging: about 2m04s totality—only seconds below Látrabjarg—without committing to the most constrained cliff road.",
+          "hook": "The trip’s immovable moment: two minutes of totality over the Westfjords on August 12.",
+          "planningContext": "The viewing location is not booked. Official guidance expects heavy traffic, designated parking and long delays. Treat this as an all-day locally staged event, not a quick out-and-back to Bjarkalundur.",
+          "tags": ["standout", "book-ahead", "fixed"],
+          "logistics": ["Aug 12 · partial phase 16:45–18:45", "Arrive well ahead", "ISO 12312-2 glasses"],
+          "sources": [
+            {
+              "label": "Official Westfjords eclipse plan",
+              "url": "https://www.westfjords.is/en/experiences/solar-eclipse-2026",
+              "type": "official"
+            },
+            {
+              "label": "Viewing-location comparison",
+              "url": "https://eclipse2026.is/stories/where-to-watch-the-eclipse-in-the-westfjords",
+              "type": "specialist"
+            },
+            {
+              "label": "Self-guided traveller guidance",
+              "url": "https://www.ferdamalastofa.is/en/total-solar-eclipse/self-guided-travelers",
+              "type": "official"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "north",
+      "number": "02",
+      "title": "North Iceland & the volcanic lake",
+      "dates": "Aug 13–14",
+      "route": "Bjarkalundur → Skagafjörður → Mývatn → Dettifoss",
+      "summary": "The itinerary opens up after the eclipse. This chapter needs one honest choice: spend the time on a whale-watching detour, or keep a clean volcanic-and-waterfall line across the north.",
+      "options": [
+        {
+          "id": "hvitserkur-skagafjordur",
+          "title": "Hvítserkur + Skagafjörður",
+          "status": "open",
+          "standout": false,
+          "hook": "A dragon-shaped sea stack, seal country, horses and an easier first step out of the fjords.",
+          "planningContext": "The document presents this as the lower-pressure alternative to driving all the way to Mývatn on August 13.",
+          "tags": ["family", "weather-flex"],
+          "logistics": ["Flexible stop", "Wildlife is never guaranteed", "Useful drive-break"],
+          "sources": [
+            {
+              "label": "Hvítserkur guide",
+              "url": "https://guidetoiceland.is/connect-with-locals/regina/hvitserkur-up-north",
+              "type": "guide"
+            }
+          ]
+        },
+        {
+          "id": "hauganes-whales",
+          "title": "Hauganes whale watching",
+          "status": "conditional",
+          "standout": true,
+          "reviewSignal": "Roughly 4.8/5 across hundreds of reviews, with many “best experience of the trip” reports—balanced by recent reminders that wildlife and tour length are never guaranteed.",
+          "hook": "A small-boat Eyjafjörður wildlife experience with a strong family fit and a no-sighting return-tour policy.",
+          "planningContext": "The planning document questions whether the detour fits. Choose it only if a real three-hour block survives the eclipse exit and northbound drive.",
+          "tags": ["family", "standout", "book-ahead"],
+          "logistics": ["About 2.5–3 hours", "Book a real Aug 2026 departure", "Wildlife-dependent"],
+          "sources": [
+            {
+              "label": "2026 operator brochure",
+              "url": "https://whales.is/wp-content/uploads/WWH_baeklingur_2026_Net.pdf",
+              "type": "official"
+            },
+            {
+              "label": "Recent reviews",
+              "url": "https://www.tripadvisor.co.uk/Attraction_Review-g7755439-d4521254-Reviews-Whale_Watching_Hauganes-Hauganes_Northeast_Region.html",
+              "type": "reviews"
+            }
+          ]
+        },
+        {
+          "id": "godafoss",
+          "title": "Goðafoss",
+          "status": "planned",
+          "standout": false,
+          "hook": "A broad, accessible “Waterfall of the Gods” that works naturally as the bridge into the Mývatn region.",
+          "planningContext": "Already named in the August 13 plan. Keep it as a clean en-route stop rather than letting it expand the day.",
+          "tags": ["family", "weather-flex"],
+          "logistics": ["Easy viewpoints", "En route", "No booking"],
+          "sources": [
+            {
+              "label": "Goðafoss guide",
+              "url": "https://guidetoiceland.is/travel-iceland/drive/godafoss",
+              "type": "guide"
+            }
+          ]
+        },
+        {
+          "id": "hverir-hverfjall",
+          "title": "Hverir + Hverfjall",
+          "status": "priority",
+          "standout": true,
+          "reviewSignal": "Trip reports consistently pair Hverir’s otherworldly geothermal colour with Hverfjall’s short, steep crater climb; the combination scales cleanly to the day’s energy.",
+          "hook": "Steam, sulphur and a near-perfect black tephra crater above Lake Mývatn.",
+          "planningContext": "Hverir can be the short sensory stop. Add the crater rim only if wind, energy and the preceding drive allow.",
+          "tags": ["family", "standout", "weather-flex"],
+          "logistics": ["Hverir is brief", "Hverfjall rim about 1 hour", "Mývatn insects can be intense"],
+          "sources": [
+            {
+              "label": "Hverfjall trail guidance",
+              "url": "https://www.ust.is/english/visiting-iceland/protected-areas/north-east/hverfjall/",
+              "type": "official"
+            },
+            {
+              "label": "Hverir",
+              "url": "https://www.hverir.com/en",
+              "type": "official"
+            }
+          ]
+        },
+        {
+          "id": "earth-lagoon",
+          "title": "Earth Lagoon recovery soak",
+          "status": "conditional",
+          "standout": false,
+          "reviewSignal": "Newly rebuilt in July 2026, so much of the historic review record describes a different facility; early post-rebuild feedback is mixed on temperature and value.",
+          "hook": "A late-opening geothermal soak near Mývatn that could reset the group after a long drive.",
+          "planningContext": "Keep as a flexible recovery option only after confirming the exact slot, current hours and newer reviews.",
+          "tags": ["family", "book-ahead", "weather-flex"],
+          "logistics": ["Average visit 90 minutes", "Advance booking advised", "Verify current closing time"],
+          "sources": [
+            {
+              "label": "Earth Lagoon",
+              "url": "https://www.earthlagoon.is/",
+              "type": "official"
+            },
+            {
+              "label": "Current visitor feedback",
+              "url": "https://www.tripadvisor.com/Attraction_Review-g315845-d1881174-Reviews-Earth_Lagoon_Myvatn_Jardbodin_vid_Myvatn-Lake_Myvatn_Northeast_Region.html",
+              "type": "reviews"
+            }
+          ]
+        },
+        {
+          "id": "dettifoss-selfoss",
+          "title": "Dettifoss + Selfoss, west bank",
+          "status": "priority",
+          "standout": true,
+          "reviewSignal": "The west bank is the practical consensus choice, but older posts now mislead: a 2025 landslide permanently changed the Dettifoss viewing layout in May 2026.",
+          "hook": "Raw glacial power at Dettifoss, followed by the amphitheatre of Selfoss on one compact loop.",
+          "planningContext": "Use paved Road 862 and the current park map. Do not follow pre-2026 blog directions to the closed Fosshvamm area.",
+          "tags": ["family", "standout", "weather-flex"],
+          "logistics": ["2.5 km / about 1 hour", "West bank via Road 862", "Recheck current access"],
+          "sources": [
+            {
+              "label": "National Park route",
+              "url": "https://www.vatnajokulsthjodgardur.is/en/areas/jokulsargljufur/dettifoss",
+              "type": "official"
+            },
+            {
+              "label": "May 2026 safety update",
+              "url": "https://www.vatnajokulsthjodgardur.is/frettir/oryggi-gesta-i-fyrirrumi-breytt-a%C3%B0gengi-a%C3%B0-detti",
+              "type": "official"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "east",
+      "number": "03",
+      "title": "Eastfjords & Theo’s birthday",
+      "dates": "Aug 15",
+      "route": "Mývatn → Stuðlagil → Eastfjords → Stokksnes",
+      "summary": "The birthday day is currently overfull. Stuðlagil needs its own deliberate block; the late-season puffin detour should survive only if the fjord and village are part of the appeal.",
+      "options": [
+        {
+          "id": "studlagil",
+          "title": "Stuðlagil’s basalt canyon",
+          "status": "priority",
+          "standout": true,
+          "reviewSignal": "Reviewers overwhelmingly prefer the east-side canyon-floor experience; the west platform is a legitimate fast fallback, not an equivalent visit.",
+          "hook": "A turquoise river cutting between monumental basalt columns.",
+          "planningContext": "Choose in advance: east side early for the real hike, or west side for a shorter birthday-day stop.",
+          "tags": ["family", "standout", "weather-flex"],
+          "logistics": ["East side 2–4 hours", "West platform 20–30 minutes", "Parking fills early"],
+          "sources": [
+            {
+              "label": "July 2026 hike guide",
+              "url": "https://www.east.is/en/blog/studlagil-canyon-hike",
+              "type": "official"
+            },
+            {
+              "label": "Traveller reviews",
+              "url": "https://www.tripadvisor.com/Attraction_Review-g315847-d17433058-Reviews-Studlagil_canyon-Egilsstadir_East_Region.html",
+              "type": "reviews"
+            }
+          ]
+        },
+        {
+          "id": "borgarfjordur-eystri",
+          "title": "Borgarfjörður Eystri puffin hedge",
+          "status": "conditional",
+          "standout": false,
+          "reviewSignal": "Official season guidance ends around mid-August; actual August 2025 reports ranged from a handful of stragglers to about twenty birds.",
+          "hook": "A beautiful fjord village and close viewing platform—if the drive matters even without a puffin payoff.",
+          "planningContext": "Do not make the detour solely for puffins on August 15. Heimaey is the stronger late-season hedge.",
+          "tags": ["family", "weather-flex"],
+          "logistics": ["Tail end of season", "Long detour", "Wildlife not guaranteed"],
+          "sources": [
+            {
+              "label": "Official puffin season",
+              "url": "https://www.borgarfjordureystri.is/en/puffins",
+              "type": "official"
+            },
+            {
+              "label": "Mid-August field report",
+              "url": "https://www.reddit.com/r/VisitingIceland/comments/1mpguo7",
+              "type": "travel post"
+            }
+          ]
+        },
+        {
+          "id": "djupivogur-stokksnes",
+          "title": "Djúpivogur + Stokksnes",
+          "status": "open",
+          "standout": false,
+          "hook": "A gentler Eastfjords town break followed by black dunes and the sharp Vestrahorn skyline.",
+          "planningContext": "Both appear in the planning document as the line toward the glacier lagoon, not as bookings.",
+          "tags": ["family", "weather-flex"],
+          "logistics": ["Scenic drive", "Wind-sensitive", "No wildlife promise"],
+          "sources": [
+            {
+              "label": "Stokksnes guide",
+              "url": "https://guidetoiceland.is/travel-iceland/drive/stokksnes",
+              "type": "guide"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "glacier",
+      "number": "04",
+      "title": "Glacier lagoon & ice country",
+      "dates": "Aug 16",
+      "route": "Stokksnes → Jökulsárlón → Skaftafell",
+      "summary": "The clearest unbooked anchor in the plan. Jökulsárlón earns protected time; the group must choose a whole-family boat or split for an age-gated experience.",
+      "options": [
+        {
+          "id": "jokulsarlon-boat",
+          "title": "Jökulsárlón + a lagoon boat",
+          "status": "priority",
+          "standout": true,
+          "reviewSignal": "The Zodiac is repeatedly called a trip highlight and books months ahead, while the shorter amphibian boat is the current whole-family fit.",
+          "hook": "Move among glacier-blue icebergs, then cross the road to the black-sand Diamond Beach.",
+          "planningContext": "Choose the amphibian for everyone. A Zodiac requires age 10+, so it only works with a childcare split.",
+          "tags": ["family", "standout", "book-ahead"],
+          "logistics": ["Amphibian 30–40 minutes", "Zodiac age 10+", "Book once route timing is locked"],
+          "sources": [
+            {
+              "label": "Official 2026 booking",
+              "url": "https://icelagoon.is/booking/",
+              "type": "official"
+            },
+            {
+              "label": "Operator FAQ",
+              "url": "https://www.icelagoon.com/frequently-asked-questions/",
+              "type": "official"
+            },
+            {
+              "label": "Recent Zodiac reviews",
+              "url": "https://www.tripadvisor.co.uk/AttractionProductReview-g3676470-d14038000-Small_Group_Glacier_Lagoon_Zodiac_Boat_Tour-East_Region.html",
+              "type": "reviews"
+            }
+          ]
+        },
+        {
+          "id": "glacier-hike",
+          "title": "A guided glacier hike",
+          "status": "conditional",
+          "standout": false,
+          "hook": "Step onto Vatnajökull only with a certified guide and a product whose age, boot and difficulty rules fit the actual group.",
+          "planningContext": "The document’s generic “glacier hike” is not yet actionable. Operator age gates range widely; many substantial hikes are 12+.",
+          "tags": ["book-ahead", "weather-flex"],
+          "logistics": ["Guided only", "Age and boot-size gates", "Choose a named operator first"],
+          "sources": [
+            {
+              "label": "Official glacier safety",
+              "url": "https://www.ust.is/english/visiting-iceland/travel-information/travellers-safety/",
+              "type": "official"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "south",
+      "number": "05",
+      "title": "South Coast: canyon to falls",
+      "dates": "Aug 17–18",
+      "route": "Fjaðrárgljúfur → Vík → Skógar → Seljalandsfoss",
+      "summary": "A dense run of famous stops. The best version is not six parking lots—it is one meaningful waterfall walk, a safety-first beach call and room for the weather to edit.",
+      "options": [
+        {
+          "id": "fjadrargljufur-eldhraun",
+          "title": "Fjaðrárgljúfur + Eldhraun",
+          "status": "planned",
+          "standout": false,
+          "hook": "A moss-softened lava landscape and a winding canyon as the road leaves glacier country.",
+          "planningContext": "Both are already in the August 17 route; Eldhraun is explicitly a drive-by.",
+          "tags": ["family", "weather-flex"],
+          "logistics": ["Marked paths", "Keep the lava-field stop brief", "No booking"],
+          "sources": [
+            {
+              "label": "Fjaðrárgljúfur guide",
+              "url": "https://guidetoiceland.is/connect-with-locals/regina/the-picturesque-fjadrargljufur-canyon-in-south-iceland",
+              "type": "guide"
+            }
+          ]
+        },
+        {
+          "id": "reynisfjara",
+          "title": "Reynisfjara, only on green terms",
+          "status": "conditional",
+          "standout": false,
+          "reviewSignal": "The dramatic beach is famous; official sources are more important than reviews here. Sneaker waves and 2026 coastal erosion make the live warning state the decision.",
+          "hook": "Basalt columns, black sand and Atlantic force—with no room for casual beach behaviour.",
+          "planningContext": "Visit only under a permissive SafeTravel state. Keep children close, never turn away from the water and follow the active boundary literally.",
+          "tags": ["family", "weather-flex"],
+          "logistics": ["Check live beach status", "Never swim", "Red state means viewpoint only"],
+          "sources": [
+            {
+              "label": "Live black-beach safety",
+              "url": "https://safetravel.is/travel-conditions/blackbeach-safety/",
+              "type": "official"
+            },
+            {
+              "label": "2026 erosion update",
+              "url": "https://www.ferdamalastofa.is/en/news/category/1/reynisfjara-recent-changes-due-to-coastal-erosion",
+              "type": "official"
+            }
+          ]
+        },
+        {
+          "id": "dyrholaey",
+          "title": "Dyrhólaey panorama",
+          "status": "planned",
+          "standout": false,
+          "hook": "A high coastal overview of the sea arch, beaches and Mýrdalur—strong for the landscape, weak as a late puffin promise.",
+          "planningContext": "The upper road is steep, narrow and rough. Extreme wind should cancel the upper viewpoint.",
+          "tags": ["family", "weather-flex"],
+          "logistics": ["Wind-exposed", "Rough upper road", "Puffin season ending"],
+          "sources": [
+            {
+              "label": "May 2026 visitor guidance",
+              "url": "https://www.south.is/en/travel-info/newsblog/visiting-dyrholaey-what-to-know-before-you-go",
+              "type": "official"
+            }
+          ]
+        },
+        {
+          "id": "skogafoss-waterfall-way",
+          "title": "Skógafoss Waterfall Way, partial",
+          "status": "priority",
+          "standout": true,
+          "reviewSignal": "Travel writers and family reports agree that even the first stretch above Skógafoss adds multiple falls and quickly sheds the parking-lot crowd.",
+          "hook": "Climb beside Skógafoss, then keep walking upriver until the group has had enough waterfalls without needing the full 16 km.",
+          "planningContext": "The document calls this a 3 km, ten-waterfall hike. Research supports a 60–90-minute out-and-back as the sweet spot.",
+          "tags": ["family", "standout", "weather-flex"],
+          "logistics": ["Plan 60–90 minutes", "Slippery ground", "Extend only if everyone is thriving"],
+          "sources": [
+            {
+              "label": "Waterfall Way field guide",
+              "url": "https://www.earthtrekkers.com/skogafoss-waterfall-way-hike/",
+              "type": "travel blog"
+            },
+            {
+              "label": "Family trail reports",
+              "url": "https://www.alltrails.com/trail/iceland/southern/skogafoss-skalabrekkufoss-waterfalls",
+              "type": "reviews"
+            }
+          ]
+        },
+        {
+          "id": "seljalandsfoss-gljufrabui",
+          "title": "Seljalandsfoss + Gljúfrabúi",
+          "status": "planned",
+          "standout": false,
+          "hook": "One waterfall you can circle and one hidden in a narrow cleft, paired across the same stop.",
+          "planningContext": "Both are named for August 18. The source link beside Seljalandsfoss in the planning document is incorrect, so use current signage and official conditions.",
+          "tags": ["family", "weather-flex"],
+          "logistics": ["Expect spray", "Waterproof layers", "Slippery access"],
+          "sources": [
+            {
+              "label": "South Iceland waterfalls",
+              "url": "https://www.south.is/en/destinations/nature/waterfalls",
+              "type": "official"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "heimaey-golden",
+      "number": "06",
+      "title": "Heimaey, Golden Circle & hot river",
+      "dates": "Aug 19–21",
+      "route": "Landeyjahöfn → Heimaey → Þingvellir → Hveragerði",
+      "summary": "The planning document already contains an enthusiastic yes to the Westman Islands. Make that decision concrete with a ferry-aligned tour; then keep the Golden Circle to its strong core.",
+      "options": [
+        {
+          "id": "heimaey-puffin-volcano",
+          "title": "Heimaey Puffin & Volcano Tour",
+          "status": "priority",
+          "standout": true,
+          "reviewSignal": "An exceptional review record—about 5.0/5 across hundreds of reviews, including 2026 reports—and one of the itinerary’s best late-season puffin hedges.",
+          "hook": "A compact island circuit through Stórhöfði, Eldfell and Herjólfsdalur with a local guide.",
+          "planningContext": "This turns the document’s undefined Heimaey day into a bookable family anchor. Build it around the ferry before adding hikes.",
+          "tags": ["family", "standout", "book-ahead"],
+          "logistics": ["1.5–2 hours", "Ages 3+", "Book around ferry times"],
+          "sources": [
+            {
+              "label": "Operator",
+              "url": "https://www.eyjatours.com/puffin-and-volcano-tour",
+              "type": "official"
+            },
+            {
+              "label": "2026 traveller reviews",
+              "url": "https://www.tripadvisor.com/AttractionProductReview-g189976-d11467660-or100-Puffin_and_Volcano_Tour_with_Ebbi-Heimaey_Island_Westmann_Islands_South_Regi.html",
+              "type": "reviews"
+            }
+          ]
+        },
+        {
+          "id": "beluga-sanctuary",
+          "title": "Beluga Sanctuary Visitor Centre",
+          "status": "conditional",
+          "standout": false,
+          "reviewSignal": "Visitors value the conservation mission and puffin rescue; reviews are mixed when people arrive expecting guaranteed beluga viewing.",
+          "hook": "A meaningful ferry-gap or rain-day stop focused on beluga welfare and rescued puffins.",
+          "planningContext": "Verify the belugas’ current location before presenting this as whale viewing.",
+          "tags": ["family", "weather-flex"],
+          "logistics": ["2026 season May 3–Sep 20", "Usually 10:00–16:00", "Viewing not guaranteed"],
+          "sources": [
+            {
+              "label": "Hours and information",
+              "url": "https://belugasanctuary.sealifetrust.org/en/visit-us/hours-information/",
+              "type": "official"
+            },
+            {
+              "label": "Visitor reviews",
+              "url": "https://www.tripadvisor.co.uk/Attraction_Review-g189977-d4341735-Reviews-SEA_LIFE_Trust_Beluga_Whale_Sanctuary-Vestmannaeyjar_Heimaey_Island_Westmann_Isla.html",
+              "type": "reviews"
+            }
+          ]
+        },
+        {
+          "id": "golden-circle-core",
+          "title": "Golden Circle core three",
+          "status": "planned",
+          "standout": false,
+          "reviewSignal": "First-time families value the compact mix; repeat visitors often rank it below the Ring Road’s wilder landscapes. Keeping only the core prevents attraction fatigue.",
+          "hook": "Þingvellir’s rift and history, Strokkur’s eruption cycle, and the two-tier drop of Gullfoss.",
+          "planningContext": "All three are already in the August 20 plan. Resist stacking secondary detours after a waterfall-rich trip.",
+          "tags": ["family", "weather-flex"],
+          "logistics": ["Full day at an easy pace", "Stay on geothermal paths", "Expect crowds"],
+          "sources": [
+            {
+              "label": "Þingvellir Visitor Centre",
+              "url": "https://www.thingvellir.is/en/things-to-do/visitor-centre/",
+              "type": "official"
+            },
+            {
+              "label": "Geysir area rules",
+              "url": "https://www.ust.is/english/visiting-iceland/protected-areas/south/geysir-area/about-the-area/",
+              "type": "official"
+            },
+            {
+              "label": "Recent traveller discussion",
+              "url": "https://www.reddit.com/r/VisitingIceland/comments/1mzte9x",
+              "type": "travel post"
+            }
+          ]
+        },
+        {
+          "id": "silfra-split",
+          "title": "Silfra snorkelling split",
+          "status": "conditional",
+          "standout": false,
+          "hook": "An exceptional between-continents experience for qualifying adults or older children—but not a whole-family Golden Circle activity.",
+          "planningContext": "Current rules require age 12+, at least 150 cm and 45 kg. It needs an explicit childcare split and 2.5–3 hours.",
+          "tags": ["book-ahead"],
+          "logistics": ["Age 12+", "Height and weight gates", "Adult split required"],
+          "sources": [
+            {
+              "label": "Current operator rules",
+              "url": "https://www.dive.is/faq/why-is-silfra-so-clear",
+              "type": "official"
+            }
+          ]
+        },
+        {
+          "id": "reykjadalur",
+          "title": "Reykjadalur thermal river",
+          "status": "priority",
+          "standout": true,
+          "reviewSignal": "A memorable natural-bathing hike, but recent family reports stress that the sustained opening ascent makes “not hard” a relative description.",
+          "hook": "Earn the soak: climb into a steaming valley and bathe in a warm river under open sky.",
+          "planningContext": "The document’s “3 km hike” understates the full outing. Reserve 3–4 hours including bathing and cancel if SafeTravel closes the trail.",
+          "tags": ["family", "standout", "weather-flex"],
+          "logistics": ["About 7.4 km", "3–4 hours with soak", "Front-loaded ascent"],
+          "sources": [
+            {
+              "label": "Visit South Iceland",
+              "url": "https://www.south.is/en/destinations/nature/nature/reykjadalur-valley",
+              "type": "official"
+            },
+            {
+              "label": "2026 family difficulty report",
+              "url": "https://www.reddit.com/r/VisitingIceland/comments/1udl261/how_tough_is_the_hike_to_reykjadalur_hot_springs/",
+              "type": "travel post"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "reykjavik",
+      "number": "07",
+      "title": "Reykjavík & the soft landing",
+      "dates": "Aug 22–24",
+      "route": "Open buffer → Reykjavík → Keflavík",
+      "summary": "August 22 is deliberately blank and should stay valuable as a weather or fatigue buffer. The final city days need a whole-family anchor and a realistic camper return by 1 p.m. on August 24.",
+      "options": [
+        {
+          "id": "weather-buffer",
+          "title": "Protect August 22 as a buffer",
+          "status": "planned",
+          "standout": false,
+          "hook": "Use the currently blank day to absorb weather, a delayed ferry, a tired group or one experience everyone loved enough to extend.",
+          "planningContext": "This is the only fully blank day in the document. Keeping it open is an itinerary feature, not missing planning.",
+          "tags": ["family", "weather-flex"],
+          "logistics": ["No booking", "Choose late", "Protect recovery time"],
+          "sources": []
+        },
+        {
+          "id": "perlan",
+          "title": "Perlan after the road",
+          "status": "priority",
+          "standout": true,
+          "reviewSignal": "Current reviews repeatedly call it engaging for adults and children alike; it lands especially well after the group has seen the glaciers, volcanoes and coast in person.",
+          "hook": "Ice cave, glaciers, volcanoes, planetarium and a city-wide observation deck in one weather-proof finale.",
+          "planningContext": "The document lists Perlan as a maybe. Research makes it the strongest whole-family Reykjavík and rain-day anchor.",
+          "tags": ["family", "standout", "weather-flex"],
+          "logistics": ["Allow 3–4 hours", "Indoor", "Strong final-day context"],
+          "sources": [
+            {
+              "label": "Perlan",
+              "url": "https://perlan.is/",
+              "type": "official"
+            },
+            {
+              "label": "2026 visitor reviews",
+              "url": "https://www.tripadvisor.com/Attraction_Review-g189970-d246003-Reviews-Perlan-Reykjavik_Capital_Region.html",
+              "type": "reviews"
+            }
+          ]
+        },
+        {
+          "id": "sky-lagoon",
+          "title": "Sky Lagoon adult split",
+          "status": "conditional",
+          "standout": false,
+          "reviewSignal": "Reviews are highly positive overall but mixed on crowding and ritual value. The decisive fact is the under-12 prohibition.",
+          "hook": "An ocean-edge geothermal ritual for adults, if the group deliberately divides childcare.",
+          "planningContext": "It cannot be the whole-group pre-flight plan. Camper return at 1 p.m. also makes August 24 timing tight.",
+          "tags": ["book-ahead", "weather-flex"],
+          "logistics": ["Age 12+", "Childcare split", "Do not crowd departure day"],
+          "sources": [
+            {
+              "label": "Official age terms",
+              "url": "https://www.skylagoon.com/terms-conditions",
+              "type": "official"
+            },
+            {
+              "label": "Visitor reviews",
+              "url": "https://www.tripadvisor.com/Attraction_Review-g1093088-d23356671-Reviews-Sky_Lagoon-Kopavogur_Capital_Region.html",
+              "type": "reviews"
+            }
+          ]
+        },
+        {
+          "id": "reykjavik-pools",
+          "title": "A Reykjavík neighbourhood pool",
+          "status": "open",
+          "standout": false,
+          "hook": "A child-friendly, culturally local geothermal soak that keeps the whole group together.",
+          "planningContext": "The practical whole-family alternative if Sky Lagoon’s adult split does not appeal.",
+          "tags": ["family", "weather-flex"],
+          "logistics": ["Whole-group fit", "Flexible", "Choose by neighbourhood"],
+          "sources": [
+            {
+              "label": "City pool guide",
+              "url": "https://visitreykjavik.is/six-unique-pools-reykjavik",
+              "type": "official"
+            }
+          ]
+        },
+        {
+          "id": "departure",
+          "title": "Camper return + flight home",
+          "status": "fixed",
+          "standout": false,
+          "hook": "Return the motorhomes by 1 p.m. and protect the airport transfer instead of trying to squeeze in one last major stop.",
+          "planningContext": "The document conflicts on a 5:05 versus 5:10 p.m. departure. Confirm the live ticket before finalizing the day.",
+          "tags": ["fixed"],
+          "logistics": ["Aug 24", "Camper return by 1 p.m.", "Verify flight time"],
+          "sources": []
+        }
+      ]
+    }
+  ],
+  "fieldNotes": [
+    {
+      "title": "Booked, not debated",
+      "body": "Flights, two motorhomes, the clockwise direction and Bjarkalundur for August 9–12 are the fixed bones. This board does not expose booking references, prices or private Drive links."
+    },
+    {
+      "title": "Eclipse is a traffic day",
+      "body": "Westfjords controls prohibit informal roadside viewing and constrain Roads 612/614. Stage locally, carry food and water, use certified glasses and expect the exit to take hours."
+    },
+    {
+      "title": "Sleeping after Aug 12",
+      "body": "No later campsite is booked. Patreksfjörður and Flókalundur do not take normal prebookings; the rest of the overnight route still needs a realistic motorhome pass."
+    },
+    {
+      "title": "Four planners, six travellers",
+      "body": "Ben, Mary, Laura and Brad vote here. Two young travellers shape age gates, duration, childcare splits and the need for genuine recovery time."
+    },
+    {
+      "title": "Wildlife is a possibility",
+      "body": "Whales and puffins are never guaranteed. Mid-August is the puffin-season tail, which makes Heimaey the strongest hedge and weakens detours made only for birds."
+    },
+    {
+      "title": "Live conditions win",
+      "body": "Within 24 hours of exposed stops, recheck SafeTravel, road.is, weather, national-park notices and operator messages. A review is never permission to ignore a closure."
+    },
+    {
+      "title": "Booking queue",
+      "body": "Once the route survives a drive-time pass, prioritize Jökulsárlón, the Heimaey ferry/tour and any whale-watching slot. Earth Lagoon and beluga status need a fresh read first."
+    },
+    {
+      "title": "Known document gaps",
+      "body": "Confirm the camper assignment and campsite coverage, the eclipse overnight, every post-August-12 sleep, and the return flight’s 5:05 versus 5:10 p.m. discrepancy."
+    }
+  ]
+}
