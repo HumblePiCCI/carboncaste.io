@@ -24,6 +24,7 @@ const elements = {
   countStandouts: document.querySelector('#count-standouts'),
   countAgreements: document.querySelector('#count-agreements'),
   legPicker: document.querySelector('#leg-picker'),
+  routePanel: document.querySelector('#route-panel'),
   legHeader: document.querySelector('#leg-header'),
   optionList: document.querySelector('#option-list'),
   pulseSummary: document.querySelector('#pulse-summary'),
@@ -177,8 +178,11 @@ function renderLegPicker() {
     const button = createElement('button', 'leg-tab');
     button.type = 'button';
     button.role = 'tab';
+    button.id = `leg-tab-${leg.id}`;
     button.dataset.legId = leg.id;
+    button.setAttribute('aria-controls', 'route-panel');
     button.setAttribute('aria-selected', String(leg.id === activeLegId));
+    button.tabIndex = leg.id === activeLegId ? 0 : -1;
     button.classList.toggle('is-active', leg.id === activeLegId);
     button.append(
       createElement('strong', null, leg.title),
@@ -207,7 +211,7 @@ function renderLegHeader(leg) {
 
 function renderBadges(option) {
   const wrap = createElement('div', 'option-card__meta');
-  if (option.standout) wrap.append(createElement('span', 'badge badge--standout', '★ Review standout'));
+  if (option.standout) wrap.append(createElement('span', 'badge badge--standout', '★ Research standout'));
   if (option.status && option.status !== 'open') {
     const labels = {
       booked: 'Booked anchor',
@@ -299,11 +303,20 @@ function renderChoicePanel(option) {
 
   const avatars = createElement('div', 'group-votes');
   avatars.setAttribute('aria-label', 'Group preferences');
+  avatars.setAttribute('role', 'list');
   participantIds.forEach((id) => {
     const value = votesFor(option.id)[id] || 'undecided';
     const avatar = createElement('span', 'vote-avatar', participantInitials[id]);
     avatar.dataset.value = value;
-    avatar.title = `${participantNames[id]}: ${value}`;
+    const preferenceLabel = {
+      love: 'Love it',
+      interested: 'Interested',
+      pass: 'Not for me',
+      undecided: 'Undecided',
+    }[value];
+    avatar.title = `${participantNames[id]}: ${preferenceLabel}`;
+    avatar.setAttribute('role', 'listitem');
+    avatar.setAttribute('aria-label', `${participantNames[id]}: ${preferenceLabel}`);
     avatars.append(avatar);
   });
   panel.append(avatars);
@@ -469,6 +482,7 @@ function render() {
   const leg = allLegs().find((candidate) => candidate.id === activeLegId) || allLegs()[0];
   if (leg) {
     activeLegId = leg.id;
+    elements.routePanel.setAttribute('aria-labelledby', `leg-tab-${leg.id}`);
     renderLegHeader(leg);
     renderOptions(leg);
   }
@@ -593,6 +607,24 @@ elements.legPicker.addEventListener('click', (event) => {
   document.querySelector('#route-title').scrollIntoView({ block: 'start' });
 });
 
+elements.legPicker.addEventListener('keydown', (event) => {
+  const current = event.target.closest('[role="tab"]');
+  if (!current || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+  const tabs = [...elements.legPicker.querySelectorAll('[role="tab"]')];
+  const currentIndex = tabs.indexOf(current);
+  let nextIndex = currentIndex;
+  if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+  if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabs.length;
+  if (event.key === 'Home') nextIndex = 0;
+  if (event.key === 'End') nextIndex = tabs.length - 1;
+  event.preventDefault();
+  activeLegId = tabs[nextIndex].dataset.legId;
+  render();
+  [...elements.legPicker.querySelectorAll('[role="tab"]')]
+    .find((tab) => tab.dataset.legId === activeLegId)
+    ?.focus();
+});
+
 document.querySelector('.filter-picker').addEventListener('click', (event) => {
   const button = event.target.closest('[data-filter]');
   if (!button) return;
@@ -704,15 +736,20 @@ elements.ideaForm.addEventListener('submit', async (event) => {
   }
 });
 
-document.querySelector('#logout-button').addEventListener('click', async () => {
+document.querySelector('#logout-button').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
   try {
-    await fetch('/api/iceland26/logout', {
+    const response = await fetch('/api/iceland26/logout', {
       method: 'POST',
       headers: { Accept: 'application/json' },
     });
-  } finally {
+    if (!response.ok) throw new Error(`Lock request failed (${response.status}).`);
     localStorage.removeItem('iceland26-participant');
     window.location.assign('/iceland26/access.html');
+  } catch {
+    button.disabled = false;
+    showToast('The board could not be locked. You are still signed in; try again.', true);
   }
 });
 

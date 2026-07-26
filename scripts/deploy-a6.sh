@@ -26,9 +26,22 @@ if [[ "$remote_commit" != "$commit" ]]; then
   exit 2
 fi
 
+remote_root="/home/humble/services/carboncaste-web"
+remote_revision="$(ssh "$a6_host" "sed -n '1p' '$remote_root/current/REVISION'")"
+if ! [[ "$remote_revision" =~ ^[0-9a-f]{7,40}$ ]]; then
+  echo "A6 current/REVISION is not a resolvable Git commit marker." >&2
+  exit 2
+fi
+if ! expected_previous="$(git rev-parse --verify "$remote_revision^{commit}" 2>/dev/null)"; then
+  echo "A6 current revision is not available in the local repository." >&2
+  exit 2
+fi
+if [[ "${expected_previous:0:${#remote_revision}}" != "$remote_revision" ]]; then
+  echo "A6 current revision does not resolve to an exact matching commit." >&2
+  exit 2
+fi
 archive_path="$(mktemp -t carboncaste-a6-release.XXXXXX.tar)"
 incoming_name="incoming-${commit}-$(date -u +%Y%m%dT%H%M%SZ)"
-remote_root="/home/humble/services/carboncaste-web"
 remote_incoming="$remote_root/$incoming_name"
 remote_cleanup_needed=0
 
@@ -41,11 +54,11 @@ cleanup() {
 trap cleanup EXIT
 
 git archive --format=tar "$commit" > "$archive_path"
-ssh "$a6_host" "set -eu; test ! -e '$remote_incoming'; mkdir -p '$remote_incoming'"
 remote_cleanup_needed=1
+ssh "$a6_host" "set -eu; test ! -e '$remote_incoming'; mkdir -p '$remote_incoming'"
 ssh "$a6_host" "tar -xf - -C '$remote_incoming'" < "$archive_path"
 ssh "$a6_host" \
-  "bash '$remote_incoming/deploy/a6-promote-release.sh' '$remote_incoming' '$commit'"
+  "bash '$remote_incoming/deploy/a6-promote-release.sh' '$remote_incoming' '$commit' '$expected_previous'"
 remote_cleanup_needed=0
 
-echo "A6 deployment completed: branch=$branch commit=$commit"
+echo "A6 deployment completed: branch=$branch previous=$expected_previous commit=$commit"

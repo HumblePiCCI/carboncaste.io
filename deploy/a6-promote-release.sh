@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 
 incoming="${1:-}"
 commit="${2:-}"
+expected_previous="${3:-}"
 service_root="/home/humble/services/carboncaste-web"
 releases="$service_root/releases"
 release="$releases/$commit"
@@ -10,27 +12,47 @@ current="$service_root/current"
 state_root="$service_root/state"
 config_root="$service_root/config"
 env_file="$config_root/iceland26.env"
+lock_file="$service_root/deploy.lock"
 unit="$HOME/.config/systemd/user/carboncaste-web.service"
 canary_port=18128
 canary_state=""
 canary_log=""
 canary_pid=""
 previous_target=""
+current_mode=""
 unit_backup=""
+revision_temp=""
 promoted=0
 release_created=0
 incoming_owned=1
+incoming_valid=0
 
-if ! [[ "$commit" =~ ^[0-9a-f]{40}$ ]]; then
-  if [[ "$incoming" == "$service_root"/incoming-* && -d "$incoming" ]]; then
+if [[ "$(dirname -- "$incoming")" == "$service_root"
+    && "$(basename -- "$incoming")" =~ ^incoming-[0-9a-f]{40}-[0-9]{8}T[0-9]{6}Z$
+    && -d "$incoming" ]]; then
+  incoming_valid=1
+fi
+
+if ! [[ "$commit" =~ ^[0-9a-f]{40}$ && "$expected_previous" =~ ^[0-9a-f]{40}$ ]]; then
+  if [[ "$incoming_valid" -eq 1 ]]; then
     rm -rf -- "$incoming"
   fi
-  echo "Promotion requires a full commit SHA." >&2
+  echo "Promotion requires full new and expected-current commit SHAs." >&2
   exit 2
 fi
-if [[ "$incoming" != "$service_root"/incoming-* || ! -d "$incoming" ]]; then
+if [[ "$incoming_valid" -ne 1 ]]; then
   echo "Incoming release path is outside the release staging boundary." >&2
   exit 2
+fi
+if ! exec 9>"$lock_file"; then
+  rm -rf -- "$incoming"
+  echo "Could not open the carboncaste-web deployment lock." >&2
+  exit 1
+fi
+if ! flock -n 9; then
+  rm -rf -- "$incoming"
+  echo "Another carboncaste-web deployment or rollback holds the host lock." >&2
+  exit 75
 fi
 if [[ -e "$release" ]]; then
   rm -rf -- "$incoming"
@@ -46,6 +68,13 @@ fi
 cleanup_canary() {
   if [[ -n "$canary_pid" ]] && kill -0 "$canary_pid" 2>/dev/null; then
     kill "$canary_pid"
+    for _ in $(seq 1 30); do
+      kill -0 "$canary_pid" 2>/dev/null || break
+      sleep 0.1
+    done
+    if kill -0 "$canary_pid" 2>/dev/null; then
+      kill -KILL "$canary_pid"
+    fi
     wait "$canary_pid" 2>/dev/null || true
   fi
   [[ -z "$canary_state" ]] || rm -f "$canary_state"
@@ -54,7 +83,7 @@ cleanup_canary() {
 
 rollback_promotion() {
   local status="${1:-1}"
-  trap - ERR INT TERM
+  trap - ERR INT TERM HUP
   set +e
   cleanup_canary
   if [[ "$promoted" -eq 1 && -n "$previous_target" ]]; then
@@ -81,11 +110,39 @@ rollback_promotion() {
   if [[ "$incoming_owned" -eq 1 && -d "$incoming" ]]; then
     rm -rf -- "$incoming"
   fi
+  [[ -z "$revision_temp" ]] || rm -f -- "$revision_temp"
   exit "$status"
 }
 trap 'rollback_promotion $?' ERR
 trap 'rollback_promotion 130' INT
 trap 'rollback_promotion 143' TERM
+trap 'rollback_promotion 129' HUP
+
+verify_current_release() {
+  local marker target
+  marker="$(sed -n '1p' "$current/REVISION" 2>/dev/null)" || return 1
+  if [[ -L "$current" ]]; then
+    target="$(readlink "$current")" || return 1
+    [[ "$marker" == "$expected_previous" ]] || return 1
+    [[ "$target" == "releases/$expected_previous"
+      || "$target" == "$releases/$expected_previous" ]] || return 1
+    current_mode="symlink"
+  elif [[ -d "$current" ]]; then
+    [[ "$marker" =~ ^[0-9a-f]{7,40}$ ]] || return 1
+    [[ "${expected_previous:0:${#marker}}" == "$marker" ]] || return 1
+    [[ ! -e "$releases/$expected_previous" ]] || return 1
+    current_mode="directory"
+  else
+    return 1
+  fi
+  previous_target="releases/$expected_previous"
+}
+
+if ! verify_current_release; then
+  rm -rf -- "$incoming"
+  echo "Current A6 release does not match expected commit $expected_previous." >&2
+  exit 2
+fi
 
 mkdir -p "$releases" "$state_root" "$config_root" "$HOME/.config/systemd/user"
 chmod 0700 "$state_root" "$config_root"
@@ -143,16 +200,7 @@ test "$api_status" = 401
 cleanup_canary
 canary_pid=""
 
-if [[ -L "$current" ]]; then
-  previous_target="$(readlink "$current")"
-elif [[ -d "$current" ]]; then
-  previous_revision="$(sed -n '1p' "$current/REVISION" 2>/dev/null || printf unknown)"
-  legacy_name="legacy-$(date -u +%Y%m%dT%H%M%SZ)-$previous_revision"
-  previous_target="releases/$legacy_name"
-else
-  echo "Current deployment path is missing." >&2
-  exit 1
-fi
+verify_current_release
 
 if [[ -f "$unit" ]]; then
   unit_backup="$config_root/carboncaste-web.service.$(date -u +%Y%m%dT%H%M%SZ).bak"
@@ -164,7 +212,12 @@ mv "$incoming" "$release"
 incoming_owned=0
 release_created=1
 
-if [[ -d "$current" && ! -L "$current" ]]; then
+if [[ "$current_mode" == "directory" ]]; then
+  revision_temp="$current/.REVISION.$$.next"
+  printf '%s\n' "$expected_previous" > "$revision_temp"
+  chmod 0644 "$revision_temp"
+  mv "$revision_temp" "$current/REVISION"
+  revision_temp=""
   mv "$current" "$service_root/$previous_target"
   promoted=1
 fi
@@ -192,7 +245,8 @@ api_status="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 \
 test "$api_status" = 401
 systemctl --user is-active --quiet carboncaste-web.service
 test "$(cat "$current/REVISION")" = "$commit"
+test "$(readlink "$current")" = "releases/$commit"
 
-trap - ERR INT TERM
+trap - ERR INT TERM HUP
 release_created=0
 echo "Promoted carboncaste-web: previous=$previous_target current=releases/$commit"

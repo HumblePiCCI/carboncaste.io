@@ -1,18 +1,20 @@
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtempSync } from 'node:fs';
+import { readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const port = Number(process.env.ICELAND26_TEST_PORT || 18126);
 const baseUrl = `http://127.0.0.1:${port}`;
-const temporaryDirectory = await mkdtemp(join(tmpdir(), 'carboncaste-iceland26-test-'));
-const statePath = join(temporaryDirectory, 'state', 'iceland26.json');
 const testAccessCode = 'test-only-iceland-code';
 const testAccessHash = createHash('sha256').update(testAccessCode).digest('hex');
 const failures = [];
+let temporaryDirectory = null;
+let statePath = null;
 let child = null;
 let sessionCookie = '';
+let cleanupPromise = null;
 
 function fail(message) {
   failures.push(message);
@@ -23,8 +25,8 @@ async function waitForServer(process, timeout = 8_000) {
   while (Date.now() < deadline) {
     if (process.exitCode !== null) throw new Error(`Server exited with ${process.exitCode}.`);
     try {
-      const response = await fetch(`${baseUrl}/`);
-      if (response.ok) return;
+      const response = await fetch(`${baseUrl}/api/iceland26/health`);
+      if (response.ok && (await response.json()).ready === true && process.exitCode === null) return;
     } catch {
       // The task-owned listener is still starting.
     }
@@ -34,7 +36,7 @@ async function waitForServer(process, timeout = 8_000) {
 }
 
 async function startServer() {
-  const serverProcess = spawn(process.execPath, ['server/static-server.mjs'], {
+  child = spawn(process.execPath, ['server/static-server.mjs'], {
     cwd: process.cwd(),
     env: {
       ...process.env,
@@ -49,21 +51,62 @@ async function startServer() {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let output = '';
-  serverProcess.stdout.on('data', (chunk) => { output += chunk; });
-  serverProcess.stderr.on('data', (chunk) => { output += chunk; });
-  serverProcess.testOutput = () => output;
-  await waitForServer(serverProcess);
-  return serverProcess;
+  child.stdout.on('data', (chunk) => { output += chunk; });
+  child.stderr.on('data', (chunk) => { output += chunk; });
+  child.testOutput = () => output;
+  await waitForServer(child);
+}
+
+async function waitForExit(serverProcess, timeout) {
+  if (serverProcess.exitCode !== null) return true;
+  return new Promise((resolve) => {
+    const onExit = () => {
+      clearTimeout(timer);
+      resolve(true);
+    };
+    const timer = setTimeout(() => {
+      serverProcess.removeListener('exit', onExit);
+      resolve(false);
+    }, timeout);
+    serverProcess.once('exit', onExit);
+  });
 }
 
 async function stopServer(serverProcess) {
   if (!serverProcess || serverProcess.exitCode !== null) return;
   serverProcess.kill('SIGTERM');
-  await Promise.race([
-    new Promise((resolve) => serverProcess.once('exit', resolve)),
-    new Promise((_, reject) => setTimeout(() => reject(new Error('Server did not stop.')), 3_000)),
-  ]);
+  if (await waitForExit(serverProcess, 3_000)) return;
+  serverProcess.kill('SIGKILL');
+  if (!await waitForExit(serverProcess, 3_000)) {
+    throw new Error(`Server process ${serverProcess.pid} survived SIGTERM and SIGKILL.`);
+  }
 }
+
+async function cleanupResources() {
+  if (cleanupPromise) return cleanupPromise;
+  cleanupPromise = (async () => {
+    const ownedChild = child;
+    child = null;
+    await stopServer(ownedChild);
+    if (temporaryDirectory) {
+      await rm(temporaryDirectory, { recursive: true, force: true });
+      temporaryDirectory = null;
+    }
+  })();
+  return cleanupPromise;
+}
+
+async function exitAfterCleanup(code) {
+  try {
+    await cleanupResources();
+  } finally {
+    process.exit(code);
+  }
+}
+
+process.once('SIGINT', () => { void exitAfterCleanup(130); });
+process.once('SIGTERM', () => { void exitAfterCleanup(143); });
+process.once('SIGHUP', () => { void exitAfterCleanup(129); });
 
 async function jsonRequest(path, { method = 'GET', body, headers = {} } = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
@@ -79,7 +122,9 @@ async function jsonRequest(path, { method = 'GET', body, headers = {} } = {}) {
 }
 
 try {
-  child = await startServer();
+  temporaryDirectory = mkdtempSync(join(tmpdir(), 'carboncaste-iceland26-test-'));
+  statePath = join(temporaryDirectory, 'state', 'iceland26.json');
+  await startServer();
 
   const health = await jsonRequest('/api/iceland26/health');
   if (health.response.status !== 200 || health.body.ready !== true) {
@@ -241,7 +286,7 @@ try {
 
   await stopServer(child);
   child = null;
-  child = await startServer();
+  await startServer();
   const restored = await jsonRequest('/api/iceland26');
   if (restored.body.revision !== 7
       || restored.body.preferences?.[suggestionId]?.brad !== 'love'
@@ -252,6 +297,15 @@ try {
 
   const wrongMethod = await jsonRequest('/api/iceland26/comment', { method: 'GET' });
   if (wrongMethod.response.status !== 405) fail('Mutation route did not reject GET.');
+
+  const crossSiteLogout = await jsonRequest('/api/iceland26/logout', {
+    method: 'POST',
+    headers: {
+      Origin: 'https://example.net',
+      'Sec-Fetch-Site': 'cross-site',
+    },
+  });
+  if (crossSiteLogout.response.status !== 403) fail('Cross-site logout was not rejected.');
 
   const logout = await jsonRequest('/api/iceland26/logout', { method: 'POST' });
   if (logout.response.status !== 200
@@ -265,11 +319,10 @@ try {
   fail(`${error.message}${child?.testOutput?.() ? `\n${child.testOutput()}` : ''}`);
 } finally {
   try {
-    await stopServer(child);
+    await cleanupResources();
   } catch (error) {
     fail(error.message);
   }
-  await rm(temporaryDirectory, { recursive: true, force: true });
 }
 
 if (failures.length) {

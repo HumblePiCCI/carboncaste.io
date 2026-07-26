@@ -1,15 +1,13 @@
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync } from 'node:fs';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { existsSync, mkdirSync, mkdtempSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from 'playwright-core';
 
 const port = Number(process.env.ICELAND26_INTERACTION_PORT || 18127);
 const baseUrl = `http://127.0.0.1:${port}`;
-const temporaryDirectory = await mkdtemp(join(tmpdir(), 'carboncaste-iceland26-ui-'));
-const statePath = join(temporaryDirectory, 'state.json');
 const testAccessCode = 'test-only-iceland-code';
 const testAccessHash = createHash('sha256').update(testAccessCode).digest('hex');
 const chromePaths = [
@@ -17,19 +15,24 @@ const chromePaths = [
   '/Applications/Chromium.app/Contents/MacOS/Chromium',
 ];
 const executablePath = chromePaths.find(existsSync);
-if (!executablePath) throw new Error('Chrome or Chromium is required for Iceland interaction tests.');
 
 mkdirSync('output/playwright/iceland26', { recursive: true });
 const failures = [];
+let temporaryDirectory = null;
+let statePath = null;
 let serverProcess = null;
 let browser = null;
+let browserServer = null;
+let browserLaunchPromise = null;
+let cleanupPromise = null;
+let requestedSignalCode = null;
 
 function fail(message) {
   failures.push(message);
 }
 
 async function startServer() {
-  const child = spawn(process.execPath, ['server/static-server.mjs'], {
+  serverProcess = spawn(process.execPath, ['server/static-server.mjs'], {
     cwd: process.cwd(),
     env: {
       ...process.env,
@@ -44,15 +47,18 @@ async function startServer() {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let output = '';
-  child.stdout.on('data', (chunk) => { output += chunk; });
-  child.stderr.on('data', (chunk) => { output += chunk; });
-  child.testOutput = () => output;
+  serverProcess.stdout.on('data', (chunk) => { output += chunk; });
+  serverProcess.stderr.on('data', (chunk) => { output += chunk; });
+  serverProcess.testOutput = () => output;
 
   const deadline = Date.now() + 8_000;
   while (Date.now() < deadline) {
-    if (child.exitCode !== null) throw new Error(`Server exited with ${child.exitCode}.\n${output}`);
+    if (serverProcess.exitCode !== null) {
+      throw new Error(`Server exited with ${serverProcess.exitCode}.\n${output}`);
+    }
     try {
-      if ((await fetch(`${baseUrl}/`)).ok) return child;
+      const response = await fetch(`${baseUrl}/api/iceland26/health`);
+      if (response.ok && (await response.json()).ready === true && serverProcess.exitCode === null) return;
     } catch {
       // Listener is still starting.
     }
@@ -61,14 +67,88 @@ async function startServer() {
   throw new Error(`Timed out waiting for server.\n${output}`);
 }
 
+async function waitForExit(child, timeout) {
+  if (child.exitCode !== null) return true;
+  return new Promise((resolve) => {
+    const onExit = () => {
+      clearTimeout(timer);
+      resolve(true);
+    };
+    const timer = setTimeout(() => {
+      child.removeListener('exit', onExit);
+      resolve(false);
+    }, timeout);
+    child.once('exit', onExit);
+  });
+}
+
 async function stopServer(child) {
   if (!child || child.exitCode !== null) return;
   child.kill('SIGTERM');
-  await Promise.race([
-    new Promise((resolve) => child.once('exit', resolve)),
-    new Promise((_, reject) => setTimeout(() => reject(new Error('UI test server did not stop.')), 3_000)),
-  ]);
+  if (await waitForExit(child, 3_000)) return;
+  child.kill('SIGKILL');
+  if (!await waitForExit(child, 3_000)) {
+    throw new Error(`UI test server process ${child.pid} survived SIGTERM and SIGKILL.`);
+  }
 }
+
+async function settleWithin(promise, timeout) {
+  let timer;
+  try {
+    return await Promise.race([
+      promise.then(() => true, () => false),
+      new Promise((resolve) => { timer = setTimeout(() => resolve(false), timeout); }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function cleanupResources() {
+  if (cleanupPromise) return cleanupPromise;
+  cleanupPromise = (async () => {
+    const ownedBrowser = browser;
+    const ownedBrowserServer = browserServer;
+    const ownedServer = serverProcess;
+    browser = null;
+    browserServer = null;
+    serverProcess = null;
+
+    if (ownedBrowser) {
+      await settleWithin(ownedBrowser.close(), 3_000);
+    }
+    if (ownedBrowserServer) {
+      const closed = await settleWithin(ownedBrowserServer.close(), 3_000);
+      if (!closed) await ownedBrowserServer.kill();
+    }
+    await stopServer(ownedServer);
+    if (temporaryDirectory) {
+      await rm(temporaryDirectory, { recursive: true, force: true });
+      temporaryDirectory = null;
+    }
+  })();
+  return cleanupPromise;
+}
+
+async function exitAfterCleanup(code) {
+  requestedSignalCode = code;
+  try {
+    if (browserLaunchPromise) {
+      try {
+        browserServer ||= await browserLaunchPromise;
+      } catch {
+        // A failed launch owns no live browser process.
+      }
+    }
+    await cleanupResources();
+  } finally {
+    process.exit(code);
+  }
+}
+
+process.once('SIGINT', () => { void exitAfterCleanup(130); });
+process.once('SIGTERM', () => { void exitAfterCleanup(143); });
+process.once('SIGHUP', () => { void exitAfterCleanup(129); });
 
 async function runViewport(viewport, label, mutate = false) {
   const page = await browser.newPage({
@@ -76,8 +156,12 @@ async function runViewport(viewport, label, mutate = false) {
     hasTouch: label === 'mobile',
   });
   const errors = [];
+  let expectedLogoutFailure = false;
   page.on('console', (message) => {
-    if (message.type() === 'error') errors.push(message.text());
+    if (message.type() === 'error'
+        && !(expectedLogoutFailure && message.text().includes('status of 503'))) {
+      errors.push(message.text());
+    }
   });
   page.on('pageerror', (error) => errors.push(error.message));
 
@@ -93,6 +177,14 @@ async function runViewport(viewport, label, mutate = false) {
       path: `output/playwright/iceland26/${label}-access.png`,
       fullPage: false,
     });
+    await page.locator('#trip-code').focus();
+    const accessFocus = await page.locator('#trip-code').evaluate((input) => {
+      const style = getComputedStyle(input);
+      return { outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth };
+    });
+    if (accessFocus.outlineStyle === 'none' || accessFocus.outlineWidth === '0px') {
+      fail(`${label}: trip-code input has no visible keyboard focus indicator.`);
+    }
     await page.locator('#trip-code').fill(testAccessCode);
     await page.getByRole('button', { name: /Enter/ }).click();
     await page.waitForURL((url) => (
@@ -129,6 +221,24 @@ async function runViewport(viewport, label, mutate = false) {
     if (/\b\d{3}-\d{3}-\d{5}-\d{6}\b/.test(geometry.visibleText)) {
       fail(`${label}: public UI leaks a campsite reservation identifier.`);
     }
+    const voteAccessibility = await page.locator('.vote-avatar').evaluateAll((avatars) => (
+      avatars.every((avatar) => (
+        avatar.getAttribute('role') === 'listitem' && Boolean(avatar.getAttribute('aria-label'))
+      ))
+    ));
+    if (!voteAccessibility) fail(`${label}: individual vote states lack accessible labels.`);
+
+    const firstTab = page.locator('[role="tab"]').first();
+    await firstTab.focus();
+    await page.keyboard.press('ArrowRight');
+    const secondTab = page.locator('[role="tab"]').nth(1);
+    if (await secondTab.getAttribute('aria-selected') !== 'true'
+        || await secondTab.getAttribute('tabindex') !== '0'
+        || await page.locator('#route-panel').getAttribute('aria-labelledby')
+          !== await secondTab.getAttribute('id')) {
+      fail(`${label}: route tabs do not provide roving keyboard/tabpanel semantics.`);
+    }
+    await page.keyboard.press('ArrowLeft');
 
     await page.screenshot({
       path: `output/playwright/iceland26/${label}-hero.png`,
@@ -196,7 +306,7 @@ async function runViewport(viewport, label, mutate = false) {
       const visibleCards = page.locator('.option-card');
       const count = await visibleCards.count();
       for (let index = 0; index < count; index += 1) {
-        if (!await visibleCards.nth(index).getByText('★ Review standout').count()) {
+        if (!await visibleCards.nth(index).getByText('★ Research standout').count()) {
           fail(`${label}: standout filter left a non-standout card visible.`);
         }
       }
@@ -206,6 +316,27 @@ async function runViewport(viewport, label, mutate = false) {
         path: 'output/playwright/iceland26/mobile-route.png',
         fullPage: false,
       });
+
+      const lockButton = page.locator('#logout-button');
+      if (!await lockButton.isVisible()) fail('mobile: Lock control is not available.');
+      expectedLogoutFailure = true;
+      await page.route('**/api/iceland26/logout', (route) => route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: '{"error":"simulated failure"}',
+      }));
+      await lockButton.click();
+      await page.locator('#toast').getByText(/still signed in/).waitFor();
+      if (page.url().includes('/access.html')) {
+        fail('mobile: failed logout presented a false locked state.');
+      }
+      await page.unroute('**/api/iceland26/logout');
+      expectedLogoutFailure = false;
+      await lockButton.click();
+      await page.waitForURL(/\/iceland26\/access\.html$/);
+      if (await page.evaluate(() => localStorage.getItem('iceland26-participant')) !== null) {
+        fail('mobile: successful logout retained the remembered participant identity.');
+      }
     }
 
     if (errors.length) fail(`${label}: browser errors: ${errors.join(' | ')}`);
@@ -215,20 +346,31 @@ async function runViewport(viewport, label, mutate = false) {
 }
 
 try {
-  serverProcess = await startServer();
-  browser = await chromium.launch({ headless: true, executablePath });
+  if (!executablePath) throw new Error('Chrome or Chromium is required for Iceland interaction tests.');
+  temporaryDirectory = mkdtempSync(join(tmpdir(), 'carboncaste-iceland26-ui-'));
+  statePath = join(temporaryDirectory, 'state.json');
+  await startServer();
+  browserLaunchPromise = chromium.launchServer({
+    headless: true,
+    executablePath,
+    handleSIGINT: false,
+    handleSIGTERM: false,
+    handleSIGHUP: false,
+  });
+  browserServer = await browserLaunchPromise;
+  browserLaunchPromise = null;
+  if (requestedSignalCode !== null) await exitAfterCleanup(requestedSignalCode);
+  browser = await chromium.connect(browserServer.wsEndpoint());
   await runViewport({ width: 1440, height: 900 }, 'desktop', true);
   await runViewport({ width: 390, height: 844 }, 'mobile', false);
 } catch (error) {
   fail(`${error.message}${serverProcess?.testOutput?.() ? `\n${serverProcess.testOutput()}` : ''}`);
 } finally {
-  await browser?.close();
   try {
-    await stopServer(serverProcess);
+    await cleanupResources();
   } catch (error) {
     fail(error.message);
   }
-  await rm(temporaryDirectory, { recursive: true, force: true });
 }
 
 if (failures.length) {

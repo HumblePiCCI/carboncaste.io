@@ -239,6 +239,11 @@
               "label": "Hverir",
               "url": "https://www.hverir.com/en",
               "type": "official"
+            },
+            {
+              "label": "June 2026 Mývatn travel guide",
+              "url": "https://www.funiceland.is/blog/lake-myvatn-travel-guide/",
+              "type": "travel writing"
             }
           ]
         },
@@ -285,6 +290,11 @@
               "label": "May 2026 safety update",
               "url": "https://www.vatnajokulsthjodgardur.is/frettir/oryggi-gesta-i-fyrirrumi-breytt-a%C3%B0gengi-a%C3%B0-detti",
               "type": "official"
+            },
+            {
+              "label": "East vs west travel guide",
+              "url": "https://www.earthtrekkers.com/dettifoss-selfoss-hafragilsfoss-east-and-west-sides/",
+              "type": "travel writing"
             }
           ]
         }
@@ -619,7 +629,7 @@
           "sources": [
             {
               "label": "Current operator rules",
-              "url": "https://www.dive.is/faq/why-is-silfra-so-clear",
+              "url": "https://www.dive.is/faq/what-is-the-minimum-age-to-snorkel-silfra",
               "type": "official"
             }
           ]

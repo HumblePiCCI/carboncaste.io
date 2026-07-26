@@ -322,6 +322,10 @@ async function handleIcelandApi(req, res, path) {
       sendJson(req, res, 405, { error: 'Method not allowed.' }, { Allow: 'POST' });
       return true;
     }
+    if (!allowedMutationOrigin(req) || req.headers['sec-fetch-site'] === 'cross-site') {
+      sendJson(req, res, 403, { error: 'Cross-site logout is not allowed.' });
+      return true;
+    }
     sendJson(req, res, 200, { authenticated: false }, {
       'Set-Cookie': sessionCookie(req, '', 0),
     });
@@ -435,6 +439,10 @@ server.listen(port, host, () => {
 server.requestTimeout = 15_000;
 server.headersTimeout = 10_000;
 server.keepAliveTimeout = 5_000;
+server.on('error', (error) => {
+  console.error(`HTTP server failed: ${error.code || error.message}`);
+  process.exitCode = 1;
+});
 server.on('clientError', (error, socket) => {
   console.error(`HTTP client error: ${error.code || error.message}`);
   if (socket.writable) socket.end('HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n');

@@ -135,8 +135,8 @@ gate, schema validation, cross-site rejection, concurrent granular updates,
 atomic persistence, restart recovery, and logout. The interaction run opens a
 task-owned local server and headless Chrome, exercises access, preferences,
 discussion, and suggestions at desktop/mobile sizes, records screenshots, and
-tears down its browser, listener, temporary state, and child process in a
-`finally` path.
+tears down its browser, listener, temporary state, and child process through
+signal-aware `finally` paths with force-stop fallbacks.
 
 ## Torus construction
 
@@ -160,6 +160,12 @@ Tunnel maps `carboncaste.io` and `www.carboncaste.io` to that origin. Build
 Deployments should stage an immutable full-SHA release under
 `/home/humble/services/carboncaste-web/releases/`, validate it on an alternate
 loopback port and temporary state file, then atomically switch `current`.
+`scripts/deploy-a6.sh <full-sha>` resolves and verifies the live A6 revision,
+acquires the host deployment lock, and passes both exact identities into
+promotion. The first directory-to-release migration upgrades its prior short
+marker to that resolved full SHA. `scripts/rollback-a6.sh <full-sha>` accepts
+only an exact release SHA, verifies its `REVISION`, takes the same host lock,
+and repeats the Iceland readiness and authentication gates after switching.
 Persistent Iceland state belongs under
 `/home/humble/services/carboncaste-web/state/`, and the access hash/session
 secret belong in the mode-0600

@@ -116,7 +116,7 @@ if (itinerary) {
   if (itinerary.legs?.length < 7) failures.push('Iceland itinerary must cover all seven route chapters');
   if (options.length < 28) failures.push('Iceland itinerary must retain a full route-wide option set');
   if (options.filter((option) => option.standout).length < 8) {
-    failures.push('Iceland itinerary must identify the strongest review-backed experiences');
+    failures.push('Iceland itinerary must identify the strongest research-backed experiences');
   }
   if (new Set(ids).size !== ids.length) failures.push('Iceland itinerary option IDs must be unique');
   for (const option of options) {
@@ -129,6 +129,12 @@ if (itinerary) {
       } catch {
         failures.push(`Iceland source must be a valid HTTPS URL: ${source.url}`);
       }
+    }
+    if (option.standout && !option.sources.some((source) => (
+      ['guide', 'reviews', 'specialist', 'travel blog', 'travel post', 'travel writing']
+        .includes(source.type)
+    ))) {
+      failures.push(`Research standout lacks independent experience evidence: ${option.id}`);
     }
   }
 }
@@ -179,6 +185,26 @@ for (const [label, pattern] of [
 const robots = await readFile('robots.txt', 'utf8');
 for (const value of ['Disallow: /iceland26/', 'Disallow: /api/iceland26']) {
   if (!robots.includes(value)) failures.push(`robots.txt is missing ${value}`);
+}
+
+const promotionScript = await readFile('deploy/a6-promote-release.sh', 'utf8');
+for (const value of [
+  'expected_previous',
+  'flock -n 9',
+  'verify_current_release',
+  'test "$(readlink "$current")" = "releases/$commit"',
+]) {
+  if (!promotionScript.includes(value)) failures.push(`A6 promotion is missing ${value}`);
+}
+
+const rollbackScript = await readFile('scripts/rollback-a6.sh', 'utf8');
+for (const value of [
+  '^[0-9a-f]{40}$',
+  'flock -n 9',
+  'test "$(cat "$target/REVISION")" = "$target_name"',
+  '/api/iceland26/health',
+]) {
+  if (!rollbackScript.includes(value)) failures.push(`A6 rollback is missing ${value}`);
 }
 
 const effect = await readFile('src/CspAsciiEffect.js', 'utf8');

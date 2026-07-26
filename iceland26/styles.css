@@ -1257,13 +1257,17 @@ a {
   }
 
   .trip-mark small,
-  .identity > span,
-  .lock-button {
+  .identity > span {
     display: none;
   }
 
   .identity select {
     max-width: 135px;
+  }
+
+  .lock-button {
+    padding-inline: 0.2rem;
+    font-size: 0.58rem;
   }
 
   .hero {
