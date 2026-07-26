@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { mkdtempSync } from 'node:fs';
 import { readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -9,6 +9,7 @@ const port = Number(process.env.ICELAND26_TEST_PORT || 18126);
 const baseUrl = `http://127.0.0.1:${port}`;
 const testAccessCode = 'test-only-iceland-code';
 const testAccessHash = createHash('sha256').update(testAccessCode).digest('hex');
+const testInstanceNonce = randomUUID();
 const failures = [];
 let temporaryDirectory = null;
 let statePath = null;
@@ -26,7 +27,11 @@ async function waitForServer(process, timeout = 8_000) {
     if (process.exitCode !== null) throw new Error(`Server exited with ${process.exitCode}.`);
     try {
       const response = await fetch(`${baseUrl}/api/iceland26/health`);
-      if (response.ok && (await response.json()).ready === true && process.exitCode === null) return;
+      const health = await response.json();
+      if (response.ok
+          && health.ready === true
+          && health.instance === testInstanceNonce
+          && process.exitCode === null) return;
     } catch {
       // The task-owned listener is still starting.
     }
@@ -47,6 +52,7 @@ async function startServer() {
       ICELAND26_ACCESS_HASH: testAccessHash,
       ICELAND26_SESSION_SECRET: 'test-session-secret-that-is-longer-than-thirty-two-characters',
       ICELAND26_COOKIE_SECURE: 'false',
+      ICELAND26_INSTANCE_NONCE: testInstanceNonce,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -87,11 +93,21 @@ async function cleanupResources() {
   cleanupPromise = (async () => {
     const ownedChild = child;
     child = null;
-    await stopServer(ownedChild);
+    const cleanupErrors = [];
+    try {
+      await stopServer(ownedChild);
+    } catch (error) {
+      cleanupErrors.push(error);
+    }
     if (temporaryDirectory) {
-      await rm(temporaryDirectory, { recursive: true, force: true });
+      try {
+        await rm(temporaryDirectory, { recursive: true, force: true });
+      } catch (error) {
+        cleanupErrors.push(error);
+      }
       temporaryDirectory = null;
     }
+    if (cleanupErrors.length) throw new AggregateError(cleanupErrors, 'API test cleanup failed.');
   })();
   return cleanupPromise;
 }
@@ -127,7 +143,9 @@ try {
   await startServer();
 
   const health = await jsonRequest('/api/iceland26/health');
-  if (health.response.status !== 200 || health.body.ready !== true) {
+  if (health.response.status !== 200
+      || health.body.ready !== true
+      || health.body.instance !== testInstanceNonce) {
     fail('Configured coordination service did not report ready.');
   }
 

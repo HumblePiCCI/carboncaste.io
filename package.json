@@ -7,11 +7,12 @@
     "build": "webpack --mode production",
     "serve": "node server/static-server.mjs",
     "check": "node scripts/check-site.mjs",
+    "test:release-custody": "bash -n scripts/deploy-a6.sh deploy/a6-promote-release.sh scripts/rollback-a6.sh && node scripts/release-tree-test.mjs",
     "test:iceland26": "node scripts/iceland26-api-test.mjs",
     "interaction:iceland26": "node scripts/iceland26-interaction-test.mjs",
     "interaction": "node scripts/interaction-test.mjs",
     "smoke": "node scripts/smoke-test.mjs",
-    "test": "npm run build && npm run check && npm run test:iceland26"
+    "test": "npm run build && npm run check && npm run test:release-custody && npm run test:iceland26"
   },
   "dependencies": {
     "three": "0.162.0"

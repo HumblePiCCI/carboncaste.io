@@ -135,15 +135,15 @@ function consensusFor(optionId) {
   const positive = love + interested;
   const agreement = positive === participantIds.length;
   const split = pass > 0 && positive > 0;
-  const promising = !agreement && positive >= 3;
+  const promising = positive === 3 && pass === 0 && decided === 3;
   const score = (love * 3) + (interested * 2) - (pass * 2);
   return { love, interested, pass, decided, positive, agreement, split, promising, score };
 }
 
 function consensusText(consensus) {
   if (consensus.agreement) return 'Group yes · all four are in';
-  if (consensus.promising) return 'Promising · one voice left';
   if (consensus.split) return 'Worth a conversation · preferences differ';
+  if (consensus.promising) return 'Promising · one voice left';
   if (consensus.decided === 0) return 'Open · nobody has weighed in yet';
   return `${consensus.decided}/4 planners have weighed in`;
 }
@@ -531,9 +531,11 @@ async function mutate(path, body) {
       method: 'POST',
       body: JSON.stringify(body),
     });
-    sharedState = payload.state;
+    if (!sharedState.available || payload.state.revision > sharedState.revision) {
+      sharedState = payload.state;
+      render();
+    }
     setSync('live', `Shared board live · revision ${sharedState.revision}`);
-    render();
     return payload.result;
   } catch (error) {
     setSync('error', 'Update failed · nothing was changed');
@@ -545,14 +547,15 @@ async function mutate(path, body) {
 async function refreshState({ quiet = false } = {}) {
   try {
     const incoming = await fetchJson('/api/iceland26');
-    if (incoming.available && incoming.revision !== sharedState.revision) {
+    if (incoming.available
+        && (!sharedState.available || incoming.revision > sharedState.revision)) {
       sharedState = incoming;
       render();
-    } else if (!incoming.available) {
+    } else if (!incoming.available && !sharedState.available) {
       sharedState = incoming;
     }
     if (incoming.available) {
-      setSync('live', `Shared board live · revision ${incoming.revision}`);
+      setSync('live', `Shared board live · revision ${sharedState.revision}`);
     } else {
       setSync('error', 'Board is temporarily read-only');
     }
@@ -625,13 +628,19 @@ elements.legPicker.addEventListener('keydown', (event) => {
     ?.focus();
 });
 
+function setActiveFilter(filter) {
+  activeFilter = filter;
+  document.querySelectorAll('[data-filter]').forEach((candidate) => {
+    const selected = candidate.dataset.filter === activeFilter;
+    candidate.classList.toggle('is-active', selected);
+    candidate.setAttribute('aria-pressed', String(selected));
+  });
+}
+
 document.querySelector('.filter-picker').addEventListener('click', (event) => {
   const button = event.target.closest('[data-filter]');
   if (!button) return;
-  activeFilter = button.dataset.filter;
-  document.querySelectorAll('[data-filter]').forEach((candidate) => {
-    candidate.classList.toggle('is-active', candidate === button);
-  });
+  setActiveFilter(button.dataset.filter);
   render();
 });
 
@@ -729,6 +738,7 @@ elements.ideaForm.addEventListener('submit', async (event) => {
     elements.ideaForm.reset();
     closeIdeaDialog();
     activeLegId = 'shared-ideas';
+    setActiveFilter('all');
     render();
     showToast('Shared idea added. The group can weigh in now.');
   } catch {

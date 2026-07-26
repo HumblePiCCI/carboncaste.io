@@ -160,12 +160,27 @@ Tunnel maps `carboncaste.io` and `www.carboncaste.io` to that origin. Build
 Deployments should stage an immutable full-SHA release under
 `/home/humble/services/carboncaste-web/releases/`, validate it on an alternate
 loopback port and temporary state file, then atomically switch `current`.
-`scripts/deploy-a6.sh <full-sha>` resolves and verifies the live A6 revision,
-acquires the host deployment lock, and passes both exact identities into
-promotion. The first directory-to-release migration upgrades its prior short
-marker to that resolved full SHA. `scripts/rollback-a6.sh <full-sha>` accepts
-only an exact release SHA, verifies its `REVISION`, takes the same host lock,
-and repeats the Iceland readiness and authentication gates after switching.
+`scripts/deploy-a6.sh <full-sha>` requires a clean, pushed branch; rejects
+tracked release-metadata names; and sends independent NUL-delimited Git
+manifests for both the candidate and active commits. The promotion program is
+streamed from the trusted checkout rather than executed from the unverified
+payload. Under a host-wide lock it verifies every tracked blob, executable bit,
+symlink, path, and Git tree hash before the canary and again immediately before
+switching. Published releases retain exact `REVISION`, `RELEASE_TREE`, and
+`RELEASE_TREE_MANIFEST` receipts and are made read-only. The first
+directory-to-release migration creates and verifies a receipt-bearing copy of
+the prior exact tree before moving `current`.
+
+`scripts/rollback-a6.sh <full-sha>` accepts only an exact locally available
+commit from a clean, pushed branch. It supplies independently generated
+manifests, verifies both the active and target release under the same host
+lock, switches atomically, repeats health and authentication gates, and
+re-verifies the target after service startup. A failed rollback must prove that
+the prior link, unit, service, and health were restored or exits with an
+explicit critical status. The read-only release modes prevent accidental
+drift; because the service and deploy operator currently share the `humble`
+account, they are not a separate-UID or filesystem-immutable security boundary.
+
 Persistent Iceland state belongs under
 `/home/humble/services/carboncaste-web/state/`, and the access hash/session
 secret belong in the mode-0600

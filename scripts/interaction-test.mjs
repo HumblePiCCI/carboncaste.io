@@ -10,7 +10,7 @@ const executablePath = chromePaths.find(existsSync);
 if (!executablePath) throw new Error('Chrome or Chromium is required for interaction tests.');
 
 mkdirSync('output/playwright', { recursive: true });
-const browser = await chromium.launch({ headless: true, executablePath });
+let browser;
 const failures = [];
 
 async function expect(page, condition, message, timeout = 5000) {
@@ -268,9 +268,13 @@ async function run(viewport, label) {
   await page.close();
 }
 
-await run({ width: 1440, height: 900 }, 'desktop');
-await run({ width: 390, height: 844 }, 'mobile');
-await browser.close();
+try {
+  browser = await chromium.launch({ headless: true, executablePath });
+  await run({ width: 1440, height: 900 }, 'desktop');
+  await run({ width: 390, height: 844 }, 'mobile');
+} finally {
+  await browser?.close();
+}
 
 if (failures.length) {
   console.error(failures.join('\n'));

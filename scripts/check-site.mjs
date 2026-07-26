@@ -20,7 +20,9 @@ const requiredFiles = [
   'iceland26/access.js',
   'server/iceland26-store.mjs',
   'scripts/deploy-a6.sh',
+  'scripts/release-tree-test.mjs',
   'scripts/rollback-a6.sh',
+  'scripts/verify-release-tree.mjs',
   'deploy/a6-promote-release.sh',
 ];
 
@@ -159,6 +161,7 @@ const icelandServer = await readFile('server/static-server.mjs', 'utf8');
 for (const value of [
   'ICELAND26_ACCESS_HASH',
   'ICELAND26_SESSION_SECRET',
+  'ICELAND26_INSTANCE_NONCE',
   "'HttpOnly'",
   "'SameSite=Strict'",
   "'/api/iceland26/login'",
@@ -190,21 +193,47 @@ for (const value of ['Disallow: /iceland26/', 'Disallow: /api/iceland26']) {
 const promotionScript = await readFile('deploy/a6-promote-release.sh', 'utf8');
 for (const value of [
   'expected_previous',
+  'expected_verifier_sha',
+  'exact_line_file',
   'flock -n 9',
+  'assert_incoming_owned',
+  'verify_release_tree',
+  'verify_release_receipts',
+  'assert_release_read_only',
   'verify_current_release',
+  'task-owned promotion artifacts could not be fully cleaned',
+  'exit 71',
   'test "$(readlink "$current")" = "releases/$commit"',
 ]) {
   if (!promotionScript.includes(value)) failures.push(`A6 promotion is missing ${value}`);
 }
 
+const deploymentScript = await readFile('scripts/deploy-a6.sh', 'utf8');
+if (!deploymentScript.includes("printf '%s\\n' '$owner_token' | cmp -s - .staging-owner")) {
+  failures.push('A6 deployment must byte-compare staging ownership receipts');
+}
+if (deploymentScript.includes('$(cat .staging-owner)')
+    || deploymentScript.includes("$(cat '$remote_incoming/.staging-owner')")) {
+  failures.push('A6 deployment must not normalize staging ownership receipts through command substitution');
+}
+
 const rollbackScript = await readFile('scripts/rollback-a6.sh', 'utf8');
 for (const value of [
   '^[0-9a-f]{40}$',
+  'exact_line_file',
   'flock -n 9',
-  'test "$(cat "$target/REVISION")" = "$target_name"',
+  'verify_release "$previous_release"',
+  'verify_release "$target"',
+  'expected_verifier_sha',
+  'CRITICAL: rollback target failed',
   '/api/iceland26/health',
 ]) {
   if (!rollbackScript.includes(value)) failures.push(`A6 rollback is missing ${value}`);
+}
+for (const script of [promotionScript, rollbackScript]) {
+  if (/\$\(cat "\$(?:root|current)\/(?:REVISION|RELEASE_TREE)"\)/.test(script)) {
+    failures.push('A6 release receipts must be byte-compared rather than normalized through command substitution');
+  }
 }
 
 const effect = await readFile('src/CspAsciiEffect.js', 'utf8');

@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -10,6 +10,7 @@ const port = Number(process.env.ICELAND26_INTERACTION_PORT || 18127);
 const baseUrl = `http://127.0.0.1:${port}`;
 const testAccessCode = 'test-only-iceland-code';
 const testAccessHash = createHash('sha256').update(testAccessCode).digest('hex');
+const testInstanceNonce = randomUUID();
 const chromePaths = [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   '/Applications/Chromium.app/Contents/MacOS/Chromium',
@@ -43,6 +44,7 @@ async function startServer() {
       ICELAND26_ACCESS_HASH: testAccessHash,
       ICELAND26_SESSION_SECRET: 'test-session-secret-that-is-longer-than-thirty-two-characters',
       ICELAND26_COOKIE_SECURE: 'false',
+      ICELAND26_INSTANCE_NONCE: testInstanceNonce,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -58,7 +60,11 @@ async function startServer() {
     }
     try {
       const response = await fetch(`${baseUrl}/api/iceland26/health`);
-      if (response.ok && (await response.json()).ready === true && serverProcess.exitCode === null) return;
+      const health = await response.json();
+      if (response.ok
+          && health.ready === true
+          && health.instance === testInstanceNonce
+          && serverProcess.exitCode === null) return;
     } catch {
       // Listener is still starting.
     }
@@ -113,19 +119,35 @@ async function cleanupResources() {
     browser = null;
     browserServer = null;
     serverProcess = null;
+    const cleanupErrors = [];
 
-    if (ownedBrowser) {
-      await settleWithin(ownedBrowser.close(), 3_000);
+    try {
+      if (ownedBrowser) await settleWithin(ownedBrowser.close(), 3_000);
+    } catch (error) {
+      cleanupErrors.push(error);
     }
-    if (ownedBrowserServer) {
-      const closed = await settleWithin(ownedBrowserServer.close(), 3_000);
-      if (!closed) await ownedBrowserServer.kill();
+    try {
+      if (ownedBrowserServer) {
+        const closed = await settleWithin(ownedBrowserServer.close(), 3_000);
+        if (!closed) await ownedBrowserServer.kill();
+      }
+    } catch (error) {
+      cleanupErrors.push(error);
     }
-    await stopServer(ownedServer);
+    try {
+      await stopServer(ownedServer);
+    } catch (error) {
+      cleanupErrors.push(error);
+    }
     if (temporaryDirectory) {
-      await rm(temporaryDirectory, { recursive: true, force: true });
+      try {
+        await rm(temporaryDirectory, { recursive: true, force: true });
+      } catch (error) {
+        cleanupErrors.push(error);
+      }
       temporaryDirectory = null;
     }
+    if (cleanupErrors.length) throw new AggregateError(cleanupErrors, 'UI test cleanup failed.');
   })();
   return cleanupPromise;
 }
@@ -248,8 +270,43 @@ async function runViewport(viewport, label, mutate = false) {
     if (mutate) {
       await page.locator('#participant-select').selectOption('mary');
       const dynjandi = page.locator('.option-card', { hasText: 'Dynjandi' });
-      await dynjandi.getByRole('button', { name: /Love it/ }).click();
-      await page.locator('#sync-status').getByText(/revision 1/).waitFor();
+      let releaseStalePoll;
+      let markStalePollCaptured;
+      const stalePollCaptured = new Promise((resolve) => {
+        markStalePollCaptured = resolve;
+      });
+      const stalePollRelease = new Promise((resolve) => {
+        releaseStalePoll = resolve;
+      });
+      const stalePollHandler = async (route) => {
+        const requestUrl = new URL(route.request().url());
+        if (route.request().method() !== 'GET' || requestUrl.pathname !== '/api/iceland26') {
+          await route.continue();
+          return;
+        }
+        const upstream = await route.fetch();
+        const body = await upstream.body();
+        markStalePollCaptured();
+        await stalePollRelease;
+        await route.fulfill({ response: upstream, body });
+      };
+      await page.route('**/api/iceland26', stalePollHandler);
+      try {
+        await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+        await stalePollCaptured;
+        await dynjandi.getByRole('button', { name: /Love it/ }).click();
+        await page.locator('#sync-status').getByText(/revision 1/).waitFor();
+        releaseStalePoll();
+        await page.waitForTimeout(250);
+        if (!await page.locator('#sync-status').getByText(/revision 1/).count()
+            || await dynjandi.getByRole('button', { name: /Love it/ }).getAttribute('aria-pressed')
+              !== 'true') {
+          fail('desktop: an older polling response regressed newer mutation state.');
+        }
+      } finally {
+        releaseStalePoll();
+        await page.unroute('**/api/iceland26', stalePollHandler);
+      }
 
       await dynjandi.getByRole('button', { name: /Open discussion/ }).click();
       const dynjandiComment = dynjandi.getByLabel(/Comment on Dynjandi/);
@@ -274,6 +331,7 @@ async function runViewport(viewport, label, mutate = false) {
       await dynjandi.getByRole('button', { name: 'Post' }).click();
       await dynjandi.getByText('This feels like the Westfjords anchor.').waitFor();
 
+      await page.getByRole('button', { name: '★ Standouts' }).click();
       await page.locator('#open-idea-dialog').click();
       await page.locator('#idea-form [name="title"]').fill('A bakery morning');
       await page.locator('#idea-form [name="location"]').fill('Reykjavík');
@@ -281,6 +339,10 @@ async function runViewport(viewport, label, mutate = false) {
       await page.locator('#idea-form').getByRole('button', { name: 'Add to the board' }).click();
       await page.getByRole('tab', { name: /Ideas from the group/ }).waitFor();
       await page.getByRole('heading', { name: 'A bakery morning' }).waitFor();
+      if (await page.getByRole('button', { name: 'All', exact: true }).getAttribute('aria-pressed')
+          !== 'true') {
+        fail('desktop: adding an idea under a restrictive filter hid the new shared idea.');
+      }
 
       const state = await page.evaluate(async () => (await fetch('/api/iceland26')).json());
       if (state.revision !== 4
@@ -301,8 +363,45 @@ async function runViewport(viewport, label, mutate = false) {
         path: 'output/playwright/iceland26/desktop-shared-idea.png',
         fullPage: false,
       });
+
+      await page.evaluate(async () => {
+        const votes = [
+          ['ben', 'love'],
+          ['mary', 'love'],
+          ['laura', 'interested'],
+          ['brad', 'pass'],
+        ];
+        const responses = await Promise.all(votes.map(([participant, preference]) => (
+          fetch('/api/iceland26/preference', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              participant,
+              optionId: 'latrabjarg-raudasandur',
+              preference,
+            }),
+          })
+        )));
+        if (responses.some((response) => !response.ok)) {
+          throw new Error('Split-consensus background preferences failed.');
+        }
+      });
+      await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+      await page.locator('#sync-status').getByText(/revision 8/).waitFor();
+      await page.locator('[role="tab"][data-leg-id="westfjords"]').click();
+      const latrabjarg = page.locator('.option-card', { hasText: 'Látrabjarg' });
+      await latrabjarg.getByText('Worth a conversation · preferences differ').waitFor();
+      if (await latrabjarg.getByText('Promising · one voice left').count()) {
+        fail('desktop: three positive votes plus one pass was mislabeled as one undecided voice.');
+      }
     } else {
-      await page.getByRole('button', { name: '★ Standouts' }).click();
+      const standoutFilter = page.getByRole('button', { name: '★ Standouts' });
+      await standoutFilter.click();
+      if (await standoutFilter.getAttribute('aria-pressed') !== 'true'
+          || await page.getByRole('button', { name: 'All', exact: true }).getAttribute('aria-pressed')
+            !== 'false') {
+        fail('mobile: selected experience filter is not exposed to assistive technology.');
+      }
       const visibleCards = page.locator('.option-card');
       const count = await visibleCards.count();
       for (let index = 0; index < count; index += 1) {

@@ -28,6 +28,11 @@ const catalogOptionIds = itinerary.legs.flatMap((leg) => leg.options.map((option
 const icelandStore = await createIceland26Store({ dataPath: icelandDataPath, catalogOptionIds });
 const icelandAccessHash = String(process.env.ICELAND26_ACCESS_HASH || '').toLowerCase();
 const icelandSessionSecret = String(process.env.ICELAND26_SESSION_SECRET || '');
+const icelandInstanceNonce = /^[A-Za-z0-9-]{1,128}$/.test(
+  String(process.env.ICELAND26_INSTANCE_NONCE || ''),
+)
+  ? String(process.env.ICELAND26_INSTANCE_NONCE)
+  : '';
 const icelandAuthConfigured = /^[a-f0-9]{64}$/.test(icelandAccessHash)
   && icelandSessionSecret.length >= 32;
 const icelandSessionTtlSeconds = 60 * 60 * 24 * 30;
@@ -280,7 +285,10 @@ async function handleIcelandApi(req, res, path) {
       return true;
     }
     const ready = icelandAuthConfigured && !icelandStore.loadError();
-    sendJson(req, res, ready ? 200 : 503, { ready });
+    sendJson(req, res, ready ? 200 : 503, {
+      ready,
+      ...(icelandInstanceNonce ? { instance: icelandInstanceNonce } : {}),
+    });
     return true;
   }
   if (path === '/api/iceland26/login') {
