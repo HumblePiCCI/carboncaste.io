@@ -18,11 +18,10 @@ import { join } from 'node:path';
 const temporaryDirectory = mkdtempSync(join(tmpdir(), 'carboncaste-a6-archive-test-'));
 const archivePath = join(temporaryDirectory, 'release.tar');
 const manifestPath = join(temporaryDirectory, 'release.manifest');
-const deploymentScript = readFileSync('scripts/deploy-a6.sh', 'utf8');
 const expectedExtraction =
   'tar --extract --file=- --keep-old-files --no-same-owner';
-const isGnuTar = execFileSync('tar', ['--version'], { encoding: 'utf8' })
-  .includes('GNU tar');
+let deploymentScript = '';
+let isGnuTar = false;
 
 function git(...args) {
   return execFileSync('git', args, {
@@ -71,6 +70,9 @@ function expectGnuCollision(root, label) {
 }
 
 try {
+  deploymentScript = readFileSync('scripts/deploy-a6.sh', 'utf8');
+  isGnuTar = execFileSync('tar', ['--version'], { encoding: 'utf8' })
+    .includes('GNU tar');
   if (!deploymentScript.includes(expectedExtraction)
       || deploymentScript.includes('--no-overwrite-dir')) {
     throw new Error('A6 deployment does not use the tested compatible extraction flags.');
@@ -204,9 +206,15 @@ try {
     }
   }
 
-  console.log(
-    'A6 archive extraction passed compatible flags, owner-only preflight, marker custody, exact content, and no-replace collision checks.',
-  );
+  if (isGnuTar) {
+    console.log(
+      'A6 archive extraction passed production GNU flags, owner-only preflight, marker custody, exact content, file/symlink/hardlink collisions, and real-directory verifier rejection.',
+    );
+  } else {
+    console.log(
+      'A6 archive extraction passed the portable marker and no-replace baseline; production GNU adversarial cases require the Linux custody lane.',
+    );
+  }
 } finally {
   rmSync(temporaryDirectory, { recursive: true, force: true });
 }
