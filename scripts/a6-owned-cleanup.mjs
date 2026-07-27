@@ -102,7 +102,11 @@ function validateScope({ kind, path, ownerToken, serviceRoot, expectedIdentity }
 }
 
 async function moveNoReplace(source, destination) {
-  await execFileAsync('/usr/bin/mv', ['-T', '-n', '--', source, destination]);
+  try {
+    await execFileAsync('/usr/bin/mv', ['-T', '-n', '--', source, destination]);
+  } catch {
+    throw cleanupError('no-replace quarantine move failed');
+  }
 }
 
 async function makeWritableAnchored(directoryHandle) {
