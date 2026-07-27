@@ -19,11 +19,18 @@ const requiredFiles = [
   'iceland26/access.css',
   'iceland26/access.js',
   'server/iceland26-store.mjs',
+  'scripts/a6-owned-cleanup.mjs',
+  'scripts/a6-owned-cleanup-test.mjs',
+  'scripts/a6-locked-run.mjs',
+  'scripts/a6-locked-run-test.mjs',
+  'scripts/a6-owned-write.mjs',
+  'scripts/a6-owned-write-test.mjs',
   'scripts/deploy-a6.sh',
   'scripts/release-tree-test.mjs',
   'scripts/rollback-a6.sh',
   'scripts/verify-release-tree.mjs',
   'deploy/a6-promote-release.sh',
+  '.github/workflows/release-custody.yml',
 ];
 
 const failures = [];
@@ -194,21 +201,87 @@ const promotionScript = await readFile('deploy/a6-promote-release.sh', 'utf8');
 for (const value of [
   'expected_previous',
   'expected_verifier_sha',
+  'expected_cleanup_helper_sha',
+  'expected_write_helper_sha',
+  'expected_lock_helper_sha',
   'exact_line_file',
-  'flock -n 9',
+  'create_exact_line_no_replace',
+  'cleanup_internal_directory',
+  'cleanup_helper_proc="/proc/${BASHPID}/fd/$cleanup_helper_fd"',
+  '"$node_bin" --input-type=module -',
+  'cleanup_helper_source="$(cat "$cleanup_helper_proc")"',
+  'write_helper_proc="/proc/${BASHPID}/fd/$write_helper_fd"',
+  'write_helper_eval=',
+  'verifier_eval=',
+  'deploy_lock_is_exact',
+  'deployment_roots_are_exact',
+  'flock -n 3',
+  'wait_for_runtime',
+  'local deadline=$((SECONDS + 10))',
+  'systemctl_bounded',
+  'timeout --signal=TERM --kill-after=1s 6s',
+  'previous_has_iceland',
   'assert_incoming_owned',
   'verify_release_tree',
   'verify_release_receipts',
   'assert_release_read_only',
   'verify_current_release',
   'task-owned promotion artifacts could not be fully cleaned',
+  'task-owned migration artifacts could not be fully cleaned',
+  'ICELAND26_INSTANCE_NONCE="$owner_token"',
   'exit 71',
   'test "$(readlink "$current")" = "releases/$commit"',
 ]) {
   if (!promotionScript.includes(value)) failures.push(`A6 promotion is missing ${value}`);
 }
+if (/exec\s+9[<>]/.test(promotionScript)) {
+  failures.push('A6 promotion must receive, not pathname-open, its no-follow deployment lock');
+}
+if (!/rm -f --[\s\S]{0,700}"\$previous_candidate\/REVISION"/.test(promotionScript)) {
+  failures.push('A6 first migration must remove the copied legacy REVISION before its no-clobber receipt write');
+}
+
+const packageManifest = JSON.parse(await readFile('package.json', 'utf8'));
+const releaseCustodyWorkflow = await readFile(
+  '.github/workflows/release-custody.yml',
+  'utf8',
+);
+const releaseCustodyCommand = packageManifest.scripts?.['test:release-custody'] || '';
+for (const command of [
+  'bash -n scripts/deploy-a6.sh',
+  'bash -n deploy/a6-promote-release.sh',
+  'bash -n scripts/rollback-a6.sh',
+]) {
+  if (!releaseCustodyCommand.includes(command)) {
+    failures.push(`Release custody test must parse ${command.replace('bash -n ', '')} directly`);
+  }
+}
 
 const deploymentScript = await readFile('scripts/deploy-a6.sh', 'utf8');
+const ownedCleanupScript = await readFile('scripts/a6-owned-cleanup.mjs', 'utf8');
+const lockedRunScript = await readFile('scripts/a6-locked-run.mjs', 'utf8');
+const ownedWriteScript = await readFile('scripts/a6-owned-write.mjs', 'utf8');
+if (!releaseCustodyCommand.includes('node scripts/a6-owned-cleanup-test.mjs')) {
+  failures.push('Release custody test must run deterministic owned-cleanup race checks');
+}
+if (!releaseCustodyCommand.includes('node scripts/a6-owned-write-test.mjs')) {
+  failures.push('Release custody test must run executable exclusive-write race checks');
+}
+if (!releaseCustodyCommand.includes('node scripts/a6-locked-run-test.mjs')) {
+  failures.push('Release custody test must run executable no-follow lock and root checks');
+}
+if (!releaseCustodyWorkflow.includes('runs-on: ubuntu-24.04')
+    || !releaseCustodyWorkflow.includes('node-version: 22.22.2')
+    || !releaseCustodyWorkflow.includes('npm run check')
+    || !releaseCustodyWorkflow.includes('npm run test:release-custody')
+    || /uses:\s+actions\/(?:checkout|setup-node)@v[0-9]/.test(releaseCustodyWorkflow)) {
+  failures.push('Release custody must have a guaranteed GNU/Linux CI lane');
+}
+if (!deploymentScript.includes('git show "$commit:scripts/a6-owned-cleanup.mjs"')
+    || !deploymentScript.includes('cleanup_helper_b64')
+    || !deploymentScript.includes('| base64 -d')) {
+  failures.push('A6 deployment cleanup must stream the exact committed owned-cleanup helper');
+}
 if (!deploymentScript.includes("printf '%s\\n' '$owner_token' | cmp -s - .staging-owner")) {
   failures.push('A6 deployment must byte-compare staging ownership receipts');
 }
@@ -216,12 +289,87 @@ if (deploymentScript.includes('$(cat .staging-owner)')
     || deploymentScript.includes("$(cat '$remote_incoming/.staging-owner')")) {
   failures.push('A6 deployment must not normalize staging ownership receipts through command substitution');
 }
+for (const [label, pattern] of [
+  ['pathname owner-receipt write', /printf[^\n]*>\s*["']?\$?[^ \n]*\.staging-owner/],
+  ['pathname manifest upload', /cat\s*>\s*["']?(?:EXPECTED_NEW_TREE_MANIFEST|EXPECTED_PREVIOUS_TREE_MANIFEST)/],
+  ['post-create mode mutation', /chmod\s+0600/],
+  ['remote recursive create-failure cleanup', /cleanup_created[\s\S]{0,300}rm -rf/],
+]) {
+  if (pattern.test(deploymentScript)) {
+    failures.push(`A6 deployment retains unsafe ${label}`);
+  }
+}
+for (const value of [
+  "git show \"$commit:scripts/a6-owned-write.mjs\"",
+  'write_helper_eval',
+  'remote_owner_identity',
+  'new_manifest_sha',
+  'previous_manifest_sha',
+  "git show \"$commit:scripts/a6-locked-run.mjs\"",
+  'lock_helper_eval',
+  '"$remote_receipt" =~ ^([0-9]+:[0-9]+)\\ ([0-9]+:[0-9]+)$',
+  '--keep-old-files',
+]) {
+  if (!deploymentScript.includes(value)) {
+    failures.push(`A6 deployment exclusive-write custody is missing ${value}`);
+  }
+}
+for (const value of [
+  'constants.O_NOFOLLOW',
+  'constants.O_DIRECTORY',
+  'A6_DEPLOY_LOCK_IDENTITY',
+  'A6_DEPLOY_RELEASES_IDENTITY',
+  'A6_DEPLOY_ROOT_IDENTITY',
+  'runLockedBash',
+  'detached: true',
+  "process.kill(-child.pid, 'SIGKILL')",
+  'process.on(signal, handler)',
+  ': 90_000',
+]) {
+  if (!lockedRunScript.includes(value)) {
+    failures.push(`A6 no-follow lock broker is missing ${value}`);
+  }
+}
+for (const value of [
+  'quarantinedHandle,',
+  'beforeAnchoredDelete',
+  "['release', 'candidate', 'legacy']",
+  'internal cleanup requires an exact identity',
+]) {
+  if (!ownedCleanupScript.includes(value)) {
+    failures.push(`A6 owned cleanup is missing ${value}`);
+  }
+}
+for (const value of [
+  'constants.O_EXCL',
+  'constants.O_NOFOLLOW',
+  'createOwnedDirectory',
+  'writeOwnedFile',
+  'afterTargetWrite',
+]) {
+  if (!ownedWriteScript.includes(value)) {
+    failures.push(`A6 owned writer is missing ${value}`);
+  }
+}
 
 const rollbackScript = await readFile('scripts/rollback-a6.sh', 'utf8');
 for (const value of [
   '^[0-9a-f]{40}$',
   'exact_line_file',
-  'flock -n 9',
+  'remote_owner_identity',
+  'upload_owned_file',
+  'write_helper_eval',
+  'lock_helper_eval',
+  '"$remote_receipt" =~ ^([0-9]+:[0-9]+)\\ ([0-9]+:[0-9]+)$',
+  'deploy_lock_is_exact',
+  'deployment_roots_are_exact',
+  'flock -n 3',
+  'wait_for_runtime',
+  'local deadline=$((SECONDS + 10))',
+  'systemctl_bounded',
+  'timeout --signal=TERM --kill-after=1s 6s',
+  'target_has_iceland',
+  'current_has_iceland',
   'verify_release "$previous_release"',
   'verify_release "$target"',
   'expected_verifier_sha',
@@ -229,6 +377,28 @@ for (const value of [
   '/api/iceland26/health',
 ]) {
   if (!rollbackScript.includes(value)) failures.push(`A6 rollback is missing ${value}`);
+}
+if (/exec\s+9[<>]/.test(rollbackScript)) {
+  failures.push('A6 rollback must receive, not pathname-open, its no-follow deployment lock');
+}
+if (!rollbackScript.includes('git show "$head_commit:scripts/a6-owned-cleanup.mjs"')
+    || !rollbackScript.includes('cleanup_helper_b64')
+    || !rollbackScript.includes('| base64 -d')) {
+  failures.push('A6 rollback cleanup must stream the exact committed owned-cleanup helper');
+}
+for (const [label, pattern] of [
+  ['pathname owner-receipt write', /printf[^\n]*>\s*["']?\$?[^ \n]*\.rollback-owner/],
+  ['pathname verifier or manifest upload', /cat\s*>\s*["']?(?:verify-release-tree\.mjs|target\.manifest|current\.manifest)/],
+  ['post-create mode mutation', /chmod\s+0(?:400|500|600)/],
+  ['inner recursive verification cleanup', /cleanup_verification|chmod -R\s+u\+w/],
+]) {
+  if (pattern.test(rollbackScript)) {
+    failures.push(`A6 rollback retains unsafe ${label}`);
+  }
+}
+if (promotionScript.includes('quarantine_owned_directory')
+    || promotionScript.includes('rm -rf')) {
+  failures.push('A6 promotion must use only the pinned Node helper for recursive owned cleanup');
 }
 for (const script of [promotionScript, rollbackScript]) {
   if (/\$\(cat "\$(?:root|current)\/(?:REVISION|RELEASE_TREE)"\)/.test(script)) {

@@ -6,6 +6,7 @@ import {
   linkSync,
   mkdtempSync,
   mkdirSync,
+  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -38,6 +39,24 @@ function verify(root, manifest = manifestPath) {
   ], { cwd: process.cwd(), stdio: 'pipe' });
 }
 
+function verifyCaptured(root, manifest = manifestPath) {
+  const verifierB64 = readFileSync('scripts/verify-release-tree.mjs').toString('base64');
+  const verifierEval = [
+    "process.argv.splice(1,0,'verify-release-tree.mjs');",
+    `await import('data:text/javascript;base64,${verifierB64}')`,
+  ].join(' ');
+  execFileSync(process.execPath, [
+    '--input-type=module',
+    '-e',
+    verifierEval,
+    '--',
+    root,
+    commit,
+    tree,
+    manifest,
+  ], { cwd: process.cwd(), stdio: 'pipe' });
+}
+
 function expectRejected(label, mutate, manifest = manifestPath) {
   const root = extractRelease(label);
   mutate(root);
@@ -61,12 +80,19 @@ try {
 
   const exactRoot = extractRelease('exact');
   verify(exactRoot);
+  verifyCaptured(exactRoot);
 
   expectRejected('content-tamper', (root) => {
     appendFileSync(join(root, 'README.md'), '\nrelease-tree tamper probe\n');
   });
   expectRejected('unexpected-file', (root) => {
     writeFileSync(join(root, 'unexpected.txt'), 'not tracked\n');
+  });
+  expectRejected('unexpected-empty-directory', (root) => {
+    mkdirSync(join(root, 'unexpected-empty-directory'));
+  });
+  expectRejected('receipt-symlink', (root) => {
+    symlinkSync(join(root, 'README.md'), join(root, 'REVISION'));
   });
   expectRejected('missing-file', (root) => {
     rmSync(join(root, 'README.md'));
@@ -97,7 +123,7 @@ try {
   expectRejected('manifest-tamper', () => {}, tamperedManifest);
 
   console.log(
-    `Release tree verification passed exact, content, path, mode, hardlink, root, and manifest checks at ${commit}.`,
+    `Release tree verification passed direct and captured-data execution, exact content, path, empty-directory, receipt, mode, hardlink, root, and manifest checks at ${commit}.`,
   );
 } finally {
   rmSync(temporaryDirectory, { recursive: true, force: true });

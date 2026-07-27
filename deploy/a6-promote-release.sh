@@ -10,6 +10,11 @@ expected_tree="${5:-}"
 expected_previous_tree="${6:-}"
 expected_verifier_sha="${7:-}"
 expected_incoming_identity="${8:-}"
+expected_owner_identity="${9:-}"
+expected_cleanup_helper_sha="${10:-}"
+previous_has_iceland="${11:-}"
+expected_write_helper_sha="${12:-}"
+expected_lock_helper_sha="${13:-}"
 service_root="/home/humble/services/carboncaste-web"
 releases="$service_root/releases"
 release="$releases/$commit"
@@ -27,7 +32,6 @@ canary_log=""
 canary_pid=""
 previous_target="releases/$expected_previous"
 current_mode=""
-unit_backup=""
 incoming_identity=""
 current_directory_identity=""
 release_identity=""
@@ -35,6 +39,18 @@ previous_candidate_identity=""
 previous_release_identity=""
 legacy_current_identity=""
 verifier_path="$incoming/scripts/verify-release-tree.mjs"
+verifier_fd=""
+verifier_proc=""
+verifier_b64=""
+verifier_eval=""
+cleanup_helper_path="$incoming/scripts/a6-owned-cleanup.mjs"
+cleanup_helper_fd=""
+cleanup_helper_proc=""
+cleanup_helper_source=""
+write_helper_path="$incoming/scripts/a6-owned-write.mjs"
+write_helper_fd=""
+write_helper_proc=""
+write_helper_eval=""
 previous_candidate="$releases/.previous-${expected_previous}-${owner_token}"
 legacy_current="$service_root/.legacy-current-${expected_previous}-${owner_token}"
 next_link="$service_root/.current-next-${owner_token}"
@@ -54,13 +70,95 @@ exact_line_file() {
   printf '%s\n' "$value" | cmp -s - "$file"
 }
 
+owner_receipt_file() {
+  local file="$1"
+  [[ -f "$file"
+    && ! -L "$file"
+    && "$(stat -Lc '%h' "$file")" == 1
+    && "$(stat -Lc '%s' "$file")" == 33 ]] || return 1
+  LC_ALL=C grep -Eq '^[0-9a-f]{32}$' "$file"
+}
+
+deploy_lock_is_exact() {
+  local lock_ref lock_identity
+  lock_ref="/proc/${BASHPID}/fd/3"
+  lock_identity="$(stat -Lc '%d:%i' "$lock_ref")" || return 1
+  [[ -f "$lock_ref"
+    && "$(stat -Lc '%h' "$lock_ref")" == 1
+    && "$(stat -Lc '%a' "$lock_ref")" == 600
+    && "$lock_identity" == "${A6_DEPLOY_LOCK_IDENTITY:-}"
+    && -f "$lock_file"
+    && ! -L "$lock_file"
+    && "$(stat -Lc '%d:%i' "$lock_file")" == "$lock_identity" ]]
+}
+
+deployment_roots_are_exact() {
+  local releases_ref="/proc/${BASHPID}/fd/4"
+  local root_ref="/proc/${BASHPID}/fd/5"
+  local root_identity releases_identity
+  root_identity="$(stat -Lc '%d:%i' "$root_ref")" || return 1
+  releases_identity="$(stat -Lc '%d:%i' "$releases_ref")" || return 1
+  [[ -d "$root_ref"
+    && -d "$releases_ref"
+    && "$root_identity" == "${A6_DEPLOY_ROOT_IDENTITY:-}"
+    && "$releases_identity" == "${A6_DEPLOY_RELEASES_IDENTITY:-}"
+    && "$(stat -Lc '%d' "$root_ref")" == "$(stat -Lc '%d' "$releases_ref")"
+    && "$(stat -Lc '%a' "$releases_ref")" == 700
+    && -d "$service_root"
+    && ! -L "$service_root"
+    && "$(stat -Lc '%d:%i' "$service_root")" == "$root_identity"
+    && -d "$releases"
+    && ! -L "$releases"
+    && "$(stat -Lc '%d:%i' "$releases")" == "$releases_identity" ]]
+}
+
+create_exact_line_no_replace() {
+  local file="$1"
+  local value="$2"
+  local parent name directory_identity marker_identity payload_sha
+  parent="$(dirname -- "$file")"
+  name="$(basename -- "$file")"
+  directory_identity="$(stat -Lc '%d:%i' "$parent")"
+  marker_identity="-"
+  [[ "$parent" != "$incoming" ]] || marker_identity="$expected_owner_identity"
+  payload_sha="$(printf '%s\n' "$value" | sha256sum | awk '{print $1}')"
+  [[ -n "$write_helper_eval" ]]
+  printf '%s\n' "$value" \
+    | "$node_bin" --input-type=module -e "$write_helper_eval" -- \
+      write promotion "$parent" "$directory_identity" "$marker_identity" \
+      "$owner_token" "$name" "$payload_sha" "$service_root"
+}
+
+copy_regular_file_no_replace() {
+  local source="$1"
+  local destination="$2"
+  local parent name directory_identity marker_identity payload_sha
+  [[ -f "$source"
+    && ! -L "$source"
+    && "$(stat -Lc '%h' "$source")" == 1 ]]
+  parent="$(dirname -- "$destination")"
+  name="$(basename -- "$destination")"
+  directory_identity="$(stat -Lc '%d:%i' "$parent")"
+  marker_identity="-"
+  [[ "$parent" != "$incoming" ]] || marker_identity="$expected_owner_identity"
+  payload_sha="$(sha256sum "$source" | awk '{print $1}')"
+  [[ -n "$write_helper_eval" ]]
+  "$node_bin" --input-type=module -e "$write_helper_eval" -- \
+    write promotion "$parent" "$directory_identity" "$marker_identity" \
+    "$owner_token" "$name" "$payload_sha" "$service_root" \
+    < "$source"
+}
+
 path_is_owned_staging() {
   [[ "$(dirname -- "$incoming")" == "$service_root"
     && "$(basename -- "$incoming")" =~ ^incoming-[0-9a-f]{40}-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{32}$
     && -d "$incoming"
     && ! -L "$incoming"
     && -f "$incoming/.staging-owner"
-    && ! -L "$incoming/.staging-owner" ]] \
+    && ! -L "$incoming/.staging-owner"
+    && "$(stat -Lc '%h' "$incoming/.staging-owner")" == 1
+    && "$(stat -Lc '%a' "$incoming/.staging-owner")" == 600
+    && "$(stat -Lc '%d:%i' "$incoming/.staging-owner")" == "$expected_owner_identity" ]] \
     && exact_line_file "$incoming/.staging-owner" "$owner_token"
 }
 
@@ -70,12 +168,17 @@ assert_incoming_owned() {
     && "$(stat -Lc '%d:%i' "$incoming")" == "$incoming_identity" ]]
 }
 
-cleanup_owned_incoming() {
-  if assert_incoming_owned; then
-    rm -rf -- "$incoming"
-  elif [[ -e "$incoming" || -L "$incoming" ]]; then
-    return 1
-  fi
+cleanup_internal_directory() {
+  local kind="$1"
+  local path="$2"
+  local expected_identity="$3"
+  [[ -n "$cleanup_helper_source"
+    && "$(printf '%s\n' "$cleanup_helper_source" | sha256sum | awk '{print $1}')" == "$expected_cleanup_helper_sha" ]] \
+    || return 1
+  printf '%s\n' "$cleanup_helper_source" \
+    | timeout --signal=TERM --kill-after=1s 4s \
+      "$node_bin" --input-type=module - \
+      "$kind" "$path" "$expected_identity" "$owner_token" "$service_root"
 }
 
 if ! [[ "$commit" =~ ^[0-9a-f]{40}$
@@ -85,7 +188,13 @@ if ! [[ "$commit" =~ ^[0-9a-f]{40}$
     && "$expected_tree" =~ ^[0-9a-f]{40}$
     && "$expected_previous_tree" =~ ^[0-9a-f]{40}$
     && "$expected_verifier_sha" =~ ^[0-9a-f]{64}$
-    && "$expected_incoming_identity" =~ ^[0-9]+:[0-9]+$ ]]; then
+    && "$expected_incoming_identity" =~ ^[0-9]+:[0-9]+$
+    && "$expected_owner_identity" =~ ^[0-9]+:[0-9]+$
+    && "$expected_cleanup_helper_sha" =~ ^[0-9a-f]{64}$
+    && "$previous_has_iceland" =~ ^[01]$
+    && "$expected_write_helper_sha" =~ ^[0-9a-f]{64}$
+    && "$expected_lock_helper_sha" =~ ^[0-9a-f]{64}$
+    && "${A6_DEPLOY_LOCK_HELPER_SHA:-}" == "$expected_lock_helper_sha" ]]; then
   echo "Promotion requires exact commit, tree, verifier, and staging-owner identities." >&2
   exit 2
 fi
@@ -102,15 +211,17 @@ if [[ "$incoming_identity" != "$expected_incoming_identity" ]]; then
   exit 2
 fi
 
-if ! exec 9>"$lock_file"; then
-  cleanup_owned_incoming
-  echo "Could not open the carboncaste-web deployment lock." >&2
+if ! deploy_lock_is_exact || ! deployment_roots_are_exact; then
+  echo "The no-follow broker did not supply exact deployment lock and root descriptors." >&2
   exit 1
 fi
-if ! flock -n 9; then
-  cleanup_owned_incoming
+if ! flock -n 3; then
   echo "Another carboncaste-web deployment or rollback holds the host lock." >&2
   exit 75
+fi
+if ! deploy_lock_is_exact || ! deployment_roots_are_exact; then
+  echo "The carboncaste-web deployment lock or pinned roots changed while held." >&2
+  exit 2
 fi
 if ! assert_incoming_owned; then
   echo "Incoming staging ownership changed before the deployment lock was acquired." >&2
@@ -120,12 +231,14 @@ if [[ -e "$release" || -L "$release"
     || -e "$previous_candidate" || -L "$previous_candidate"
     || -e "$legacy_current" || -L "$legacy_current"
     || -e "$next_link" || -L "$next_link" ]]; then
-  cleanup_owned_incoming
   echo "A release or task-owned transition path already exists." >&2
   exit 2
 fi
-if [[ ! -s "$env_file" ]]; then
-  cleanup_owned_incoming
+if [[ ! -s "$env_file"
+    || ! -f "$env_file"
+    || -L "$env_file"
+    || "$(stat -Lc '%h' "$env_file")" != 1
+    || "$(stat -Lc '%a' "$env_file")" != 600 ]]; then
   echo "Required mode-0600 Iceland access environment is missing." >&2
   exit 2
 fi
@@ -133,15 +246,14 @@ if [[ ! -f "$incoming/EXPECTED_NEW_TREE_MANIFEST"
     || -L "$incoming/EXPECTED_NEW_TREE_MANIFEST"
     || ! -f "$incoming/EXPECTED_PREVIOUS_TREE_MANIFEST"
     || -L "$incoming/EXPECTED_PREVIOUS_TREE_MANIFEST" ]]; then
-  cleanup_owned_incoming
   echo "Exact Git-tree manifests are missing from the owned staging directory." >&2
   exit 2
 fi
 
 assert_verifier() {
-  [[ -f "$verifier_path"
-    && ! -L "$verifier_path"
-    && "$(sha256sum "$verifier_path" | awk '{print $1}')" == "$expected_verifier_sha" ]]
+  [[ -n "$verifier_eval"
+    && -n "$verifier_b64"
+    && "$(printf '%s' "$verifier_b64" | base64 -d | sha256sum | awk '{print $1}')" == "$expected_verifier_sha" ]]
 }
 
 verify_release_tree() {
@@ -150,11 +262,16 @@ verify_release_tree() {
   local tree="$3"
   local manifest="$4"
   assert_verifier
-  "$node_bin" "$verifier_path" "$root" "$revision" "$tree" "$manifest"
+  timeout --signal=TERM --kill-after=1s 6s \
+    "$node_bin" --input-type=module -e "$verifier_eval" -- \
+    "$root" "$revision" "$tree" "$manifest"
 }
 
 assert_release_read_only() {
-  [[ -z "$(find "$1" \( -type f -o -type d \) -perm /222 -print -quit)" ]]
+  local writable=""
+  writable="$(timeout --signal=TERM --kill-after=1s 4s \
+    find "$1" \( -type f -o -type d \) -perm /222 -print -quit)" || return 1
+  [[ -z "$writable" ]]
 }
 
 make_release_read_only() {
@@ -175,19 +292,27 @@ verify_release_receipts() {
     && ! -L "$root/RELEASE_TREE_MANIFEST"
     && "$(stat -Lc '%h' "$root/RELEASE_TREE_MANIFEST")" == 1 ]]
   if [[ "$phase" == "published" ]]; then
-    [[ ! -e "$root/.staging-owner" && ! -L "$root/.staging-owner"
-      && ! -e "$root/EXPECTED_NEW_TREE_MANIFEST"
-      && ! -L "$root/EXPECTED_NEW_TREE_MANIFEST"
-      && ! -e "$root/EXPECTED_PREVIOUS_TREE_MANIFEST"
-      && ! -L "$root/EXPECTED_PREVIOUS_TREE_MANIFEST" ]]
+    if [[ -e "$root/.staging-owner" || -L "$root/.staging-owner" ]]; then
+      owner_receipt_file "$root/.staging-owner"
+    fi
   elif [[ "$phase" == "staging" ]]; then
     exact_line_file "$root/.staging-owner" "$owner_token"
-    [[ ! -e "$root/EXPECTED_NEW_TREE_MANIFEST"
-      && ! -L "$root/EXPECTED_NEW_TREE_MANIFEST"
-      && ! -e "$root/EXPECTED_PREVIOUS_TREE_MANIFEST"
-      && ! -L "$root/EXPECTED_PREVIOUS_TREE_MANIFEST" ]]
   else
     return 1
+  fi
+  for staging_manifest in \
+    "$root/EXPECTED_NEW_TREE_MANIFEST" \
+    "$root/EXPECTED_PREVIOUS_TREE_MANIFEST"; do
+    if [[ -e "$staging_manifest" || -L "$staging_manifest" ]]; then
+      [[ -f "$staging_manifest"
+        && ! -L "$staging_manifest"
+        && "$(stat -Lc '%h' "$staging_manifest")" == 1 ]] || return 1
+    elif [[ "$phase" == "staging" ]]; then
+      return 1
+    fi
+  done
+  if [[ -f "$root/EXPECTED_NEW_TREE_MANIFEST" ]]; then
+    cmp -s -- "$root/EXPECTED_NEW_TREE_MANIFEST" "$root/RELEASE_TREE_MANIFEST"
   fi
   cmp -s -- "$root/RELEASE_TREE_MANIFEST" "$external_manifest"
   verify_release_tree "$root" "$revision" "$tree" "$external_manifest"
@@ -225,6 +350,37 @@ verify_current_release() {
   fi
 }
 
+systemctl_bounded() {
+  timeout --signal=TERM --kill-after=1s 4s systemctl --user "$@"
+}
+
+runtime_is_active() {
+  timeout --signal=TERM --kill-after=1s 1s \
+    systemctl --user is-active --quiet carboncaste-web.service
+}
+
+wait_for_runtime() {
+  local has_iceland="$1"
+  local health=""
+  local deadline=$((SECONDS + 10))
+  while (( SECONDS < deadline )); do
+    if runtime_is_active \
+        && curl -fsS --connect-timeout 0.3 --max-time 0.5 \
+          http://127.0.0.1:8126/ >/dev/null 2>&1; then
+      if [[ "$has_iceland" -eq 0 ]]; then
+        return 0
+      fi
+      health="$(curl -fsS --connect-timeout 0.3 --max-time 0.5 \
+        http://127.0.0.1:8126/api/iceland26/health 2>/dev/null || true)"
+      if grep -q '"ready":true' <<<"$health"; then
+        return 0
+      fi
+    fi
+    sleep 0.1
+  done
+  return 1
+}
+
 cleanup_canary() {
   local cleanup_status=0
   if [[ -n "$canary_pid" ]]; then
@@ -239,13 +395,28 @@ cleanup_canary() {
       fi
     fi
     wait "$canary_pid" 2>/dev/null || true
-    kill -0 "$canary_pid" 2>/dev/null && cleanup_status=1
+    if kill -0 "$canary_pid" 2>/dev/null; then
+      cleanup_status=1
+    else
+      canary_pid=""
+    fi
   fi
-  canary_pid=""
-  [[ -z "$canary_state" ]] || rm -f -- "$canary_state" || cleanup_status=1
-  [[ -z "$canary_log" ]] || rm -f -- "$canary_log" || cleanup_status=1
-  canary_state=""
-  canary_log=""
+  if [[ -n "$canary_state" ]]; then
+    if rm -f -- "$canary_state" \
+        && [[ ! -e "$canary_state" && ! -L "$canary_state" ]]; then
+      canary_state=""
+    else
+      cleanup_status=1
+    fi
+  fi
+  if [[ -n "$canary_log" ]]; then
+    if rm -f -- "$canary_log" \
+        && [[ ! -e "$canary_log" && ! -L "$canary_log" ]]; then
+      canary_log=""
+    else
+      cleanup_status=1
+    fi
+  fi
   return "$cleanup_status"
 }
 
@@ -324,23 +495,23 @@ rollback_promotion() {
 
   if [[ "$restore_status" -eq 0
       && ( "$restore_needed" -eq 1 || "$service_touched" -eq 1 ) ]]; then
-    if [[ -n "$unit_backup" && -f "$unit_backup" ]]; then
-      install -m 0644 "$unit_backup" "$unit" || restore_status=1
-    elif [[ -f "$current/deploy/carboncaste-web.service" ]]; then
-      install -m 0644 "$current/deploy/carboncaste-web.service" "$unit" || restore_status=1
+    if [[ -f "$current/deploy/carboncaste-web.service"
+        && ! -L "$current/deploy/carboncaste-web.service" ]]; then
+      timeout --signal=TERM --kill-after=1s 4s \
+        install -m 0644 "$current/deploy/carboncaste-web.service" "$unit" \
+        || restore_status=1
     else
       restore_status=1
     fi
-    systemctl --user daemon-reload || restore_status=1
-    systemctl --user restart carboncaste-web.service || restore_status=1
+    systemctl_bounded daemon-reload || restore_status=1
+    systemctl_bounded restart carboncaste-web.service || restore_status=1
+    wait_for_runtime "$previous_has_iceland" || restore_status=1
     if [[ ! -L "$current"
         || "$(readlink "$current")" != "$previous_target" ]] \
         || ! exact_line_file "$current/REVISION" "$expected_previous"; then
       restore_status=1
     fi
-    systemctl --user is-active --quiet carboncaste-web.service || restore_status=1
-    curl -fsS --max-time 10 http://127.0.0.1:8126/api/iceland26/health \
-      | grep -q '"ready":true' || restore_status=1
+    runtime_is_active || restore_status=1
     if [[ -d "$previous_release" && ! -L "$previous_release" ]]; then
       verify_release_receipts \
         "$previous_release" \
@@ -365,25 +536,28 @@ rollback_promotion() {
         && -n "$release_identity"
         && -d "$release"
         && ! -L "$release"
-        && "$(stat -Lc '%d:%i' "$release")" == "$release_identity" ]] \
-        && { [[ "$release_created" -eq 1 ]]
-          || exact_line_file "$release/.staging-owner" "$owner_token"; }; then
-      chmod -R u+w -- "$release" 2>/dev/null || cleanup_status=1
-      rm -rf -- "$release" || cleanup_status=1
+        && "$(stat -Lc '%d:%i' "$release")" == "$release_identity" ]]; then
+      if [[ "$release_created" -eq 1 ]] \
+          || exact_line_file "$release/.staging-owner" "$owner_token"; then
+        cleanup_internal_directory \
+          release \
+          "$release" \
+          "$release_identity" || cleanup_status=1
+      fi
     elif [[ "$release_created" -eq 1 ]]; then
       cleanup_status=1
     fi
   fi
-  cleanup_owned_incoming || cleanup_status=1
-
   if [[ "$previous_candidate_created" -eq 1
       && ( -e "$previous_candidate" || -L "$previous_candidate" ) ]]; then
     if [[ -n "$previous_candidate_identity"
         && -d "$previous_candidate"
         && ! -L "$previous_candidate"
         && "$(stat -Lc '%d:%i' "$previous_candidate")" == "$previous_candidate_identity" ]]; then
-      chmod -R u+w -- "$previous_candidate" 2>/dev/null || cleanup_status=1
-      rm -rf -- "$previous_candidate" || cleanup_status=1
+      cleanup_internal_directory \
+        candidate \
+        "$previous_candidate" \
+        "$previous_candidate_identity" || cleanup_status=1
     else
       cleanup_status=1
     fi
@@ -395,8 +569,10 @@ rollback_promotion() {
         && -d "$previous_release"
         && ! -L "$previous_release"
         && "$(stat -Lc '%d:%i' "$previous_release")" == "$previous_release_identity" ]]; then
-      chmod -R u+w -- "$previous_release" 2>/dev/null || cleanup_status=1
-      rm -rf -- "$previous_release" || cleanup_status=1
+      cleanup_internal_directory \
+        release \
+        "$previous_release" \
+        "$previous_release_identity" || cleanup_status=1
     else
       cleanup_status=1
     fi
@@ -407,14 +583,13 @@ rollback_promotion() {
         && -d "$legacy_current"
         && ! -L "$legacy_current"
         && "$(stat -Lc '%d:%i' "$legacy_current")" == "$legacy_current_identity" ]]; then
-      chmod -R u+w -- "$legacy_current" 2>/dev/null || cleanup_status=1
-      rm -rf -- "$legacy_current" || cleanup_status=1
+      cleanup_internal_directory \
+        legacy \
+        "$legacy_current" \
+        "$legacy_current_identity" || cleanup_status=1
     else
       cleanup_status=1
     fi
-  fi
-  if [[ -n "$unit_backup" && ( -e "$unit_backup" || -L "$unit_backup" ) ]]; then
-    rm -f -- "$unit_backup" || cleanup_status=1
   fi
   if [[ "$cleanup_status" -ne 0 ]]; then
     echo "CRITICAL: prior A6 release is restored, but task-owned promotion artifacts could not be fully cleaned." >&2
@@ -426,6 +601,75 @@ trap 'rollback_promotion $?' ERR
 trap 'rollback_promotion 130' INT
 trap 'rollback_promotion 143' TERM
 trap 'rollback_promotion 129' HUP
+
+if [[ ! -f "$cleanup_helper_path"
+    || -L "$cleanup_helper_path"
+    || "$(stat -Lc '%h' "$cleanup_helper_path")" != 1
+    || "$(sha256sum "$cleanup_helper_path" | awk '{print $1}')" != "$expected_cleanup_helper_sha" ]]; then
+  echo "Owned cleanup helper does not match the exact deployment commit." >&2
+  rollback_promotion 2
+fi
+cleanup_helper_source_identity="$(stat -Lc '%d:%i' "$cleanup_helper_path")"
+exec {cleanup_helper_fd}<"$cleanup_helper_path"
+cleanup_helper_proc="/proc/${BASHPID}/fd/$cleanup_helper_fd"
+if [[ ! -f "$cleanup_helper_proc"
+    || "$(stat -Lc '%d:%i' "$cleanup_helper_proc")" != "$cleanup_helper_source_identity"
+    || "$(sha256sum "$cleanup_helper_proc" | awk '{print $1}')" != "$expected_cleanup_helper_sha" ]]; then
+  echo "Owned cleanup helper changed while it was being pinned." >&2
+  rollback_promotion 2
+fi
+cleanup_helper_source="$(cat "$cleanup_helper_proc")"
+if [[ -z "$cleanup_helper_source"
+    || "$(printf '%s\n' "$cleanup_helper_source" | sha256sum | awk '{print $1}')" != "$expected_cleanup_helper_sha" ]]; then
+  echo "Pinned cleanup helper could not be captured exactly for repeatable execution." >&2
+  rollback_promotion 2
+fi
+if [[ ! -f "$write_helper_path"
+    || -L "$write_helper_path"
+    || "$(stat -Lc '%h' "$write_helper_path")" != 1
+    || "$(sha256sum "$write_helper_path" | awk '{print $1}')" != "$expected_write_helper_sha" ]]; then
+  echo "Owned write helper does not match the exact deployment commit." >&2
+  rollback_promotion 2
+fi
+write_helper_source_identity="$(stat -Lc '%d:%i' "$write_helper_path")"
+exec {write_helper_fd}<"$write_helper_path"
+write_helper_proc="/proc/${BASHPID}/fd/$write_helper_fd"
+if [[ ! -f "$write_helper_proc"
+    || "$(stat -Lc '%d:%i' "$write_helper_proc")" != "$write_helper_source_identity"
+    || "$(sha256sum "$write_helper_proc" | awk '{print $1}')" != "$expected_write_helper_sha" ]]; then
+  echo "Owned write helper changed while it was being pinned." >&2
+  rollback_promotion 2
+fi
+write_helper_b64="$(base64 -w 0 "$write_helper_proc")"
+if [[ -z "$write_helper_b64"
+    || "$(printf '%s' "$write_helper_b64" | base64 -d | sha256sum | awk '{print $1}')" != "$expected_write_helper_sha" ]]; then
+  echo "Pinned write helper could not be captured exactly for repeatable execution." >&2
+  rollback_promotion 2
+fi
+write_helper_eval="await import('data:text/javascript;base64,$write_helper_b64').then((module) => module.runCli(process.argv.slice(1)))"
+if [[ ! -f "$verifier_path"
+    || -L "$verifier_path"
+    || "$(stat -Lc '%h' "$verifier_path")" != 1
+    || "$(sha256sum "$verifier_path" | awk '{print $1}')" != "$expected_verifier_sha" ]]; then
+  echo "Release verifier does not match the exact deployment commit." >&2
+  rollback_promotion 2
+fi
+verifier_source_identity="$(stat -Lc '%d:%i' "$verifier_path")"
+exec {verifier_fd}<"$verifier_path"
+verifier_proc="/proc/${BASHPID}/fd/$verifier_fd"
+if [[ ! -f "$verifier_proc"
+    || "$(stat -Lc '%d:%i' "$verifier_proc")" != "$verifier_source_identity"
+    || "$(sha256sum "$verifier_proc" | awk '{print $1}')" != "$expected_verifier_sha" ]]; then
+  echo "Release verifier changed while it was being pinned." >&2
+  rollback_promotion 2
+fi
+verifier_b64="$(base64 -w 0 "$verifier_proc")"
+if [[ -z "$verifier_b64"
+    || "$(printf '%s' "$verifier_b64" | base64 -d | sha256sum | awk '{print $1}')" != "$expected_verifier_sha" ]]; then
+  echo "Pinned release verifier could not be captured exactly for repeatable execution." >&2
+  rollback_promotion 2
+fi
+verifier_eval="process.argv.splice(1,0,'verify-release-tree.mjs'); await import('data:text/javascript;base64,$verifier_b64')"
 
 if ! verify_release_tree \
     "$incoming" \
@@ -440,9 +684,19 @@ if ! verify_current_release; then
   rollback_promotion 2
 fi
 
-mkdir -p "$releases" "$state_root" "$config_root" "$HOME/.config/systemd/user"
-chmod 0700 "$state_root" "$config_root"
-chmod 0600 "$env_file"
+for managed_root in "$state_root" "$config_root"; do
+  if [[ ! -e "$managed_root" && ! -L "$managed_root" ]]; then
+    mkdir -m 0700 -- "$managed_root"
+  fi
+  if [[ ! -d "$managed_root"
+      || -L "$managed_root"
+      || "$(stat -Lc '%a' "$managed_root")" != 700
+      || "$(stat -Lc '%d' "$managed_root")" != "$(stat -Lc '%d' "$service_root")" ]]; then
+    echo "A6 managed state or config root failed exact directory custody." >&2
+    rollback_promotion 2
+  fi
+done
+mkdir -p "$HOME/.config/systemd/user"
 
 "$node_bin" --check "$incoming/server/static-server.mjs"
 "$node_bin" --check "$incoming/server/iceland26-store.mjs"
@@ -467,12 +721,15 @@ CARBONCASTE_WEB_PORT="$canary_port" \
 ICELAND26_DATA_PATH="$canary_state" \
 ICELAND26_ACCESS_HASH="$test_hash" \
 ICELAND26_SESSION_SECRET="canary-session-secret-that-is-longer-than-thirty-two-characters" \
+ICELAND26_INSTANCE_NONCE="$owner_token" \
 ICELAND26_COOKIE_SECURE=false \
   "$node_bin" "$incoming/server/static-server.mjs" >"$canary_log" 2>&1 &
 canary_pid=$!
 
 for _ in $(seq 1 80); do
-  if curl -fsS --max-time 1 "http://127.0.0.1:$canary_port/" >/dev/null 2>&1; then
+  if kill -0 "$canary_pid" 2>/dev/null \
+      && curl -fsS --max-time 1 "http://127.0.0.1:$canary_port/api/iceland26/health" \
+        | grep -q "\"instance\":\"$owner_token\""; then
     break
   fi
   if ! kill -0 "$canary_pid" 2>/dev/null; then
@@ -481,11 +738,15 @@ for _ in $(seq 1 80); do
   fi
   sleep 0.1
 done
+kill -0 "$canary_pid"
 curl -fsS --max-time 5 "http://127.0.0.1:$canary_port/" >/dev/null
 curl -fsS --max-time 5 "http://127.0.0.1:$canary_port/iceland26/access.html" \
   | grep -q 'The road is'
-curl -fsS --max-time 5 "http://127.0.0.1:$canary_port/api/iceland26/health" \
-  | grep -q '"ready":true'
+canary_health="$(curl -fsS --max-time 5 \
+  "http://127.0.0.1:$canary_port/api/iceland26/health")"
+grep -q '"ready":true' <<<"$canary_health"
+grep -q "\"instance\":\"$owner_token\"" <<<"$canary_health"
+kill -0 "$canary_pid"
 api_status="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 \
   "http://127.0.0.1:$canary_port/api/iceland26")"
 test "$api_status" = 401
@@ -509,15 +770,17 @@ if [[ "$current_mode" == "directory" ]]; then
     "$previous_candidate/EXPECTED_NEW_TREE_MANIFEST" \
     "$previous_candidate/EXPECTED_PREVIOUS_TREE_MANIFEST" \
     "$previous_candidate/RELEASE_TREE" \
-    "$previous_candidate/RELEASE_TREE_MANIFEST"
-  cp -- "$incoming/EXPECTED_PREVIOUS_TREE_MANIFEST" \
-    "$previous_candidate/RELEASE_TREE_MANIFEST"
-  printf '%s\n' "$expected_previous_tree" > "$previous_candidate/RELEASE_TREE"
-  printf '%s\n' "$expected_previous" > "$previous_candidate/REVISION"
-  chmod 0600 \
     "$previous_candidate/RELEASE_TREE_MANIFEST" \
-    "$previous_candidate/RELEASE_TREE" \
     "$previous_candidate/REVISION"
+  copy_regular_file_no_replace \
+    "$incoming/EXPECTED_PREVIOUS_TREE_MANIFEST" \
+    "$previous_candidate/RELEASE_TREE_MANIFEST"
+  create_exact_line_no_replace \
+    "$previous_candidate/RELEASE_TREE" \
+    "$expected_previous_tree"
+  create_exact_line_no_replace \
+    "$previous_candidate/REVISION" \
+    "$expected_previous"
   verify_release_receipts \
     "$previous_candidate" \
     "$expected_previous" \
@@ -532,14 +795,11 @@ if [[ "$current_mode" == "directory" ]]; then
     "$incoming/EXPECTED_PREVIOUS_TREE_MANIFEST"
 fi
 
-mv -- "$incoming/EXPECTED_NEW_TREE_MANIFEST" "$incoming/RELEASE_TREE_MANIFEST"
-rm -f -- "$incoming/EXPECTED_PREVIOUS_TREE_MANIFEST"
-printf '%s\n' "$expected_tree" > "$incoming/RELEASE_TREE"
-printf '%s\n' "$commit" > "$incoming/REVISION"
-chmod 0600 \
-  "$incoming/RELEASE_TREE_MANIFEST" \
-  "$incoming/RELEASE_TREE" \
-  "$incoming/REVISION"
+copy_regular_file_no_replace \
+  "$incoming/EXPECTED_NEW_TREE_MANIFEST" \
+  "$incoming/RELEASE_TREE_MANIFEST"
+create_exact_line_no_replace "$incoming/RELEASE_TREE" "$expected_tree"
+create_exact_line_no_replace "$incoming/REVISION" "$commit"
 verify_release_receipts \
   "$incoming" \
   "$commit" \
@@ -547,18 +807,16 @@ verify_release_receipts \
   "$incoming/RELEASE_TREE_MANIFEST" \
   staging
 
-if [[ -f "$unit" ]]; then
-  unit_backup="$config_root/carboncaste-web.service.${owner_token}.bak"
-  cp "$unit" "$unit_backup"
-  chmod 0600 "$unit_backup"
-fi
-
 assert_incoming_owned
 release_identity="$incoming_identity"
 release_created=1
-mv -T -- "$incoming" "$release"
+mv -T -n -- "$incoming" "$release"
+[[ ! -e "$incoming"
+  && ! -L "$incoming"
+  && -d "$release"
+  && ! -L "$release"
+  && "$(stat -Lc '%d:%i' "$release")" == "$release_identity" ]]
 verifier_path="$release/scripts/verify-release-tree.mjs"
-rm -f -- "$release/.staging-owner"
 make_release_read_only "$release"
 assert_release_read_only "$release"
 verify_release_receipts \
@@ -570,21 +828,33 @@ verify_release_receipts \
 if [[ "$current_mode" == "directory" ]]; then
   previous_release_identity="$previous_candidate_identity"
   previous_release_created=1
-  mv -T -- "$previous_candidate" "$previous_release"
+  mv -T -n -- "$previous_candidate" "$previous_release"
+  [[ ! -e "$previous_candidate"
+    && ! -L "$previous_candidate"
+    && -d "$previous_release"
+    && ! -L "$previous_release"
+    && "$(stat -Lc '%d:%i' "$previous_release")" == "$previous_release_identity" ]]
   previous_candidate_created=0
   legacy_current_identity="$(stat -Lc '%d:%i' "$current")"
   legacy_created=1
-  mv -T -- "$current" "$legacy_current"
+  mv -T -n -- "$current" "$legacy_current"
+  [[ ! -e "$current"
+    && ! -L "$current"
+    && -d "$legacy_current"
+    && ! -L "$legacy_current"
+    && "$(stat -Lc '%d:%i' "$legacy_current")" == "$legacy_current_identity" ]]
 fi
 
 ln -s "releases/$commit" "$next_link"
 promoted=1
 mv -Tf "$next_link" "$current"
 
-install -m 0644 "$release/deploy/carboncaste-web.service" "$unit"
-systemctl --user daemon-reload
+timeout --signal=TERM --kill-after=1s 4s \
+  install -m 0644 "$release/deploy/carboncaste-web.service" "$unit"
+systemctl_bounded daemon-reload
 service_touched=1
-systemctl --user restart carboncaste-web.service
+systemctl_bounded restart carboncaste-web.service
+wait_for_runtime 1
 curl -fsS --max-time 10 http://127.0.0.1:8126/ >/dev/null
 curl -fsS --max-time 10 http://127.0.0.1:8126/iceland26/access.html \
   | grep -q 'The road is'
@@ -598,7 +868,7 @@ test "$login_status" = 401
 api_status="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 \
   http://127.0.0.1:8126/api/iceland26)"
 test "$api_status" = 401
-systemctl --user is-active --quiet carboncaste-web.service
+runtime_is_active
 exact_line_file "$current/REVISION" "$commit"
 exact_line_file "$current/RELEASE_TREE" "$expected_tree"
 test "$(readlink "$current")" = "releases/$commit"
@@ -615,19 +885,30 @@ verify_release_receipts \
   "$previous_release/RELEASE_TREE_MANIFEST"
 assert_release_read_only "$previous_release"
 
-if [[ "$legacy_created" -eq 1
-    && -n "$legacy_current_identity"
-    && -d "$legacy_current"
-    && ! -L "$legacy_current"
-    && "$(stat -Lc '%d:%i' "$legacy_current")" == "$legacy_current_identity" ]]; then
-  chmod -R u+w -- "$legacy_current"
-  rm -rf -- "$legacy_current"
-  legacy_created=0
+final_cleanup_status=0
+if [[ "$legacy_created" -eq 1 ]]; then
+  if [[ -e "$legacy_current" || -L "$legacy_current" ]]; then
+    cleanup_internal_directory \
+      legacy \
+      "$legacy_current" \
+      "$legacy_current_identity" || final_cleanup_status=1
+  else
+    final_cleanup_status=1
+  fi
+  [[ "$final_cleanup_status" -ne 0 ]] || legacy_created=0
 fi
-[[ -z "$unit_backup" ]] || rm -f -- "$unit_backup"
+if [[ "$final_cleanup_status" -ne 0 ]]; then
+  trap - ERR INT TERM HUP
+  echo "CRITICAL: new A6 release is active, but task-owned migration artifacts could not be fully cleaned." >&2
+  echo "Preserved path may include: $legacy_current" >&2
+  exit 71
+fi
 
 trap - ERR INT TERM HUP
 release_created=0
 previous_release_created=0
 promoted=0
+exec {verifier_fd}<&-
+exec {cleanup_helper_fd}<&-
+exec {write_helper_fd}<&-
 echo "Promoted carboncaste-web: previous=$previous_target current=releases/$commit"

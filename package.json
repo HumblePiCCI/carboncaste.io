@@ -7,7 +7,7 @@
     "build": "webpack --mode production",
     "serve": "node server/static-server.mjs",
     "check": "node scripts/check-site.mjs",
-    "test:release-custody": "bash -n scripts/deploy-a6.sh deploy/a6-promote-release.sh scripts/rollback-a6.sh && node scripts/release-tree-test.mjs",
+    "test:release-custody": "bash -n scripts/deploy-a6.sh && bash -n deploy/a6-promote-release.sh && bash -n scripts/rollback-a6.sh && node scripts/release-tree-test.mjs && node scripts/a6-locked-run-test.mjs && node scripts/a6-owned-write-test.mjs && node scripts/a6-owned-cleanup-test.mjs",
     "test:iceland26": "node scripts/iceland26-api-test.mjs",
     "interaction:iceland26": "node scripts/iceland26-interaction-test.mjs",
     "interaction": "node scripts/interaction-test.mjs",

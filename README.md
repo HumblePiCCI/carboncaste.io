@@ -165,9 +165,30 @@ tracked release-metadata names; and sends independent NUL-delimited Git
 manifests for both the candidate and active commits. The promotion program is
 streamed from the trusted checkout rather than executed from the unverified
 payload. Under a host-wide lock it verifies every tracked blob, executable bit,
-symlink, path, and Git tree hash before the canary and again immediately before
-switching. Published releases retain exact `REVISION`, `RELEASE_TREE`, and
-`RELEASE_TREE_MANIFEST` receipts and are made read-only. The first
+symlink, path, directory boundary, and Git tree hash before the canary and again
+immediately before switching. An exact committed Node broker opens the service
+root, release root, and deployment lock with Linux `O_NOFOLLOW`, passes their
+pinned descriptors into promotion, and the shell revalidates their identities
+before and after acquiring `flock`. If the broker is interrupted, it forwards
+the signal to the full detached promotion group, allows a 90-second bounded
+recovery window, then force-kills and proves the group absent before releasing
+the descriptors. Receipt creation is no-clobber and rejects
+pre-existing files, links, or directories; the directory and created file stay
+pinned by open descriptors until the final pathname identity, mode, link count,
+and bytes or hash have been rechecked. Task-owned cleanup uses the exact
+committed Node helper, moves only a matching device/inode into an unpredictable
+no-replace quarantine, and removes contents through the already-opened owned
+directory descriptor. A swapped non-empty pathname is preserved and reported
+as critical rather than recursively traversed. Linux has no inode-conditional
+`rmdir`; final removal of an already-proven empty directory is therefore inside
+the existing same-`humble`-account trust boundary. A hostile same-account
+process could replace that pathname with another empty directory immediately
+before `rmdir`; the pinned link-count check detects and reports the interference,
+but cannot restore the attacker-created empty inode. Promotion pins that same
+helper by descriptor for its release, migration-copy, and legacy-current
+cleanup. Published releases retain the immutable staging-owner and
+candidate/previous Git manifests as custody receipts, plus exact `REVISION`,
+`RELEASE_TREE`, and `RELEASE_TREE_MANIFEST` receipts and are made read-only. The first
 directory-to-release migration creates and verifies a receipt-bearing copy of
 the prior exact tree before moving `current`.
 

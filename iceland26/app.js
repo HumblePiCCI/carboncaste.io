@@ -469,6 +469,16 @@ function renderFieldNotes() {
 
 function render() {
   if (!itinerary) return;
+  const focusedAction = document.activeElement?.matches('button[data-action][data-option-id]')
+    ? {
+      action: document.activeElement.dataset.action,
+      optionId: document.activeElement.dataset.optionId,
+      preference: document.activeElement.dataset.preference || '',
+    }
+    : null;
+  const focusedLegId = document.activeElement?.matches('[role="tab"][data-leg-id]')
+    ? document.activeElement.dataset.legId
+    : null;
   const focusedComment = document.activeElement?.matches('.comment-form input')
     ? {
       optionId: document.activeElement.closest('.comment-form')?.dataset.optionId,
@@ -496,6 +506,18 @@ function render() {
       input.focus({ preventScroll: true });
       input.setSelectionRange(focusedComment.selectionStart, focusedComment.selectionEnd);
     }
+  } else if (focusedAction?.optionId) {
+    [...elements.optionList.querySelectorAll('button[data-action][data-option-id]')]
+      .find((button) => (
+        button.dataset.action === focusedAction.action
+        && button.dataset.optionId === focusedAction.optionId
+        && (button.dataset.preference || '') === focusedAction.preference
+      ))
+      ?.focus({ preventScroll: true });
+  } else if (focusedLegId) {
+    [...elements.legPicker.querySelectorAll('[role="tab"][data-leg-id]')]
+      .find((tab) => tab.dataset.legId === focusedLegId)
+      ?.focus({ preventScroll: true });
   }
 }
 
@@ -562,6 +584,8 @@ async function refreshState({ quiet = false } = {}) {
   } catch (error) {
     setSync('error', 'Offline · showing the last loaded route');
     if (!quiet) showToast(error.message, true);
+  } finally {
+    document.dispatchEvent(new Event('iceland26:state-refresh-complete'));
   }
 }
 
@@ -607,6 +631,9 @@ elements.legPicker.addEventListener('click', (event) => {
   if (!button) return;
   activeLegId = button.dataset.legId;
   render();
+  [...elements.legPicker.querySelectorAll('[role="tab"][data-leg-id]')]
+    .find((tab) => tab.dataset.legId === activeLegId)
+    ?.focus({ preventScroll: true });
   document.querySelector('#route-title').scrollIntoView({ block: 'start' });
 });
 
@@ -662,6 +689,12 @@ elements.optionList.addEventListener('click', async (event) => {
     button.disabled = true;
     try {
       await mutate('/api/iceland26/preference', { participant, optionId, preference });
+      [...elements.optionList.querySelectorAll('button[data-action="preference"]')]
+        .find((candidate) => (
+          candidate.dataset.optionId === optionId
+          && candidate.dataset.preference === button.dataset.preference
+        ))
+        ?.focus({ preventScroll: true });
       showToast(preference === 'undecided' ? 'Preference cleared.' : 'Preference saved for the group.');
     } catch {
       button.disabled = false;

@@ -261,6 +261,14 @@ async function runViewport(viewport, label, mutate = false) {
       fail(`${label}: route tabs do not provide roving keyboard/tabpanel semantics.`);
     }
     await page.keyboard.press('ArrowLeft');
+    await secondTab.click();
+    if (await page.evaluate(() => document.activeElement?.dataset.legId) !== 'north') {
+      fail(`${label}: clicking a route tab lost keyboard focus after the route rerender.`);
+    }
+    await firstTab.click();
+    if (await page.evaluate(() => document.activeElement?.dataset.legId) !== 'westfjords') {
+      fail(`${label}: returning to a route tab lost keyboard focus after the route rerender.`);
+    }
 
     await page.screenshot({
       path: `output/playwright/iceland26/${label}-hero.png`,
@@ -272,11 +280,15 @@ async function runViewport(viewport, label, mutate = false) {
       const dynjandi = page.locator('.option-card', { hasText: 'Dynjandi' });
       let releaseStalePoll;
       let markStalePollCaptured;
+      let markStalePollFinished;
       const stalePollCaptured = new Promise((resolve) => {
         markStalePollCaptured = resolve;
       });
       const stalePollRelease = new Promise((resolve) => {
         releaseStalePoll = resolve;
+      });
+      const stalePollFinished = new Promise((resolve) => {
+        markStalePollFinished = resolve;
       });
       const stalePollHandler = async (route) => {
         const requestUrl = new URL(route.request().url());
@@ -287,24 +299,50 @@ async function runViewport(viewport, label, mutate = false) {
         const upstream = await route.fetch();
         const body = await upstream.body();
         markStalePollCaptured();
-        await stalePollRelease;
-        await route.fulfill({ response: upstream, body });
+        try {
+          await stalePollRelease;
+          await route.fulfill({ response: upstream, body });
+        } finally {
+          markStalePollFinished();
+        }
       };
       await page.route('**/api/iceland26', stalePollHandler);
       try {
+        await page.evaluate(() => {
+          window.__iceland26StaleRefreshProcessed = new Promise((resolve) => {
+            document.addEventListener('iceland26:state-refresh-complete', resolve, { once: true });
+          });
+        });
         await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
         await stalePollCaptured;
         await dynjandi.getByRole('button', { name: /Love it/ }).click();
         await page.locator('#sync-status').getByText(/revision 1/).waitFor();
         releaseStalePoll();
-        await page.waitForTimeout(250);
+        await stalePollFinished;
+        await page.evaluate(async () => {
+          await window.__iceland26StaleRefreshProcessed;
+          delete window.__iceland26StaleRefreshProcessed;
+        });
         if (!await page.locator('#sync-status').getByText(/revision 1/).count()
             || await dynjandi.getByRole('button', { name: /Love it/ }).getAttribute('aria-pressed')
               !== 'true') {
           fail('desktop: an older polling response regressed newer mutation state.');
         }
+        const focusedPreference = await page.evaluate(() => ({
+          action: document.activeElement?.dataset.action,
+          optionId: document.activeElement?.dataset.optionId,
+          preference: document.activeElement?.dataset.preference,
+        }));
+        if (focusedPreference.action !== 'preference'
+            || focusedPreference.optionId !== 'dynjandi'
+            || focusedPreference.preference !== 'love') {
+          fail('desktop: a successful preference save lost keyboard focus.');
+        }
       } finally {
         releaseStalePoll();
+        await page.evaluate(() => {
+          delete window.__iceland26StaleRefreshProcessed;
+        });
         await page.unroute('**/api/iceland26', stalePollHandler);
       }
 

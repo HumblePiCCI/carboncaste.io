@@ -162,9 +162,15 @@ async function listReleaseFiles(root, relative = '') {
   const paths = [];
   for (const entry of entries) {
     const child = relative ? `${relative}/${entry.name}` : entry.name;
-    if (!relative && receiptFiles.has(entry.name)) continue;
     const childStats = await lstat(join(root, child), { bigint: true });
+    if (!relative
+        && receiptFiles.has(entry.name)
+        && childStats.isFile()
+        && !childStats.isSymbolicLink()) {
+      continue;
+    }
     if (childStats.isDirectory() && !childStats.isSymbolicLink()) {
+      paths.push(`${child}/`);
       paths.push(...await listReleaseFiles(root, child));
     } else {
       paths.push(child);
@@ -196,7 +202,14 @@ if (manifestTree !== expectedTree) {
   fail(`manifest tree ${manifestTree} does not match expected Git tree ${expectedTree}`);
 }
 
-const expectedPaths = new Set(manifestEntries.map((entry) => entry.path));
+const expectedPaths = new Set();
+for (const entry of manifestEntries) {
+  expectedPaths.add(entry.path);
+  const parts = entry.path.split('/');
+  for (let index = 1; index < parts.length; index += 1) {
+    expectedPaths.add(`${parts.slice(0, index).join('/')}/`);
+  }
+}
 const actualPaths = new Set(await listReleaseFiles(root));
 for (const path of expectedPaths) {
   if (!actualPaths.has(path)) fail(`missing tracked path ${path}`);
