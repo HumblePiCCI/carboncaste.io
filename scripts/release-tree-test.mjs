@@ -19,7 +19,10 @@ const archivePath = join(temporaryDirectory, 'release.tar');
 const manifestPath = join(temporaryDirectory, 'manifest');
 
 function git(...args) {
-  return execFileSync('git', args, { cwd: process.cwd() });
+  return execFileSync('git', args, {
+    cwd: process.cwd(),
+    maxBuffer: 32 * 1024 * 1024,
+  });
 }
 
 function extractRelease(name) {
