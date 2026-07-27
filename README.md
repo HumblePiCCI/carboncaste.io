@@ -192,6 +192,12 @@ candidate/previous Git manifests as custody receipts, plus exact `REVISION`,
 directory-to-release migration creates and verifies a receipt-bearing copy of
 the prior exact tree before moving `current`.
 
+Immediately before archive extraction, deployment proves the staging root
+contains only its exact owner receipt. Extraction uses tar's erroring
+no-replace mode for any pre-existing file, and the independently captured Git
+manifest then rejects missing, extra, changed, linked, or wrong-mode tracked
+objects before the candidate can run.
+
 `scripts/rollback-a6.sh <full-sha>` accepts only an exact locally available
 commit from a clean, pushed branch. It supplies independently generated
 manifests, verifies both the active and target release under the same host

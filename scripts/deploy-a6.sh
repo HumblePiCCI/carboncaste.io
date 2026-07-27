@@ -143,7 +143,8 @@ ssh "$a6_host" \
     && test \"\$(stat -Lc '%h' .staging-owner)\" = 1 \
     && test \"\$(stat -Lc '%d:%i' .staging-owner)\" = '$remote_owner_identity' \
     && printf '%s\n' '$owner_token' | cmp -s - .staging-owner \
-    && tar --extract --file=- --keep-old-files --no-overwrite-dir --no-same-owner" \
+    && test \"\$(find . -mindepth 1 -maxdepth 1 -printf x | wc -c)\" -eq 1 \
+    && tar --extract --file=- --keep-old-files --no-same-owner" \
   < "$archive_path"
 ssh "$a6_host" \
   "'$remote_node' --input-type=module -e \"$write_helper_eval\" -- \
