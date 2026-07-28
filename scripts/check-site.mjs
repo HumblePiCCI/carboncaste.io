@@ -51,7 +51,11 @@ for (const value of [
   'We found you.',
   'https://carboncaste.io',
   'admin@carboncaste.io',
+  '4381 Highway 504, Apsley, ON K0L 1A0, Canada',
+  'Federal corporation 1030840-4',
+  'D-U-N-S 240388612',
   'https://rezonance.carboncaste.io',
+  'class="organization-profile"',
   'id="ascii-stage"',
   'id="ascii-scene"',
   'id="portal-enter"',
@@ -73,6 +77,9 @@ for (const value of [
 if (!/id="surface-site"[^>]*hidden/.test(index)) {
   failures.push('index.html must keep the corporate site hidden on first load');
 }
+if (/<section class="organization-profile"[^>]*hidden/.test(index)) {
+  failures.push('index.html must keep the public organization profile visible on first load');
+}
 if (index.includes('id="ascii-matte"')) {
   failures.push('index.html must not replace the final renderer frame with a synthetic matte');
 }
@@ -81,6 +88,7 @@ for (const file of ['privacy.html', 'terms.html', 'contact.html']) {
   const content = await readFile(file, 'utf8');
   if (!content.includes('Carbon Caste Inc.')) failures.push(`${file} is missing the legal entity name`);
   if (!content.includes('admin@carboncaste.io')) failures.push(`${file} is missing the company email`);
+  if (!content.includes('APSLEY / ONTARIO / CANADA')) failures.push(`${file} is missing the legal-location footer`);
   if (!content.includes('class="legal-page"')) failures.push(`${file} is missing the shared ASCII page shell`);
 }
 

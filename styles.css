@@ -59,6 +59,41 @@ a:focus-visible {
   user-select: none;
 }
 
+/* Always-visible company identity for visitors and non-JavaScript reviewers. */
+.organization-profile {
+  position: fixed;
+  z-index: 20;
+  top: 18px;
+  left: 18px;
+  width: min(560px, calc(100vw - 36px));
+  max-height: calc(100svh - 36px);
+  overflow: auto;
+  padding: clamp(18px, 3vw, 30px);
+  border: 1px solid rgba(247, 247, 241, 0.45);
+  background: rgba(4, 11, 13, 0.94);
+  box-shadow: 0 12px 44px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.organization-profile-inner { max-width: 62ch; }
+.organization-profile h1 { margin: 0; font-size: clamp(26px, 4vw, 42px); line-height: 1.05; }
+.organization-profile p { margin: 14px 0 0; }
+.organization-kicker { margin: 0 0 10px !important; color: var(--accent); font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.organization-details { display: grid; gap: 10px; margin: 18px 0; }
+.organization-details div { display: grid; gap: 3px; }
+.organization-details dt { color: var(--muted); font-size: 12px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
+.organization-details dd { margin: 0; }
+.organization-profile nav { display: flex; flex-wrap: wrap; gap: 8px 16px; font-weight: 800; }
+.organization-profile a { pointer-events: auto; }
+.organization-enter { color: var(--muted); font-size: 13px; }
+.is-surface-site .organization-profile { display: none; }
+
+@media (max-width: 560px) {
+  .organization-profile { top: 10px; left: 10px; width: calc(100vw - 20px); max-height: min(42svh, 370px); padding: 16px; }
+  .organization-profile h1 { font-size: 29px; }
+  .organization-profile p, .organization-details { font-size: 14px; }
+}
+
 #ascii-stage,
 #ascii-scene,
 .fallback-art {
