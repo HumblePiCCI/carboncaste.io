@@ -196,6 +196,18 @@ if ! [[ "$commit" =~ ^[0-9a-f]{40}$
     && "$expected_lock_helper_sha" =~ ^[0-9a-f]{64}$
     && "${A6_DEPLOY_LOCK_HELPER_SHA:-}" == "$expected_lock_helper_sha" ]]; then
   echo "Promotion requires exact commit, tree, verifier, and staging-owner identities." >&2
+  printf 'Promotion preflight: commit=%s previous=%s tree=%s previous_tree=%s verifier=%s incoming=%s owner=%s cleanup=%s previous_api=%s write=%s lock_expected=%s lock_actual=%s\n' \
+    "$( [[ "$commit" =~ ^[0-9a-f]{40}$ ]] && echo ok || echo invalid )" \
+    "$( [[ "$expected_previous" =~ ^[0-9a-f]{40}$ && "$commit" != "$expected_previous" ]] && echo ok || echo invalid )" \
+    "$( [[ "$expected_tree" =~ ^[0-9a-f]{40}$ ]] && echo ok || echo invalid )" \
+    "$( [[ "$expected_previous_tree" =~ ^[0-9a-f]{40}$ ]] && echo ok || echo invalid )" \
+    "$( [[ "$expected_verifier_sha" =~ ^[0-9a-f]{64}$ ]] && echo ok || echo invalid )" \
+    "$( [[ "$expected_incoming_identity" =~ ^[0-9]+:[0-9]+$ ]] && echo ok || echo invalid )" \
+    "$( [[ "$expected_owner_identity" =~ ^[0-9]+:[0-9]+$ ]] && echo ok || echo invalid )" \
+    "$( [[ "$expected_cleanup_helper_sha" =~ ^[0-9a-f]{64}$ ]] && echo ok || echo invalid )" \
+    "$( [[ "$previous_has_iceland" =~ ^[01]$ ]] && echo ok || echo invalid )" \
+    "$( [[ "$expected_write_helper_sha" =~ ^[0-9a-f]{64}$ ]] && echo ok || echo invalid )" \
+    "$( [[ "$expected_lock_helper_sha" =~ ^[0-9a-f]{64}$ && "${A6_DEPLOY_LOCK_HELPER_SHA:-}" == "$expected_lock_helper_sha" ]] && echo ok || echo mismatch )" >&2
   exit 2
 fi
 
