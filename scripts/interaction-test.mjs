@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 
-const baseUrl = (process.env.BASE_URL || 'http://127.0.0.1:8126').replace(/\/$/, '');
+const baseUrl = (process.env.BASE_URL || 'http://127.0.0.1:8126/?manual=1').replace(/\/$/, '');
 const chromePaths = [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   '/Applications/Chromium.app/Contents/MacOS/Chromium',
@@ -50,14 +50,6 @@ async function run(viewport, label) {
       coverageHeight: (bounds.bottom - bounds.top) / window.innerHeight,
       surfaceHidden: document.querySelector('#surface-site').hidden,
       hasReplacementMatte: Boolean(document.querySelector('#ascii-matte')),
-      organizationProfile: (() => {
-        const profile = document.querySelector('.organization-profile');
-        const style = getComputedStyle(profile);
-        return {
-          visible: style.display !== 'none' && style.visibility !== 'hidden',
-          text: profile.innerText,
-        };
-      })(),
       visibleChrome: [...document.body.children].filter((node) => {
         if (['SCRIPT', 'NOSCRIPT', 'MAIN'].includes(node.tagName) || node.classList.contains('sr-only')) return false;
         const style = getComputedStyle(node);
@@ -69,11 +61,7 @@ async function run(viewport, label) {
   if (introVisual.colors < 5) failures.push(`${label}: ASCII scene has too little color variation (${introVisual.colors})`);
   if (!introVisual.surfaceHidden) failures.push(`${label}: corporate surface leaks into first load`);
   if (introVisual.hasReplacementMatte) failures.push(`${label}: obsolete replacement matte remains in the document`);
-  if (!introVisual.organizationProfile.visible) failures.push(`${label}: public company profile is missing on first load`);
-  for (const requiredText of ['Carbon Caste Inc.', '4381 Highway 504, Apsley, ON K0L 1A0, Canada', 'admin@carboncaste.io', 'D-U-N-S 240388612']) {
-    if (!introVisual.organizationProfile.text.includes(requiredText)) failures.push(`${label}: public company profile omits ${requiredText}`);
-  }
-  if (introVisual.visibleChrome !== 1) failures.push(`${label}: first load exposes unexpected interface chrome (${introVisual.visibleChrome})`);
+  if (introVisual.visibleChrome !== 0) failures.push(`${label}: first load exposes non-scene interface chrome`);
 
   const layout = await page.evaluate(() => ({
     portal: window.__carbonPortal.snapshot(),

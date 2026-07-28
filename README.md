@@ -4,43 +4,31 @@ The public company surface for Carbon Caste Inc. The home route combines the
 original ASCII Mobius experiment, the later `mobcon` direct-manipulation model,
 and a complete corporate information surface.
 
-First load intentionally exposes only the centered twisted elliptical torus
-and `We found you.` The phrase is one persistent modest-depth mesh inside the
-ASCII renderer. It begins 45 degrees askew in X-Z, follows the loop's angular
-phase, then decelerates into viewer alignment and attaches to the camera without
-changing its world transform. An invisible semantic hit target makes that same
-ASCII phrase the link. Activating it raycasts a visible point on the form, moves
-the orthographic camera along a curved flight path into that surface, and
-smoothly aligns the view with its normal. The final ASCII renderer frame is not
-replaced or redrawn: it stops in place and remains fixed behind the company
-site. A final pixel sample chooses the interface accent theme without changing
-any of the visible characters.
+First load automatically carries the visitor from the centered twisted elliptical
+torus into the corporate surface. `We found you.` remains one modest-depth mesh
+inside the ASCII renderer, but it is no longer a click gate or splash screen.
+The camera automatically follows a curved path into a visible point on the form,
+then the company site becomes the immediate public surface. The final ASCII
+renderer frame is not replaced or redrawn: it stops in place and remains fixed
+behind the site. A final pixel sample chooses the interface accent theme without
+changing any of the visible characters.
 
 ## Experience states
 
-1. **Signal** - interactive twisted elliptical torus plus `We found you.` and
-   nothing else. The authored local-X line through the first ellipse, shared
+1. **Signal** - automatic twisted elliptical torus approach. The authored local-X line through the first ellipse, shared
    offset origin, and perpendicular opposite ellipse is mapped to vertical
    world Y. A dedicated pivot spins only around that line. The phrase initially
    shares that spin, eases to rest at the viewer, and remains the same visible
    ASCII mesh while the torus moves around it.
-2. **Dive** - the loop stops rotating and the camera follows a cubic path from
+2. **Dive** - without a user action, the loop stops rotating and the camera follows a cubic path from
    its current position, orientation, pan, and zoom into a real visible surface
    intersection.
 3. **Surface site** - the exact final character field remains fixed while a
-   scrollable corporate site appears over it, with product, company, contact,
-   legal, and support destinations.
-4. **Return** - the wordmark or Escape restores the original camera, loop,
-   controls, and first-load isolation.
-
-## Intro controls
-
-- Drag or one-finger move: orbit the scene.
-- Wheel or pinch: zoom.
-- Click or tap empty space, or press Space: pause/resume motion.
-- Double-click or double-tap: reset the camera.
-- `[` / `-` and `]` / `=`: decrease/increase rotation speed.
-- Enter: enter the surface.
+    scrollable corporate site appears over it, with product, company, contact,
+    legal, and support destinations.
+4. **Return** - the Carbon Caste wordmark, or Escape, returns to the interactive
+   loop. That return is deliberately manual; the centered signal can then be
+   used to re-enter the surface.
 
 The sampled theme uses fixed CSS classes rather than inline styles, preserving
 the production Content Security Policy. The frozen substrate is the live

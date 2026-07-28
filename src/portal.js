@@ -159,6 +159,7 @@ let lastTouchTap = 0;
 let pendingTouchPause = 0;
 let surfaceSample = null;
 let returnTimer = 0;
+let autoEnterSurface = !new URLSearchParams(window.location.search).has('manual');
 let introMesh = null;
 let signalGeometryDepth = null;
 let signalState = 'loading';
@@ -219,8 +220,14 @@ function lockSignalToCamera() {
   signalStatesVisited.add(signalState);
   controls.enabled = true;
   syncLockedSignalScale();
-  setSignalLinkEnabled(true);
-  status.textContent = 'We found you. Press Enter to enter Carbon Caste.';
+  if (autoEnterSurface) {
+    setSignalLinkEnabled(false);
+    status.textContent = 'Entering the Carbon Caste surface.';
+    queueMicrotask(startDive);
+  } else {
+    setSignalLinkEnabled(true);
+    status.textContent = 'We found you. Press Enter to enter Carbon Caste.';
+  }
 }
 
 function startSignalOrbit() {
@@ -236,7 +243,12 @@ function startSignalOrbit() {
   if (!introMesh) {
     signalState = 'fallback';
     controls.enabled = true;
-    setSignalLinkEnabled(true, true);
+    if (autoEnterSurface) {
+      setSignalLinkEnabled(false, true);
+      queueMicrotask(startDive);
+    } else {
+      setSignalLinkEnabled(true, true);
+    }
     return;
   }
 
@@ -461,6 +473,7 @@ function finishDive() {
 
 function restoreIntro() {
   if (mode !== 'site') return;
+  autoEnterSurface = false;
   window.clearTimeout(returnTimer);
   document.body.classList.remove('is-surface-site');
   surfaceSite.setAttribute('aria-hidden', 'true');
@@ -562,17 +575,6 @@ effect.domElement.addEventListener('dblclick', (event) => {
   resetView();
 });
 
-portalEnter.addEventListener('click', startDive);
-portalEnter.addEventListener('pointerenter', () => {
-  if (signalState === 'locked') signalMaterial.color.setHex(signalActiveColor);
-});
-portalEnter.addEventListener('pointerleave', () => signalMaterial.color.setHex(signalBaseColor));
-portalEnter.addEventListener('focus', () => {
-  if (signalState === 'locked') signalMaterial.color.setHex(signalActiveColor);
-});
-portalEnter.addEventListener('blur', () => signalMaterial.color.setHex(signalBaseColor));
-returnSignal.addEventListener('click', restoreIntro);
-
 window.addEventListener('keydown', (event) => {
   if (mode === 'site' && event.key === 'Escape') {
     restoreIntro();
@@ -594,6 +596,17 @@ window.addEventListener('keydown', (event) => {
     startDive();
   }
 });
+
+portalEnter.addEventListener('click', startDive);
+portalEnter.addEventListener('pointerenter', () => {
+  if (signalState === 'locked') signalMaterial.color.setHex(signalActiveColor);
+});
+portalEnter.addEventListener('pointerleave', () => signalMaterial.color.setHex(signalBaseColor));
+portalEnter.addEventListener('focus', () => {
+  if (signalState === 'locked') signalMaterial.color.setHex(signalActiveColor);
+});
+portalEnter.addEventListener('blur', () => signalMaterial.color.setHex(signalBaseColor));
+returnSignal.addEventListener('click', restoreIntro);
 
 window.addEventListener('resize', resize, { passive: true });
 

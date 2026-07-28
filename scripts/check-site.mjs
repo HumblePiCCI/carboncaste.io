@@ -55,7 +55,6 @@ for (const value of [
   'Federal corporation 1030840-4',
   'D-U-N-S 240388612',
   'https://rezonance.carboncaste.io',
-  'class="organization-profile"',
   'id="ascii-stage"',
   'id="ascii-scene"',
   'id="portal-enter"',
@@ -74,11 +73,11 @@ for (const value of [
   if (!index.includes(value)) failures.push(`index.html is missing ${value}`);
 }
 
-if (!/id="surface-site"[^>]*hidden/.test(index)) {
-  failures.push('index.html must keep the corporate site hidden on first load');
+if (/id="surface-site"[^>]*\shidden(?:\s|>)/.test(index)) {
+  failures.push('index.html must expose the corporate site to public review without a splash-screen gate');
 }
-if (/<section class="organization-profile"[^>]*hidden/.test(index)) {
-  failures.push('index.html must keep the public organization profile visible on first load');
+if (index.includes('class="organization-profile"')) {
+  failures.push('index.html must not add a splash-screen organization profile');
 }
 if (index.includes('id="ascii-matte"')) {
   failures.push('index.html must not replace the final renderer frame with a synthetic matte');
