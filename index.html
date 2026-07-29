@@ -36,19 +36,10 @@
 </head>
 <body class="portal-page">
   <main id="ascii-stage" aria-label="Interactive Carbon Caste Mobius">
-    <pre class="fallback-art" aria-hidden="true">
-                 We found you.
-
-                 .--------.
-            .---'          '---.
-          .'     .------.       '.
-         /     .'        '.       \
-        |     /            \       |
-         \    \            /      /
-          '.   '----------'     .'
-            '---.          .---'
-                 '--------'
-    </pre>
+    <div class="loop-loader" id="loop-loader" role="status" aria-live="polite">
+      <span class="loop-loader-message">We found you.</span>
+      <span class="loop-loader-progress"><span id="loop-load-progress">0</span>%</span>
+    </div>
     <div id="ascii-scene" aria-hidden="true"></div>
     <button class="portal-enter" id="portal-enter" type="button" aria-label="Enter Carbon Caste" aria-hidden="true" disabled>
       <span class="portal-enter-label sr-only">We found you.</span>

@@ -60,8 +60,7 @@ a:focus-visible {
 }
 
 #ascii-stage,
-#ascii-scene,
-.fallback-art {
+#ascii-scene {
   position: fixed;
   inset: 0;
   width: 100%;
@@ -83,21 +82,6 @@ a:focus-visible {
   pointer-events: none;
 }
 
-.fallback-art {
-  display: grid;
-  place-items: center;
-  margin: 0;
-  padding: 8vw;
-  color: var(--paper);
-  font-size: 11px;
-  line-height: 1.05;
-  text-align: center;
-  white-space: pre;
-  transition: opacity 180ms linear;
-}
-
-.ascii-ready .fallback-art { opacity: 0; }
-
 #ascii-scene {
   display: grid;
   place-items: center;
@@ -106,6 +90,31 @@ a:focus-visible {
 }
 
 .ascii-ready #ascii-scene { opacity: 1; }
+
+.loop-loader {
+  position: fixed;
+  z-index: 8;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  gap: 6px;
+  place-items: center;
+  color: var(--paper);
+  font-size: clamp(12px, 1.15vw, 17px);
+  font-weight: 800;
+  line-height: 1;
+  pointer-events: none;
+  text-align: center;
+  text-shadow: 0 1px 8px #000, 0 0 2px #000;
+  transform: translate(-50%, -50%);
+}
+
+.loop-loader-progress {
+  color: var(--muted);
+  font-size: 0.72em;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
 
 .portal-enter {
   position: fixed;
@@ -748,7 +757,6 @@ h2 {
 
 @media (max-width: 700px) {
   :root { --header-height: 58px; --page-pad: 20px; }
-  .fallback-art { font-size: 7px; }
   .site-header { padding: 0 var(--page-pad); }
   .wordmark span:last-child { display: none; }
   .site-nav { gap: 13px; font-size: 0.6rem; }

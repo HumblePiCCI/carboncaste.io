@@ -12,8 +12,10 @@ const returnSignal = document.querySelector('#return-signal');
 const status = document.querySelector('#scene-status');
 const portalEnter = document.querySelector('#portal-enter');
 const portalEnterLabel = portalEnter?.querySelector('.portal-enter-label');
+const loopLoader = document.querySelector('#loop-loader');
+const loopLoadProgress = document.querySelector('#loop-load-progress');
 
-if (!stage || !sceneHost || !surfaceSite || !surfaceReadout || !returnSignal || !status || !portalEnter || !portalEnterLabel) {
+if (!stage || !sceneHost || !surfaceSite || !surfaceReadout || !returnSignal || !status || !portalEnter || !portalEnterLabel || !loopLoader || !loopLoadProgress) {
   throw new Error('Portal shell is incomplete.');
 }
 
@@ -160,6 +162,8 @@ let pendingTouchPause = 0;
 let surfaceSample = null;
 let returnTimer = 0;
 let autoEnterSurface = !new URLSearchParams(window.location.search).has('manual');
+let loopReady = false;
+let fontReady = false;
 let introMesh = null;
 let signalGeometryDepth = null;
 let signalState = 'loading';
@@ -179,6 +183,39 @@ const signalEaseStartAngle = -Math.PI / 6;
 const signalAxisWorld = new THREE.Vector3(0, 1, 0);
 const signalBaseColor = 0xd8dce5;
 const signalActiveColor = 0x55d7e9;
+
+function setLoopLoadProgress(value) {
+  loopLoadProgress.textContent = String(THREE.MathUtils.clamp(Math.round(value), 0, 100));
+}
+
+function maybeStartManualSignal() {
+  if (!autoEnterSurface && loopReady && fontReady && mode === 'intro') startSignalOrbit();
+}
+
+function finishLoopLoad() {
+  if (loopReady) return;
+  loopReady = true;
+  setLoopLoadProgress(100);
+  document.documentElement.classList.add('ascii-ready');
+  requestAnimationFrame(() => {
+    loopLoader.hidden = true;
+    if (autoEnterSurface) {
+      status.textContent = 'Entering the Carbon Caste surface.';
+      startDive();
+    } else {
+      maybeStartManualSignal();
+    }
+  });
+}
+
+function beginLoopLoad() {
+  setLoopLoadProgress(72);
+  requestAnimationFrame(() => {
+    effect.render(scene, camera);
+    setLoopLoadProgress(88);
+    requestAnimationFrame(finishLoopLoad);
+  });
+}
 
 function setSignalLinkEnabled(enabled, fallback = false) {
   portalEnter.disabled = !enabled;
@@ -383,7 +420,8 @@ function pickDiveTarget() {
 }
 
 function startDive() {
-  if (mode !== 'intro' || transition || !['locked', 'fallback'].includes(signalState)) return;
+  const canAutoDive = autoEnterSurface && loopReady;
+  if (mode !== 'intro' || transition || (!canAutoDive && !['locked', 'fallback'].includes(signalState))) return;
   pausedBeforeDive = paused;
   paused = true;
   if (introMesh) introMesh.visible = false;
@@ -615,14 +653,14 @@ loader.load(
   'fonts/helvetiker_regular.typeface.json',
   (font) => {
     buildSignalMesh(font);
-    document.documentElement.classList.add('ascii-ready');
-    startSignalOrbit();
+    fontReady = true;
+    maybeStartManualSignal();
   },
   undefined,
   () => {
-    document.documentElement.classList.add('ascii-ready');
-    startSignalOrbit();
-    status.textContent = 'The dimensional signal could not be decoded. The fixed entrance remains available.';
+    fontReady = true;
+    maybeStartManualSignal();
+    if (!autoEnterSurface) status.textContent = 'The dimensional signal could not be decoded. The fixed entrance remains available.';
   },
 );
 
@@ -698,3 +736,5 @@ window.__carbonPortal = {
 resize();
 effect.render(scene, camera);
 animate(performance.now());
+setLoopLoadProgress(35);
+beginLoopLoad();
