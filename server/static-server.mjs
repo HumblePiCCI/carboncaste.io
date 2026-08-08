@@ -46,6 +46,7 @@ const contentTypes = new Map([
   ['.json', 'application/json; charset=utf-8'],
   ['.svg', 'image/svg+xml; charset=utf-8'],
   ['.txt', 'text/plain; charset=utf-8'],
+  ['.webp', 'image/webp'],
   ['.xml', 'application/xml; charset=utf-8'],
 ]);
 
@@ -91,6 +92,7 @@ const publicIcelandFiles = new Set([
 function isPublicStaticPath(path) {
   return publicRootFiles.has(path)
     || publicIcelandFiles.has(path)
+    || (path.startsWith('/iceland26/media/') && path.endsWith('.webp'))
     || path.startsWith('/dist/')
     || path.startsWith('/fonts/');
 }

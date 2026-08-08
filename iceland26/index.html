@@ -7,8 +7,8 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Iceland 2026 — Route room</title>
   <link rel="icon" href="/favicon.ico">
-  <link rel="stylesheet" href="/iceland26/styles.css?v=20260808">
-  <script type="module" src="/iceland26/app.js?v=20260808"></script>
+  <link rel="stylesheet" href="/iceland26/styles.css?v=20260808-clear-map">
+  <script type="module" src="/iceland26/app.js?v=20260808-clear-map"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to the route room</a>
@@ -88,7 +88,7 @@
         <p>Solid lines are committed travel. Dashed lines are the current working sequence. Faint branches are genuine alternatives—not hidden decisions.</p>
       </div>
 
-      <div class="planner-shell">
+      <div class="planner-shell is-place-collapsed">
         <aside class="day-rail" aria-labelledby="day-rail-title">
           <div class="day-rail__heading">
             <p class="eyebrow" id="selected-day-date">Sun · Aug 9</p>
@@ -103,8 +103,8 @@
           </div>
           <h4>Road order + branches</h4>
           <ol class="day-stop-list" id="day-stop-list"></ol>
-        </aside>
 
+        </aside>
         <div class="map-frame" id="map-frame">
           <div class="map-toolbar" aria-label="Map controls">
             <div class="map-filter" id="map-filter">
@@ -122,7 +122,7 @@
 
           <svg id="route-map-svg" class="route-map" viewBox="0 0 1000 700" role="group" aria-labelledby="route-map-title route-map-desc">
             <title id="route-map-title">Interactive map of the Iceland 2026 route</title>
-            <desc id="route-map-desc">A clockwise route around Iceland. Select a dated stop to read its logistics, research, family fit and group notes.</desc>
+            <desc id="route-map-desc">A clockwise route around Iceland. Select a dated stop to update the practical details in the left information rail.</desc>
             <g id="map-viewport"></g>
           </svg>
 
@@ -132,15 +132,20 @@
             two campers · one route
           </div>
 
-          <article class="place-panel" id="place-panel" aria-labelledby="place-title" tabindex="-1">
-            <button class="place-panel__close" id="close-place-panel" type="button" aria-label="Close place details">×</button>
-            <div id="place-panel-content"></div>
-          </article>
+          <aside class="map-story-card is-hidden" id="map-story-card" aria-labelledby="map-story-title" aria-hidden="true" inert>
+            <button class="map-story-card__close" id="close-map-story" type="button" aria-label="Hide planning image or traveller review card">×</button>
+            <div id="map-story-content"></div>
+          </aside>
 
           <div class="map-attribution">
             Route snapshot: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a> · coastline: <a href="https://www.naturalearthdata.com/" target="_blank" rel="noreferrer">Natural Earth</a>
           </div>
         </div>
+
+        <article class="place-panel is-closed" id="place-panel" aria-labelledby="place-title" aria-hidden="true" tabindex="-1" inert>
+          <button class="place-panel__close" id="close-place-panel" type="button" aria-label="Collapse selected place details">×</button>
+          <div id="place-panel-content"></div>
+        </article>
 
         <aside class="group-rail" id="decisions" aria-labelledby="group-title">
           <div class="group-rail__heading">

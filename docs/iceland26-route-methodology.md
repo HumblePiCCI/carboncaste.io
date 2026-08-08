@@ -82,6 +82,22 @@ The planner treats safety as a gate, not a review score:
 
 Independent travel posts and reviews are used only to summarize likely experience positives and drawbacks. Official/local sources control access, safety, booking, schedules and operating details.
 
+## Map and information layout
+
+The route remains the primary visual surface. Selecting a stop opens its full
+practical record—status, route cost, family fit, amenities, booking details,
+pros, drawbacks and official evidence—in a separately scrollable information
+rail to the left of the map on desktop. That rail never floats over the route.
+
+A deliberately small translucent card may remain inside the map for the
+selected stop's traveller-review signal and an image carried forward from the
+revised planning document. Those images are local, private trip assets with
+descriptive alt text; they are not presented as proof of current terrain,
+weather, accessibility or safety. The card can be dismissed independently and
+does not capture map pointer events outside its link and close controls. On
+narrow screens a capped day summary precedes the map, followed by the longer
+practical and group-planning rails.
+
 ## Update procedure
 
 1. Hash and visually render any new planning document.

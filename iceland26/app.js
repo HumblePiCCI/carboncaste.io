@@ -15,6 +15,72 @@ const preferenceLabels = {
 };
 const lockedStatuses = new Set(['booked', 'fixed', 'locked']);
 const openStatuses = new Set(['open', 'conditional', 'backup', 'community']);
+const experienceSourceTypes = new Set([
+  'reviews',
+  'travel post',
+  'travel writing',
+  'travel blog',
+  'guide',
+  'specialist',
+]);
+const placeMediaByOption = Object.freeze({
+  'borgarfjordur-waterfalls': {
+    src: '/iceland26/media/hraunfossar.webp',
+    alt: 'Hraunfossar waterfalls flowing from dark lava into the river.',
+  },
+  raudasandur: {
+    src: '/iceland26/media/raudasandur.webp',
+    alt: 'The broad red-gold sand and distant headland at Rauðasandur.',
+  },
+  'latrabjarg-raudasandur': {
+    src: '/iceland26/media/latrabjarg.webp',
+    alt: 'Látrabjarg sea cliffs viewed from the grassy cliff top.',
+  },
+  dynjandi: {
+    src: '/iceland26/media/dynjandi.webp',
+    alt: 'The broad upper cascade of Dynjandi waterfall.',
+  },
+  'hverir-hverfjall': {
+    src: '/iceland26/media/hverir.webp',
+    alt: 'Mineral-coloured geothermal ground and vents at Hverir.',
+  },
+  hverfjall: {
+    src: '/iceland26/media/hverfjall.webp',
+    alt: 'The dark volcanic slope and rim landscape of Hverfjall.',
+  },
+  studlagil: {
+    src: '/iceland26/media/studlagil.webp',
+    alt: 'The turquoise river between basalt columns in Stuðlagil canyon.',
+  },
+  seydisfjordur: {
+    src: '/iceland26/media/seydisfjordur.webp',
+    alt: 'Aerial view of Seyðisfjörður’s white church and rainbow-painted street.',
+  },
+  'djupivogur-stokksnes': {
+    src: '/iceland26/media/stokksnes.webp',
+    alt: 'Vestrahorn rising beyond the dark beach at Stokksnes.',
+  },
+  'jokulsarlon-boat': {
+    src: '/iceland26/media/jokulsarlon.webp',
+    alt: 'Glacial ice on Diamond Beach across the road from Jökulsárlón.',
+  },
+  'fjadrargljufur-eldhraun': {
+    src: '/iceland26/media/eldhraun.webp',
+    alt: 'Pale green moss covering the Eldhraun lava field.',
+  },
+  reynisfjara: {
+    src: '/iceland26/media/reynisfjara.webp',
+    alt: 'Basalt columns and sea stacks at Reynisfjara.',
+  },
+  dyrholaey: {
+    src: '/iceland26/media/dyrholaey.webp',
+    alt: 'The Dyrhólaey sea arch above the Atlantic.',
+  },
+  'skogafoss-waterfall-way': {
+    src: '/iceland26/media/skogafoss.webp',
+    alt: 'Skógafoss dropping between vivid green slopes.',
+  },
+});
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 function requiredElement(selector) {
@@ -44,6 +110,7 @@ const elements = {
   driveReadout: requiredElement('#drive-readout'),
   orderCheck: requiredElement('#order-check'),
   stopList: requiredElement('#day-stop-list'),
+  plannerShell: requiredElement('.planner-shell'),
   mapFrame: requiredElement('#map-frame'),
   mapSvg: requiredElement('#route-map-svg'),
   mapViewport: requiredElement('#map-viewport'),
@@ -55,6 +122,9 @@ const elements = {
   placePanel: requiredElement('#place-panel'),
   placeContent: requiredElement('#place-panel-content'),
   closePlace: requiredElement('#close-place-panel'),
+  mapStory: requiredElement('#map-story-card'),
+  mapStoryContent: requiredElement('#map-story-content'),
+  closeMapStory: requiredElement('#close-map-story'),
   selectedVoting: requiredElement('#selected-place-voting'),
   selectedComments: requiredElement('#selected-place-comments'),
   alignmentCount: requiredElement('#alignment-count'),
@@ -95,6 +165,7 @@ let projectedRoute = [];
 let renderedPanelOptionId = null;
 let mapChoiceMenu = null;
 let mapChoiceReturnFocus = null;
+let storyOpen = true;
 const commentDrafts = new Map();
 const pendingPreferenceOptions = new Set();
 
@@ -1006,6 +1077,7 @@ function renderPlacePanel() {
   elements.placeContent.replaceChildren();
   const option = selectedOption();
   elements.placePanel.classList.toggle('is-closed', !panelOpen || !option);
+  elements.plannerShell.classList.toggle('is-place-collapsed', !panelOpen || !option);
   elements.placePanel.setAttribute('aria-hidden', String(!panelOpen || !option));
   if ('inert' in elements.placePanel) elements.placePanel.inert = !panelOpen || !option;
   if (!option) {
@@ -1028,14 +1100,6 @@ function renderPlacePanel() {
     createElement('p', 'place-location', firstText(option.location, option.legTitle)),
     createElement('p', 'place-hook', firstText(option.hook, option.summary, option.details)),
   );
-  if (option.reviewSignal) {
-    const standout = createElement('p', 'place-standout');
-    standout.append(
-      createElement('strong', null, 'What stands out in reviews and travel writing'),
-      document.createTextNode(option.reviewSignal),
-    );
-    head.append(standout);
-  }
   elements.placeContent.append(head);
 
   const visit = option.visit || {};
@@ -1150,6 +1214,72 @@ function renderPlacePanel() {
     section.append(details);
     elements.placeContent.append(section);
   }
+}
+
+function renderMapStory() {
+  elements.mapStoryContent.replaceChildren();
+  const option = selectedOption();
+  const media = option ? placeMediaByOption[option.id] : null;
+  const reviewSignal = firstText(option?.reviewSignal);
+  const experienceSource = asArray(option?.sources).find((source) => (
+    experienceSourceTypes.has(String(source?.type || '').toLowerCase())
+  ));
+  const hasTravellerSignal = Boolean(reviewSignal || experienceSource);
+  const visible = Boolean(storyOpen && option && (media || reviewSignal || experienceSource));
+
+  elements.mapStory.classList.toggle('is-hidden', !visible);
+  elements.mapStory.classList.toggle('has-media', Boolean(visible && media));
+  elements.mapStory.setAttribute('aria-hidden', String(!visible));
+  if ('inert' in elements.mapStory) elements.mapStory.inert = !visible;
+  if (!visible) {
+    delete elements.mapStory.dataset.optionId;
+    return;
+  }
+  elements.mapStory.dataset.optionId = option.id;
+  elements.closeMapStory.setAttribute(
+    'aria-label',
+    `Hide ${media && hasTravellerSignal ? 'planning image and traveller review' : (media ? 'planning image' : 'traveller review')} card`,
+  );
+
+  if (media) {
+    const figure = createElement('figure', 'map-story-card__media');
+    const image = createElement('img');
+    image.src = media.src;
+    image.alt = media.alt;
+    image.width = 960;
+    image.height = 600;
+    image.loading = 'lazy';
+    image.decoding = 'async';
+    figure.append(
+      image,
+      createElement('figcaption', null, 'Image carried forward from the revised planning document · not a live conditions view.'),
+    );
+    elements.mapStoryContent.append(figure);
+  }
+
+  const body = createElement('div', 'map-story-card__body');
+  body.append(createElement(
+    'p',
+    'map-story-card__eyebrow',
+    media && hasTravellerSignal ? 'Planning image + traveller signal' : (media ? 'Planning image' : 'Traveller signal'),
+  ));
+  const title = createElement('h3', null, firstText(option.shortTitle, option.title));
+  title.id = 'map-story-title';
+  body.append(title);
+  if (reviewSignal) {
+    const review = createElement('p', 'map-story-card__review', reviewSignal);
+    review.dataset.reviewSignal = '';
+    body.append(review);
+  }
+  if (experienceSource) {
+    const link = appendSafeLink(body, {
+      url: experienceSource.url,
+      label: `Read ${firstText(experienceSource.label, experienceSource.type, 'traveller source')} ↗`,
+      className: 'map-story-card__source',
+    });
+    if (link) link.dataset.sourceType = String(experienceSource.type || '').toLowerCase();
+  }
+  elements.mapStoryContent.append(body);
 }
 
 function renderVoting() {
@@ -1579,6 +1709,7 @@ function renderPage({ animateCampers = false, preserveFocus = true } = {}) {
   renderDayRail();
   renderMap(animateCampers);
   renderPlacePanel();
+  renderMapStory();
   renderVoting();
   renderComments();
   renderAlignment();
@@ -1608,9 +1739,18 @@ function chooseDay(index, { animate = true, focusKey = null } = {}) {
   const next = asArray(days[selectedDayIndex].stopIds).find((id) => optionById(id));
   if (next) selectedOptionId = next;
   panelOpen = true;
+  storyOpen = true;
   renderPage({ animateCampers: animate, preserveFocus: false });
   const targetKey = focusKey || `day-${days[selectedDayIndex].id || selectedDayIndex}`;
   restoreFocus({ key: targetKey });
+}
+
+function scrollIntoViewImmediately(element, options) {
+  const root = document.documentElement;
+  const previous = root.style.scrollBehavior;
+  root.style.scrollBehavior = 'auto';
+  element.scrollIntoView({ ...options, behavior: 'auto' });
+  root.style.scrollBehavior = previous;
 }
 
 function chooseOption(optionId, { focusPanel = false, syncDay = true } = {}) {
@@ -1626,10 +1766,16 @@ function chooseOption(optionId, { focusPanel = false, syncDay = true } = {}) {
     }
   }
   panelOpen = true;
+  storyOpen = true;
   renderPage({ animateCampers: true, preserveFocus: false });
   if (focusPanel) {
-    elements.mapFrame.scrollIntoView({ block: 'start', behavior: 'auto' });
-    elements.placePanel.focus({ preventScroll: true });
+    if (window.matchMedia('(max-width: 820px)').matches) {
+      scrollIntoViewImmediately(elements.placePanel, { block: 'start' });
+      elements.placePanel.focus();
+    } else {
+      scrollIntoViewImmediately(elements.mapFrame, { block: 'start' });
+      elements.placePanel.focus({ preventScroll: true });
+    }
   }
 }
 
@@ -1862,19 +2008,40 @@ function focusSelectedOptionTrigger() {
 
 elements.closePlace.addEventListener('click', () => {
   panelOpen = false;
+  storyOpen = false;
   renderPlacePanel();
+  renderMapStory();
+  focusSelectedOptionTrigger();
+});
+
+elements.closeMapStory.addEventListener('click', () => {
+  storyOpen = false;
+  renderMapStory();
   focusSelectedOptionTrigger();
 });
 
 document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && elements.ideaDialog.open) return;
   if (event.key === 'Escape' && mapChoiceMenu) {
     event.preventDefault();
     closeMapChoiceMenu({ restoreFocus: true });
     return;
   }
+  if (event.key === 'Escape'
+      && storyOpen
+      && !elements.mapStory.classList.contains('is-hidden')
+      && elements.mapStory.contains(document.activeElement)) {
+    event.preventDefault();
+    storyOpen = false;
+    renderMapStory();
+    focusSelectedOptionTrigger();
+    return;
+  }
   if (event.key === 'Escape' && panelOpen && !elements.ideaDialog.open) {
     panelOpen = false;
+    storyOpen = false;
     renderPlacePanel();
+    renderMapStory();
     focusSelectedOptionTrigger();
   }
 });

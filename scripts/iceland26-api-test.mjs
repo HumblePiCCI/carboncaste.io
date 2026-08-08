@@ -228,6 +228,26 @@ try {
     fail('Route geometry bypassed the private Iceland route gate.');
   }
 
+  const lockedMediaAsset = await fetch(`${baseUrl}/iceland26/media/dynjandi.webp`, {
+    redirect: 'manual',
+  });
+  if (lockedMediaAsset.status !== 302
+      || !lockedMediaAsset.headers.get('location')?.startsWith('/iceland26/access.html')) {
+    fail('Planning-document media bypassed the private Iceland route gate.');
+  }
+
+  const privateMediaAsset = await fetch(`${baseUrl}/iceland26/media/dynjandi.webp`, {
+    headers: { Cookie: sessionCookie },
+  });
+  if (privateMediaAsset.status !== 200
+      || privateMediaAsset.headers.get('content-type') !== 'image/webp'
+      || privateMediaAsset.headers.get('cache-control') !== 'private, no-store'
+      || !privateMediaAsset.headers.get('vary')?.toLowerCase().includes('cookie')
+      || !privateMediaAsset.headers.get('x-robots-tag')?.includes('noindex')
+      || Number(privateMediaAsset.headers.get('content-length') || 0) < 1_000) {
+    fail('Authenticated planning-document media must be a private, uncached, non-indexed WebP asset.');
+  }
+
   const privateTraversal = await fetch(`${baseUrl}/dist/..%2ficeland26/itinerary.json`, {
     redirect: 'manual',
   });

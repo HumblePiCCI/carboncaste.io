@@ -19,6 +19,20 @@ const requiredFiles = [
   'iceland26/access.html',
   'iceland26/access.css',
   'iceland26/access.js',
+  'iceland26/media/hraunfossar.webp',
+  'iceland26/media/raudasandur.webp',
+  'iceland26/media/latrabjarg.webp',
+  'iceland26/media/dynjandi.webp',
+  'iceland26/media/hverir.webp',
+  'iceland26/media/hverfjall.webp',
+  'iceland26/media/studlagil.webp',
+  'iceland26/media/seydisfjordur.webp',
+  'iceland26/media/stokksnes.webp',
+  'iceland26/media/jokulsarlon.webp',
+  'iceland26/media/eldhraun.webp',
+  'iceland26/media/reynisfjara.webp',
+  'iceland26/media/dyrholaey.webp',
+  'iceland26/media/skogafoss.webp',
   'server/iceland26-store.mjs',
   'docs/iceland26-route-methodology.md',
   'scripts/build-iceland26-itinerary.mjs',
@@ -106,11 +120,13 @@ for (const value of [
   'id="date-track"',
   'id="route-map-svg"',
   'id="place-panel"',
+  'id="map-story-card"',
+  'id="map-story-content"',
   'id="decisions"',
   'id="trip-ops"',
   'id="idea-dialog"',
-  '/iceland26/styles.css?v=20260808',
-  '/iceland26/app.js?v=20260808',
+  '/iceland26/styles.css?v=20260808-clear-map',
+  '/iceland26/app.js?v=20260808-clear-map',
   'noindex, nofollow',
 ]) {
   if (!icelandIndex.includes(value)) failures.push(`iceland26/index.html is missing ${value}`);
@@ -282,6 +298,10 @@ for (const value of [
   'pendingPreferenceOptions',
   'archivedSourceDecisions',
   'map-marker__touch',
+  'placeMediaByOption',
+  'renderMapStory',
+  "'/iceland26/media/dynjandi.webp'",
+  'Image carried forward from the revised planning document · not a live conditions view.',
   'noreferrer noopener',
 ]) {
   if (!icelandClient.includes(value)) failures.push(`iceland26/app.js is missing ${value}`);
@@ -303,6 +323,8 @@ for (const value of [
   'isPublicStaticPath',
   'publicRootFiles',
   'publicIcelandFiles',
+  "['.webp', 'image/webp']",
+  "path.startsWith('/iceland26/media/') && path.endsWith('.webp')",
 ]) {
   if (!icelandServer.includes(value)) failures.push(`Iceland server access gate is missing ${value}`);
 }

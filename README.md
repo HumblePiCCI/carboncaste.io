@@ -91,6 +91,11 @@ The board:
   source document;
 - gives materially different places their own pin, preference key, and
   sticky-note thread instead of hiding route choices inside bundled cards;
+- keeps the complete operational record in a dedicated left information rail,
+  leaving the route visible and clickable; a compact translucent map card holds
+  only the selected stop's planning-document image and/or traveller-review signal;
+- labels every map image as carried forward from the revised planning document;
+  images are orientation aids, never evidence for current access or safety;
 - preserves directly struck-through source ideas in a read-only ruled-out
   archive without returning them to the route or decision system;
 - highlights research-backed standouts with direct official, review, and travel

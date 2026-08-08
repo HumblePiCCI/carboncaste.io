@@ -629,7 +629,7 @@ async function exerciseTimeline(page, label, captureMap = false) {
 
   if (captureMap) {
     await page.locator('#close-place-panel').click();
-    await page.locator('#place-panel.is-closed').waitFor();
+    await page.locator('#place-panel.is-closed').waitFor({ state: 'hidden' });
     await page.waitForTimeout(220);
     await page.locator('.planner-shell').screenshot({
       path: join(screenshotDirectory, 'desktop-map.png'),
@@ -697,12 +697,32 @@ async function exercisePointerMarkerCollisions(page, label) {
   const closePanel = async () => {
     if (await page.locator('#place-panel').getAttribute('aria-hidden') === 'false') {
       await page.locator('#close-place-panel').click();
-      await page.locator('#place-panel.is-closed').waitFor();
+      await page.locator('#place-panel.is-closed').waitFor({ state: 'hidden' });
     }
   };
   const activatePoint = async ({ x, y }) => {
     if (label === 'mobile') await page.touchscreen.tap(x, y);
     else await page.mouse.click(x, y);
+  };
+  const positionDotForPointer = async (dot) => {
+    await dot.scrollIntoViewIfNeeded();
+    await dot.evaluate((node) => {
+      const root = document.documentElement;
+      const previousScrollBehavior = root.style.scrollBehavior;
+      root.style.scrollBehavior = 'auto';
+      const box = node.getBoundingClientRect();
+      const stickyBottom = Math.max(
+        0,
+        document.querySelector('.trip-header')?.getBoundingClientRect().bottom || 0,
+        document.querySelector('.timeline-section')?.getBoundingClientRect().bottom || 0,
+      );
+      if (box.top < stickyBottom + 16) {
+        window.scrollBy({ top: box.top - stickyBottom - 16, behavior: 'auto' });
+      } else if (box.bottom > innerHeight - 16) {
+        window.scrollBy({ top: box.bottom - innerHeight + 16, behavior: 'auto' });
+      }
+      root.style.scrollBehavior = previousScrollBehavior;
+    });
   };
 
   for (const group of collisionGroups) {
@@ -712,7 +732,7 @@ async function exercisePointerMarkerCollisions(page, label) {
       const anchorDot = page.locator(
         `.map-marker[data-option-id="${anchorId}"] .map-marker__dot`,
       );
-      await anchorDot.scrollIntoViewIfNeeded();
+      await positionDotForPointer(anchorDot);
       const centre = await anchorDot.evaluate((dot) => {
         const box = dot.getBoundingClientRect();
         return { x: box.left + (box.width / 2), y: box.top + (box.height / 2) };
@@ -759,7 +779,7 @@ async function exercisePointerMarkerCollisions(page, label) {
   const escapeDot = page.locator(
     '.map-marker[data-option-id="departure"] .map-marker__dot',
   );
-  await escapeDot.scrollIntoViewIfNeeded();
+  await positionDotForPointer(escapeDot);
   const escapeCentre = await escapeDot.evaluate((dot) => {
     const box = dot.getBoundingClientRect();
     return { x: box.left + (box.width / 2), y: box.top + (box.height / 2) };
@@ -797,44 +817,163 @@ async function assertReynisfjaraTruth(page, label) {
   await assertExternalLinkSafety(page, `${label} Reynisfjara evidence`);
 }
 
-async function assertCenteredPlaceDetail(page, label) {
+async function assertRailPlaceDetailAndMapStory(page, label) {
   await activateMarker(page, 'dynjandi');
   const panel = page.locator('#place-panel');
+  const story = page.locator('#map-story-card');
   await panel.getByRole('heading', { name: /Dynjandi/i }).waitFor();
+  await story.locator('img').waitFor();
+  await page.waitForFunction(() => {
+    const image = document.querySelector('#map-story-card img');
+    return image?.complete && image.naturalWidth > 0;
+  });
   const detailState = await page.evaluate(() => ({
     activeId: document.activeElement?.id,
     panelHidden: document.querySelector('#place-panel')?.getAttribute('aria-hidden'),
     panel: document.querySelector('#place-panel')?.getBoundingClientRect().toJSON(),
     map: document.querySelector('#map-frame')?.getBoundingClientRect().toJSON(),
-    closeHit: (() => {
+    panelPosition: getComputedStyle(document.querySelector('#place-panel')).position,
+    panelParent: document.querySelector('#place-panel')?.parentElement?.className,
+    storyParent: document.querySelector('#map-story-card')?.parentElement?.id,
+    storyHidden: document.querySelector('#map-story-card')?.getAttribute('aria-hidden'),
+    storyInert: document.querySelector('#map-story-card')?.inert,
+    storyOptionId: document.querySelector('#map-story-card')?.dataset.optionId,
+    story: document.querySelector('#map-story-card')?.getBoundingClientRect().toJSON(),
+    storyOpacity: getComputedStyle(document.querySelector('#map-story-card')).opacity,
+    storyBackground: getComputedStyle(document.querySelector('#map-story-card')).backgroundColor,
+    storyBackdrop: getComputedStyle(document.querySelector('#map-story-card')).backdropFilter,
+    storyBackgroundAlpha: (() => {
+      const value = getComputedStyle(document.querySelector('#map-story-card')).backgroundColor;
+      const match = value.match(/rgba?\(([^)]+)\)/);
+      if (!match) return null;
+      const parts = match[1].split(',').map((part) => Number.parseFloat(part.trim()));
+      return parts.length === 4 ? parts[3] : 1;
+    })(),
+    panelMapOverlap: (() => {
+      const left = document.querySelector('#place-panel')?.getBoundingClientRect();
+      const right = document.querySelector('#map-frame')?.getBoundingClientRect();
+      if (!left || !right) return null;
+      return Math.max(0, Math.min(left.right, right.right) - Math.max(left.left, right.left))
+        * Math.max(0, Math.min(left.bottom, right.bottom) - Math.max(left.top, right.top));
+    })(),
+    storyFootprint: (() => {
+      const card = document.querySelector('#map-story-card')?.getBoundingClientRect();
+      const map = document.querySelector('#map-frame')?.getBoundingClientRect();
+      return card && map ? (card.width * card.height) / (map.width * map.height) : null;
+    })(),
+    storyInsideMap: (() => {
+      const card = document.querySelector('#map-story-card')?.getBoundingClientRect();
+      const map = document.querySelector('#map-frame')?.getBoundingClientRect();
+      return Boolean(card && map
+        && card.left >= map.left - 1 && card.right <= map.right + 1
+        && card.top >= map.top - 1 && card.bottom <= map.bottom + 1);
+    })(),
+    mapCenterIsClear: (() => {
+      const map = document.querySelector('#map-frame')?.getBoundingClientRect();
+      if (!map) return false;
+      const stack = document.elementsFromPoint(map.left + (map.width / 2), map.top + (map.height / 2));
+      return !stack.some((node) => node.closest?.('#place-panel, #map-story-card'));
+    })(),
+    panelCloseHit: (() => {
       const close = document.querySelector('#close-place-panel');
       const box = close?.getBoundingClientRect();
       if (!box) return null;
       return document.elementFromPoint(box.x + (box.width / 2), box.y + (box.height / 2))?.id;
     })(),
+    storyCloseHit: (() => {
+      const close = document.querySelector('#close-map-story');
+      const box = close?.getBoundingClientRect();
+      if (!box) return null;
+      return document.elementFromPoint(box.x + (box.width / 2), box.y + (box.height / 2))?.id;
+    })(),
+    legacyStandoutInPanel: document.querySelectorAll('#place-panel .place-standout').length,
   }));
-  const panelCenter = detailState.panel.x + (detailState.panel.width / 2);
-  const mapCenter = detailState.map.x + (detailState.map.width / 2);
   if (detailState.activeId !== 'place-panel'
       || detailState.panelHidden !== 'false'
-      || detailState.closeHit !== 'close-place-panel'
-      || Math.abs(panelCenter - mapCenter) > 8) {
-    fail(`${label}: keyboard marker activation did not open/focus a centered detail panel (${JSON.stringify(detailState)}).`);
+      || detailState.panelPosition === 'absolute'
+      || detailState.panelParent !== 'planner-shell'
+      || detailState.panelMapOverlap !== 0
+      || detailState.panel.right > detailState.map.left + 1
+      || detailState.panelCloseHit !== 'close-place-panel'
+      || detailState.storyParent !== 'map-frame'
+      || detailState.storyHidden !== 'false'
+      || detailState.storyInert
+      || detailState.storyOptionId !== 'dynjandi'
+      || detailState.storyCloseHit !== 'close-map-story'
+      || !detailState.storyInsideMap
+      || !detailState.mapCenterIsClear
+      || detailState.storyOpacity !== '1'
+      || !Number.isFinite(detailState.storyBackgroundAlpha)
+      || detailState.storyBackgroundAlpha < 0.55
+      || detailState.storyBackgroundAlpha > 0.9
+      || !detailState.storyBackdrop
+      || detailState.storyBackdrop === 'none'
+      || !Number.isFinite(detailState.storyFootprint)
+      || detailState.storyFootprint > 0.15
+      || detailState.legacyStandoutInPanel !== 0) {
+    fail(`${label}: keyboard marker activation did not open a separate practical rail and compact translucent map story (${JSON.stringify(detailState)}).`);
   }
-  await page.keyboard.press('Escape');
-  const escapeState = await page.evaluate(() => ({
-    panelHidden: document.querySelector('#place-panel')?.getAttribute('aria-hidden'),
-    focusedOption: document.activeElement?.dataset.optionId,
-  }));
-  if (escapeState.panelHidden !== 'true' || escapeState.focusedOption !== 'dynjandi') {
-    fail(`${label}: Escape did not close the place detail and restore its map/stop focus (${JSON.stringify(escapeState)}).`);
-  }
-  await activateMarker(page, 'dynjandi');
-  for (const heading of ['Family fit', 'Amenities', 'Why it earns time', 'What could break it']) {
+
+  for (const heading of [
+    'At a glance',
+    'Planning state',
+    'Family fit',
+    'Amenities',
+    'Booking and contact',
+    'Why it earns time',
+    'What could break it',
+  ]) {
     if (!await panel.getByRole('heading', { name: heading, exact: true }).count()) {
-      fail(`${label}: Dynjandi detail is missing the ${heading} section.`);
+      fail(`${label}: Dynjandi practical rail is missing the ${heading} section.`);
     }
   }
+  for (const metric of ['Time', 'Walk', 'Difficulty']) {
+    if (!await panel.locator('.metric-grid').getByText(metric, { exact: true }).count()) {
+      fail(`${label}: Dynjandi practical rail is missing the ${metric} metric.`);
+    }
+  }
+
+  const mediaState = await story.locator('img').evaluate((image) => ({
+    path: new URL(image.currentSrc || image.src).pathname,
+    alt: image.alt,
+    widthAttribute: image.getAttribute('width'),
+    heightAttribute: image.getAttribute('height'),
+    naturalWidth: image.naturalWidth,
+    naturalHeight: image.naturalHeight,
+    loading: image.loading,
+    decoding: image.decoding,
+    caption: image.closest('figure')?.querySelector('figcaption')?.textContent?.trim(),
+  }));
+  if (mediaState.path !== '/iceland26/media/dynjandi.webp'
+      || mediaState.alt.length < 20
+      || mediaState.widthAttribute !== '960'
+      || mediaState.heightAttribute !== '600'
+      || mediaState.naturalWidth !== 960
+      || mediaState.naturalHeight !== 600
+      || mediaState.loading !== 'lazy'
+      || mediaState.decoding !== 'async'
+      || mediaState.caption !== 'Image carried forward from the revised planning document · not a live conditions view.') {
+    fail(`${label}: Dynjandi story does not expose the expected local planning-document image metadata (${JSON.stringify(mediaState)}).`);
+  }
+  const travellerSource = story.locator('a[data-source-type]');
+  const sourceState = await travellerSource.count() === 1
+    ? await travellerSource.evaluate((link) => ({
+      type: link.dataset.sourceType,
+      href: link.href,
+      target: link.target,
+      rel: link.rel,
+    }))
+    : null;
+  if (!sourceState
+      || !['reviews', 'travel post', 'traveller review', 'trip report', 'guide'].includes(sourceState.type)
+      || !/^https:\/\//.test(sourceState.href)
+      || sourceState.target !== '_blank'
+      || !sourceState.rel.split(/\s+/).includes('noopener')
+      || !sourceState.rel.split(/\s+/).includes('noreferrer')
+      || !await story.locator('[data-review-signal]').count()) {
+    fail(`${label}: Dynjandi story is missing its safe traveller signal/source (${JSON.stringify(sourceState)}).`);
+  }
+
   const evidence = panel.locator('details', { hasText: /Evidence and source links/i });
   if (!await evidence.count()) fail(`${label}: Dynjandi detail has no expandable evidence section.`);
   else {
@@ -853,6 +992,120 @@ async function assertCenteredPlaceDetail(page, label) {
   await page.locator('.planner-shell').screenshot({
     path: join(screenshotDirectory, 'desktop-place.png'),
   });
+
+  const pointerCandidate = await page.evaluate((candidateIds) => {
+    const storyBox = document.querySelector('#map-story-card')?.getBoundingClientRect();
+    const touchTargets = [...document.querySelectorAll('.map-marker[aria-hidden="false"] .map-marker__touch')];
+    const contains = (box, x, y) => Boolean(box
+      && x >= box.left && x <= box.right && y >= box.top && y <= box.bottom);
+    for (const optionId of candidateIds) {
+      const marker = document.querySelector(`.map-marker[data-option-id="${optionId}"]`);
+      const dot = marker?.querySelector('.map-marker__dot')?.getBoundingClientRect();
+      if (!marker || !dot?.width || !dot?.height) continue;
+      const x = dot.left + (dot.width / 2);
+      const y = dot.top + (dot.height / 2);
+      if (x < 1 || x >= innerWidth - 1 || y < 1 || y >= innerHeight - 1 || contains(storyBox, x, y)) continue;
+      const collisions = touchTargets.filter((target) => {
+        const box = target.getBoundingClientRect();
+        const radiusX = box.width / 2;
+        const radiusY = box.height / 2;
+        if (!radiusX || !radiusY) return false;
+        const deltaX = (x - (box.left + radiusX)) / radiusX;
+        const deltaY = (y - (box.top + radiusY)) / radiusY;
+        return (deltaX ** 2) + (deltaY ** 2) <= 1.01;
+      });
+      const hitOptionId = document.elementFromPoint(x, y)?.closest?.('.map-marker')?.dataset.optionId;
+      if (collisions.length === 1 && hitOptionId === optionId) return { optionId, x, y };
+    }
+    return null;
+  }, ['seydisfjordur', 'studlagil', 'skogafoss-waterfall-way', 'jokulsarlon-boat', 'raudasandur']);
+  if (!pointerCandidate) {
+    fail(`${label}: no unobscured, non-colliding reviewed marker was available for a real pointer-selection check.`);
+  } else {
+    await page.mouse.click(pointerCandidate.x, pointerCandidate.y);
+    await page.locator(
+      `#selected-place-voting button[data-option-id="${pointerCandidate.optionId}"][data-action="preference"]`,
+    ).first().waitFor();
+    await page.locator(`#map-story-card[data-option-id="${pointerCandidate.optionId}"][aria-hidden="false"]`).waitFor();
+    if (/Dynjandi/i.test(await page.locator('#place-title').innerText())) {
+      fail(`${label}: clicking the unobscured ${pointerCandidate.optionId} marker did not replace the Dynjandi selection.`);
+    }
+  }
+
+  await activateMarker(page, 'outbound-flight');
+  const noStoryState = await page.evaluate(() => {
+    const card = document.querySelector('#map-story-card');
+    return {
+      hidden: card?.getAttribute('aria-hidden'),
+      inert: card?.inert,
+      classHidden: card?.classList.contains('is-hidden'),
+      optionId: card?.dataset.optionId || null,
+      childCount: document.querySelector('#map-story-content')?.childElementCount,
+      panelHidden: document.querySelector('#place-panel')?.getAttribute('aria-hidden'),
+    };
+  });
+  if (noStoryState.hidden !== 'true'
+      || !noStoryState.inert
+      || !noStoryState.classHidden
+      || noStoryState.optionId !== null
+      || noStoryState.childCount !== 0
+      || noStoryState.panelHidden !== 'false') {
+    fail(`${label}: a stop with no image/review left stale or focusable map-story content (${JSON.stringify(noStoryState)}).`);
+  }
+
+  await activateMarker(page, 'dynjandi');
+  await page.locator('#close-map-story').focus();
+  await page.keyboard.press('Escape');
+  const firstEscapeState = await page.evaluate(() => ({
+    storyHidden: document.querySelector('#map-story-card')?.getAttribute('aria-hidden'),
+    storyInert: document.querySelector('#map-story-card')?.inert,
+    panelHidden: document.querySelector('#place-panel')?.getAttribute('aria-hidden'),
+    focusedOption: document.activeElement?.dataset.optionId,
+  }));
+  if (firstEscapeState.storyHidden !== 'true'
+      || !firstEscapeState.storyInert
+      || firstEscapeState.panelHidden !== 'false'
+      || firstEscapeState.focusedOption !== 'dynjandi') {
+    fail(`${label}: Escape from inside the map story did not close only that card and restore selected-place focus (${JSON.stringify(firstEscapeState)}).`);
+  }
+  await activateMarker(page, 'dynjandi');
+  await page.keyboard.press('Escape');
+  const panelEscapeState = await page.evaluate(() => ({
+    storyHidden: document.querySelector('#map-story-card')?.getAttribute('aria-hidden'),
+    panelHidden: document.querySelector('#place-panel')?.getAttribute('aria-hidden'),
+    focusedOption: document.activeElement?.dataset.optionId,
+  }));
+  if (panelEscapeState.storyHidden !== 'true'
+      || panelEscapeState.panelHidden !== 'true'
+      || panelEscapeState.focusedOption !== 'dynjandi') {
+    fail(`${label}: Escape from the practical rail did not collapse both surfaces and retain selected-place focus (${JSON.stringify(panelEscapeState)}).`);
+  }
+
+  await activateMarker(page, 'dynjandi');
+  await page.locator('#close-map-story').click();
+  const storyCloseState = await page.evaluate(() => ({
+    storyHidden: document.querySelector('#map-story-card')?.getAttribute('aria-hidden'),
+    panelHidden: document.querySelector('#place-panel')?.getAttribute('aria-hidden'),
+    focusedOption: document.activeElement?.dataset.optionId,
+  }));
+  if (storyCloseState.storyHidden !== 'true'
+      || storyCloseState.panelHidden !== 'false'
+      || storyCloseState.focusedOption !== 'dynjandi') {
+    fail(`${label}: map-story close did not leave the practical rail open and restore selected-place focus (${JSON.stringify(storyCloseState)}).`);
+  }
+  await activateMarker(page, 'dynjandi');
+  await page.locator('#close-place-panel').click();
+  const railCloseState = await page.evaluate(() => ({
+    storyHidden: document.querySelector('#map-story-card')?.getAttribute('aria-hidden'),
+    panelHidden: document.querySelector('#place-panel')?.getAttribute('aria-hidden'),
+    focusedOption: document.activeElement?.dataset.optionId,
+  }));
+  if (railCloseState.storyHidden !== 'true'
+      || railCloseState.panelHidden !== 'true'
+      || railCloseState.focusedOption !== 'dynjandi') {
+    fail(`${label}: practical-rail close did not close both surfaces and restore selected-place focus (${JSON.stringify(railCloseState)}).`);
+  }
+  await activateMarker(page, 'dynjandi');
 }
 
 async function assertSourceChoiceIndependence(page, label) {
@@ -1206,18 +1459,22 @@ async function mutateDesktop(page) {
 
 async function assertMobileLayout(page) {
   await activateMarker(page, 'dynjandi');
+  await page.locator('#map-story-card[aria-hidden="false"] img').waitFor();
+  await page.locator('#place-panel').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(120);
+  await page.screenshot({
+    path: join(screenshotDirectory, 'mobile-place.png'),
+  });
   const layout = await page.evaluate(() => {
     const viewportWidth = document.documentElement.clientWidth;
     const timeline = document.querySelector('.timeline-section');
     const map = document.querySelector('#map-frame')?.getBoundingClientRect();
+    const day = document.querySelector('.day-rail')?.getBoundingClientRect();
     const panel = document.querySelector('#place-panel')?.getBoundingClientRect();
+    const group = document.querySelector('.group-rail')?.getBoundingClientRect();
+    const story = document.querySelector('#map-story-card')?.getBoundingClientRect();
     const planner = getComputedStyle(document.querySelector('.planner-shell'));
     const activeLabel = document.querySelector('.map-marker.is-active .map-marker__label');
-    const camperKey = document.querySelector('.camper-key')?.getBoundingClientRect();
-    const attribution = document.querySelector('.map-attribution')?.getBoundingClientRect();
-    const overlaps = (first, second) => Boolean(first && second
-      && first.left < second.right && first.right > second.left
-      && first.top < second.bottom && first.bottom > second.top);
     const touchTargets = [
       '#logout-button',
       '.date-track button[tabindex="0"]',
@@ -1228,18 +1485,28 @@ async function assertMobileLayout(page) {
       '.sticky-form .mini-button',
       '.alignment-item[role="button"]',
       '#close-place-panel',
+      '#close-map-story',
+      '.map-story-card__source',
     ].map((selector) => document.querySelector(selector)?.getBoundingClientRect().height || 0);
     return {
       viewportWidth,
       timelineClientWidth: timeline?.clientWidth,
       timelineScrollWidth: timeline?.scrollWidth,
       map: map?.toJSON(),
+      day: day?.toJSON(),
       panel: panel?.toJSON(),
+      group: group?.toJSON(),
+      story: story?.toJSON(),
       plannerDisplay: planner.display,
       panelPosition: getComputedStyle(document.querySelector('#place-panel')).position,
+      panelParent: document.querySelector('#place-panel')?.parentElement?.className,
+      storyParent: document.querySelector('#map-story-card')?.parentElement?.id,
+      storyHidden: document.querySelector('#map-story-card')?.getAttribute('aria-hidden'),
+      storyInert: document.querySelector('#map-story-card')?.inert,
+      storyOptionId: document.querySelector('#map-story-card')?.dataset.optionId,
+      storyFootprint: story && map ? (story.width * story.height) / (map.width * map.height) : null,
       activeLabelDisplay: activeLabel ? getComputedStyle(activeLabel).display : null,
       markerHitRadius: Number(document.querySelector('.map-marker.is-active .map-marker__touch')?.getAttribute('r')),
-      keyAttributionOverlap: overlaps(camperKey, attribution),
       touchTargets,
     };
   });
@@ -1247,18 +1514,109 @@ async function assertMobileLayout(page) {
       || layout.map.width > layout.viewportWidth + 2
       || layout.panel.left < 0
       || layout.panel.right > layout.viewportWidth + 1
-      || layout.panel.width < layout.viewportWidth - 40
+      || layout.panel.width < layout.viewportWidth - 2
       || layout.plannerDisplay !== 'flex'
-      || layout.panelPosition !== 'absolute'
+      || layout.panelPosition === 'absolute'
+      || layout.panelParent !== 'planner-shell'
+      || layout.storyParent !== 'map-frame'
+      || layout.storyHidden !== 'false'
+      || layout.storyInert
+      || layout.storyOptionId !== 'dynjandi'
+      || !Number.isFinite(layout.storyFootprint)
+      || layout.storyFootprint > 0.2
+      || !(layout.day.top < layout.map.top
+        && layout.map.top < layout.panel.top
+        && layout.panel.top < layout.group.top)
       || layout.activeLabelDisplay === 'none'
       || layout.markerHitRadius < 22
-      || layout.keyAttributionOverlap
       || layout.touchTargets.some((height) => height < 43.5)) {
-    fail(`mobile: timeline/map/detail panel did not resolve to the mobile planner layout (${JSON.stringify(layout)}).`);
+    fail(`mobile: map/day/practical/group order or compact-story layout is invalid (${JSON.stringify(layout)}).`);
   }
+
+  await page.locator('#map-frame').evaluate((node) => {
+    const root = document.documentElement;
+    const previousScrollBehavior = root.style.scrollBehavior;
+    root.style.scrollBehavior = 'auto';
+    node.scrollIntoView({ block: 'end', behavior: 'auto' });
+    root.style.scrollBehavior = previousScrollBehavior;
+  });
+  await page.waitForTimeout(120);
+  const mapUsability = await page.evaluate(() => {
+    const rect = (selector) => document.querySelector(selector)?.getBoundingClientRect();
+    const story = rect('#map-story-card');
+    const toolbar = rect('.map-toolbar');
+    const camperKey = rect('.camper-key');
+    const attribution = rect('.map-attribution');
+    const activeTouch = rect('.map-marker.is-active .map-marker__touch');
+    const overlaps = (first, second) => Boolean(first && second
+      && first.left < second.right && first.right > second.left
+      && first.top < second.bottom && first.bottom > second.top);
+    const hit = (selector, closestSelector = selector) => {
+      const node = document.querySelector(selector);
+      const box = node?.getBoundingClientRect();
+      if (!node || !box?.width || !box?.height) return false;
+      const target = document.elementFromPoint(box.left + (box.width / 2), box.top + (box.height / 2));
+      return target === node || target?.closest?.(closestSelector) === node;
+    };
+    const activeMarker = document.querySelector('.map-marker.is-active');
+    const activeDot = activeMarker?.querySelector('.map-marker__dot')?.getBoundingClientRect();
+    const activeHit = activeDot
+      ? document.elementFromPoint(
+        activeDot.left + (activeDot.width / 2),
+        activeDot.top + (activeDot.height / 2),
+      )?.closest?.('.map-marker')?.dataset.optionId
+      : null;
+    const storyStyle = getComputedStyle(document.querySelector('#map-story-card'));
+    const alphaMatch = storyStyle.backgroundColor.match(/rgba?\(([^)]+)\)/);
+    const alphaParts = alphaMatch
+      ? alphaMatch[1].split(',').map((part) => Number.parseFloat(part.trim()))
+      : [];
+    return {
+      storyToolbarOverlap: overlaps(story, toolbar),
+      storyKeyOverlap: overlaps(story, camperKey),
+      storyAttributionOverlap: overlaps(story, attribution),
+      storyActiveMarkerOverlap: overlaps(story, activeTouch),
+      keyAttributionOverlap: overlaps(camperKey, attribution),
+      activeHit,
+      filterHit: hit('.map-filter button[aria-pressed="true"]'),
+      zoomHit: hit('#zoom-in'),
+      keyHit: hit('.camper-key'),
+      attributionHit: hit('.map-attribution a'),
+      storyPointerEvents: storyStyle.pointerEvents,
+      storyOpacity: storyStyle.opacity,
+      storyBackgroundAlpha: alphaParts.length === 4 ? alphaParts[3] : (alphaParts.length ? 1 : null),
+      storyBackdrop: storyStyle.backdropFilter,
+      closeHeight: rect('#close-map-story')?.height,
+      sourceHeight: rect('.map-story-card__source')?.height,
+    };
+  });
+  if (mapUsability.storyToolbarOverlap
+      || mapUsability.storyKeyOverlap
+      || mapUsability.storyAttributionOverlap
+      || mapUsability.storyActiveMarkerOverlap
+      || mapUsability.keyAttributionOverlap
+      || mapUsability.activeHit !== 'dynjandi'
+      || !mapUsability.filterHit
+      || !mapUsability.zoomHit
+      || !mapUsability.keyHit
+      || !mapUsability.attributionHit
+      || mapUsability.storyPointerEvents !== 'none'
+      || mapUsability.storyOpacity !== '1'
+      || !Number.isFinite(mapUsability.storyBackgroundAlpha)
+      || mapUsability.storyBackgroundAlpha <= 0
+      || mapUsability.storyBackgroundAlpha >= 1
+      || !mapUsability.storyBackdrop
+      || mapUsability.storyBackdrop === 'none'
+      || mapUsability.closeHeight < 43.5
+      || mapUsability.sourceHeight < 43.5) {
+    fail(`mobile: compact story blocks map markers/controls/key/attribution or is not independently interactive (${JSON.stringify(mapUsability)}).`);
+  }
+  await page.locator('#map-frame').screenshot({
+    path: join(screenshotDirectory, 'mobile-map-story.png'),
+  });
   await assertNoHorizontalOverflow(page, 'mobile responsive layout');
   await page.locator('#close-place-panel').click();
-  await page.locator('#place-panel.is-closed').waitFor();
+  await page.locator('#place-panel.is-closed').waitFor({ state: 'hidden' });
   await page.waitForTimeout(220);
   await page.locator('#map-frame').screenshot({
     path: join(screenshotDirectory, 'mobile-map.png'),
@@ -1325,7 +1683,7 @@ async function runViewport(viewport, label, mutate = false) {
     await assertReynisfjaraTruth(page, label);
 
     if (mutate) {
-      await assertCenteredPlaceDetail(page, label);
+      await assertRailPlaceDetailAndMapStory(page, label);
       await assertSourceChoiceIndependence(page, label);
       await mutateDesktop(page);
     } else {
