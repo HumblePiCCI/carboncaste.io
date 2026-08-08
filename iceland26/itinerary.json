@@ -63,7 +63,7 @@
         "borgarfjordur-waterfalls"
       ],
       "orderCheck": "The source’s optional chain is too long after an overnight flight. Eiríksstaðir is cut. From the Borgarnes provision stop, the Deildartunguhver → Hraunfossar → Bjarkalundur branch is 218.0 km / 3h10 car baseline and is excluded from the core.",
-      "progress": 0.1321
+      "progress": 0.105134621001
     },
     {
       "id": "day-2026-08-10",
@@ -87,7 +87,7 @@
         "latrabjarg-raudasandur"
       ],
       "orderCheck": "The source simultaneously says Bjarkalundur is booked and hopes for a new campsite. Rauðasandur and Látrabjarg are separate branches; attempting both plus a Bjarkalundur return is not child-realistic.",
-      "progress": 0.2005
+      "progress": 0.176542036112
     },
     {
       "id": "day-2026-08-11",
@@ -109,7 +109,7 @@
         "dynjandi"
       ],
       "orderCheck": "The document says “Dynjandi or Látrabjarg.” Returning from Dynjandi to Bjarkalundur is a 141 km backtrack; the map shows it as a branch, not the working route.",
-      "progress": 0.2843
+      "progress": 0.263248067892
     },
     {
       "id": "day-2026-08-12",
@@ -132,7 +132,7 @@
         "eclipse-arngerdareyri"
       ],
       "orderCheck": "The stationary working line is Arngerðareyri; Patreksfjörður is the explicit southbound branch. An immediate post-totality return conflicts with official stay-late guidance.",
-      "progress": 0.2843
+      "progress": 0.263393535546
     },
     {
       "id": "day-2026-08-13",
@@ -154,7 +154,7 @@
         "hvitserkur-skagafjordur"
       ],
       "orderCheck": "The document’s version reaches toward Akureyri, Goðafoss and Mývatn on the same day. This working day stops at Varmahlíð.",
-      "progress": 0.4173
+      "progress": 0.40398461562
     },
     {
       "id": "day-2026-08-14",
@@ -181,7 +181,7 @@
         "earth-lagoon"
       ],
       "orderCheck": "The source lists Seyðisfjörður before Námaskarð, Hauganes and Dettifoss. Actual clockwise order is Akureyri/Hauganes → Goðafoss → optional Húsavík → Mývatn/Hverir/Hverfjall → Dettifoss → East Iceland. The measured Húsavík alternative is 101.8 km / 1h32 before its three-hour tour.",
-      "progress": 0.4895
+      "progress": 0.480105808024
     },
     {
       "id": "day-2026-08-15",
@@ -208,7 +208,7 @@
         "borgarfjordur-eystri"
       ],
       "orderCheck": "On the Ásbyrgi alternative, actual order is Reykjahlíð → Ásbyrgi → Dettifoss. Seyðisfjörður and Borgarfjörður Eystri are separate Egilsstaðir out-and-backs, neither is “on the way” south, and the east Stuðlagil hike cannot share this schedule.",
-      "progress": 0.5918
+      "progress": 0.587324326378
     },
     {
       "id": "day-2026-08-16",
@@ -231,7 +231,7 @@
         "djupivogur-stokksnes"
       ],
       "orderCheck": "The source calls Djúpivogur → Stokksnes four hours. That adjacent leg is about 99 km; today’s real 244 km total begins at Egilsstaðir and must remain on Route 1, not gravel Route 939/Öxi.",
-      "progress": 0.6887
+      "progress": 0.687447270131
     },
     {
       "id": "day-2026-08-17",
@@ -255,7 +255,7 @@
         "fjadrargljufur-eldhraun"
       ],
       "orderCheck": "Westbound geography is Jökulsárlón → Skaftafell → Fjaðrárgljúfur → Eldhraun → Vík. The document places Eldhraun after Reynisfjara.",
-      "progress": 0.8045
+      "progress": 0.800595074608
     },
     {
       "id": "day-2026-08-18",
@@ -280,7 +280,7 @@
         "seljalandsfoss-gljufrabui"
       ],
       "orderCheck": "Gljúfrabúi is a short walk north from the Seljalandsfoss stop—not across the road. The Skógafoss “3 km” note omits the return and 428 steps.",
-      "progress": 0.8457
+      "progress": 0.841714093597
     },
     {
       "id": "day-2026-08-19",
@@ -305,7 +305,7 @@
         "herjolfsdalur-camping"
       ],
       "orderCheck": "The source says 50 minutes and leaves camper logistics unresolved. Current scheduled sailing is 35 minutes. Herjólfsdalur camping cannot coexist with leaving the campers on the mainland unless separate island accommodation and equipment are booked.",
-      "progress": 0.8559
+      "progress": 0.852320987031
     },
     {
       "id": "day-2026-08-20",
@@ -330,7 +330,7 @@
         "silfra-split"
       ],
       "orderCheck": "The source interleaves the sites. Correct westbound order is Gullfoss → Geysir/Strokkur → Þingvellir; Silfra is a separate eligibility-gated activity at Þingvellir.",
-      "progress": 0.9342
+      "progress": 0.932949974867
     },
     {
       "id": "day-2026-08-21",
@@ -352,7 +352,7 @@
         "reykjadalur"
       ],
       "orderCheck": "The source says “3 km.” Reykjadalur is about 3.5 km each way—roughly 7 km return—and needs 3.5–4 hours with bathing.",
-      "progress": 0.9776
+      "progress": 0.977393758777
     },
     {
       "id": "day-2026-08-22",
@@ -375,7 +375,7 @@
         "reykjavik-pools"
       ],
       "orderCheck": null,
-      "progress": 0.9776
+      "progress": 0.977393758777
     },
     {
       "id": "day-2026-08-23",
@@ -399,7 +399,7 @@
         "reykjavik-pools"
       ],
       "orderCheck": "Sky Lagoon is about 45 minutes from KEF and prohibits under-12s; it is not “15 minutes from the airport” or a whole-family stop.",
-      "progress": 0.9813
+      "progress": 0.980953866255
     },
     {
       "id": "day-2026-08-24",
@@ -4417,7 +4417,8 @@
         "Djúpalónssandur · basalt-pebble beach",
         "Lýsuhólslaug · thermal pools",
         "Snæfellsjökull glacier",
-        "Ólafsvík-area camping research"
+        "Ólafsvík-area camping research",
+        "Source records that an advance-booking inquiry was sent by email"
       ],
       "sources": [
         {

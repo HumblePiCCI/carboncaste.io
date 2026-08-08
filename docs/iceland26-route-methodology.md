@@ -33,6 +33,14 @@ The map is self-contained at runtime. It uses:
 - explicit non-road geometry for the Herjólfur ferry;
 - no third-party map tiles, tracking scripts or browser geolocation.
 
+The dated camper positions are generated from the endpoint of each non-branch
+route after applying the same projection and consecutive-point deduplication as
+the browser. Validation recomputes all 17 positions independently, and the
+browser interaction suite checks that the midpoint of the two visually offset
+campers lands on every dated endpoint. When two or more 44-pixel map targets
+overlap, pointer and touch activation opens an explicit place chooser; keyboard
+activation continues to select the focused marker directly.
+
 OSRM is a road baseline, not a motorhome promise. Each dated day therefore separates:
 
 - routed kilometres and base duration;

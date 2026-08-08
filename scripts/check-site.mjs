@@ -206,7 +206,8 @@ if (itinerary) {
   if (!archivedSnaefellsnes
       || archivedSnaefellsnes.status !== 'ruled-out'
       || !Array.isArray(archivedSnaefellsnes.items)
-      || archivedSnaefellsnes.items.length < 6
+      || archivedSnaefellsnes.items.length < 7
+      || !archivedSnaefellsnes.items.some((item) => /advance-booking inquiry was sent by email/i.test(item))
       || ids.includes(archivedSnaefellsnes.id)
       || itinerary.days?.some((day) => day.stopIds.includes(archivedSnaefellsnes.id))) {
     failures.push('Iceland itinerary must preserve struck-through Snæfellsnes as a complete read-only source decision');

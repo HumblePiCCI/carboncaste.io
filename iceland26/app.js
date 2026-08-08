@@ -93,6 +93,8 @@ let camperProgress = null;
 let camperNodes = [];
 let projectedRoute = [];
 let renderedPanelOptionId = null;
+let mapChoiceMenu = null;
+let mapChoiceReturnFocus = null;
 const commentDrafts = new Map();
 const pendingPreferenceOptions = new Set();
 
@@ -666,7 +668,8 @@ function buildProjectedRoute() {
 }
 
 function progressForDay(day) {
-  const raw = day?.progress;
+  const geometryProgress = Number(mapData?.dayProgress?.[day?.id]);
+  const raw = Number.isFinite(geometryProgress) ? geometryProgress : day?.progress;
   let value = raw;
   if (Array.isArray(raw)) value = raw[raw.length - 1];
   if (raw && typeof raw === 'object') {
@@ -800,6 +803,7 @@ function routesForSelectedDay() {
 
 function renderMap(animateCampers = false) {
   if (camperAnimation) cancelAnimationFrame(camperAnimation);
+  closeMapChoiceMenu({ restoreFocus: false });
   elements.mapViewport.replaceChildren();
 
   const landLayer = createSvgElement('g', { 'aria-hidden': 'true' });
@@ -905,6 +909,79 @@ function resizeMarkerTouchTargets() {
   const radius = requiredMarkerTouchRadius();
   elements.mapViewport.querySelectorAll('.map-marker__touch')
     .forEach((target) => target.setAttribute('r', String(radius)));
+}
+
+function closeMapChoiceMenu({ restoreFocus = false } = {}) {
+  if (mapChoiceMenu) mapChoiceMenu.remove();
+  mapChoiceMenu = null;
+  const returnTarget = mapChoiceReturnFocus;
+  mapChoiceReturnFocus = null;
+  if (restoreFocus && returnTarget?.isConnected) returnTarget.focus({ preventScroll: true });
+}
+
+function pointerChoices(event, fallbackMarker) {
+  if (!Number.isFinite(event.clientX) || !Number.isFinite(event.clientY)
+      || (event.clientX === 0 && event.clientY === 0)) return [fallbackMarker];
+  const matches = [...elements.mapViewport.querySelectorAll('.map-marker[aria-hidden="false"]')]
+    .filter((marker) => {
+      const target = marker.querySelector('.map-marker__touch');
+      const box = target?.getBoundingClientRect();
+      if (!box?.width || !box?.height) return marker === fallbackMarker;
+      const radiusX = box.width / 2;
+      const radiusY = box.height / 2;
+      const deltaX = (event.clientX - (box.left + radiusX)) / radiusX;
+      const deltaY = (event.clientY - (box.top + radiusY)) / radiusY;
+      return (deltaX ** 2) + (deltaY ** 2) <= 1.01;
+    });
+  if (!matches.includes(fallbackMarker)) matches.push(fallbackMarker);
+  const order = new Map(allOptions().map((option, index) => [option.id, index]));
+  return [...new Map(matches.map((marker) => [marker.dataset.optionId, marker])).values()]
+    .sort((left, right) => (
+      (order.get(left.dataset.optionId) ?? Number.MAX_SAFE_INTEGER)
+      - (order.get(right.dataset.optionId) ?? Number.MAX_SAFE_INTEGER)
+    ));
+}
+
+function openMapChoiceMenu(markers, returnFocus) {
+  closeMapChoiceMenu({ restoreFocus: false });
+  mapChoiceReturnFocus = returnFocus;
+  const menu = createElement('section', 'map-choice-menu');
+  menu.setAttribute('role', 'dialog');
+  menu.setAttribute('aria-modal', 'false');
+  const heading = createElement('h3', null, 'Choose this map area');
+  heading.id = 'map-choice-menu-title';
+  menu.setAttribute('aria-labelledby', heading.id);
+  const close = createElement('button', 'map-choice-menu__close', '×');
+  close.type = 'button';
+  close.setAttribute('aria-label', 'Close map place chooser');
+  close.addEventListener('click', () => closeMapChoiceMenu({ restoreFocus: true }));
+  const header = createElement('div', 'map-choice-menu__head');
+  header.append(heading, close);
+  menu.append(
+    header,
+    createElement('p', 'map-choice-menu__intro', 'Several place targets meet here. Choose the exact stop you mean.'),
+  );
+  const choices = createElement('div', 'map-choice-menu__choices');
+  markers.forEach((marker) => {
+    const option = optionById(marker.dataset.optionId);
+    if (!option) return;
+    const button = createElement('button', 'map-choice-menu__option');
+    button.type = 'button';
+    button.dataset.optionId = option.id;
+    button.append(
+      createElement('strong', null, firstText(option.shortTitle, option.title)),
+      createElement('span', null, statusLabel(option.status)),
+    );
+    button.addEventListener('click', () => {
+      closeMapChoiceMenu({ restoreFocus: false });
+      chooseOption(option.id, { focusPanel: true, syncDay: true });
+    });
+    choices.append(button);
+  });
+  menu.append(choices);
+  elements.mapFrame.append(menu);
+  mapChoiceMenu = menu;
+  choices.querySelector('button')?.focus({ preventScroll: true });
 }
 
 function appendBadge(parent, text, modifier) {
@@ -1084,6 +1161,7 @@ function renderVoting() {
   }
   const panel = createElement('section', 'vote-panel');
   const title = createElement('p', 'vote-panel__title');
+  title.id = `preference-title-${option.id}`;
   const participant = currentParticipant();
   title.append(
     createElement('strong', null, option.shortTitle || option.title),
@@ -1092,6 +1170,8 @@ function renderVoting() {
   panel.append(title);
 
   const preferences = createElement('div', 'preference-grid');
+  preferences.setAttribute('role', 'group');
+  preferences.setAttribute('aria-labelledby', title.id);
   const preferencePending = pendingPreferenceOptions.has(option.id);
   preferences.dataset.optionId = option.id;
   preferences.setAttribute('aria-busy', String(preferencePending));
@@ -1727,9 +1807,17 @@ elements.stopList.addEventListener('click', (event) => {
   chooseOption(button.dataset.optionId, { focusPanel: true, syncDay: false });
 });
 
-function activateMapMarker(event) {
+function activateMapMarker(event, { offerPointerChoices = true } = {}) {
   const marker = event.target.closest('.map-marker[data-option-id]');
   if (!marker || marker.classList.contains('is-muted')) return;
+  if (offerPointerChoices) {
+    const choices = pointerChoices(event, marker);
+    if (choices.length > 1) {
+      openMapChoiceMenu(choices, marker);
+      return;
+    }
+  }
+  closeMapChoiceMenu({ restoreFocus: false });
   chooseOption(marker.dataset.optionId, { focusPanel: true, syncDay: true });
 }
 
@@ -1739,7 +1827,7 @@ elements.mapSvg.addEventListener('keydown', (event) => {
   const marker = event.target.closest('.map-marker[data-option-id]');
   if (!marker) return;
   event.preventDefault();
-  activateMapMarker(event);
+  activateMapMarker(event, { offerPointerChoices: false });
 });
 
 elements.mapFilter.addEventListener('click', (event) => {
@@ -1779,6 +1867,11 @@ elements.closePlace.addEventListener('click', () => {
 });
 
 document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && mapChoiceMenu) {
+    event.preventDefault();
+    closeMapChoiceMenu({ restoreFocus: true });
+    return;
+  }
   if (event.key === 'Escape' && panelOpen && !elements.ideaDialog.open) {
     panelOpen = false;
     renderPlacePanel();

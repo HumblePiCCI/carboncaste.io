@@ -17,6 +17,9 @@
  *
  * Validation without network access:
  *   node scripts/build-iceland26-map-data.mjs --validate-only
+ *
+ * Recompute only the deterministic day-progress ledger without network access:
+ *   node scripts/build-iceland26-map-data.mjs --progress-only
  */
 
 import { readFile, writeFile } from "node:fs/promises";
@@ -36,6 +39,12 @@ const MAP_BOUNDS = Object.freeze({
   minLat: 63.2,
   maxLat: 66.7,
 });
+const TRIP_DAY_IDS = Object.freeze(
+  Array.from({ length: 17 }, (_, index) =>
+    `day-2026-08-${String(index + 8).padStart(2, "0")}`,
+  ),
+);
+const ROUTE_PROJECTION = Object.freeze({ x: 55, y: 45, width: 890, height: 610 });
 
 const LOCATIONS = Object.freeze({
   kef: [-22.6056, 63.985],
@@ -303,6 +312,7 @@ function parseArgs(argv) {
     boundaryPath: DEFAULT_BOUNDARY_PATH,
     outputPath: DEFAULT_OUTPUT_PATH,
     validateOnly: false,
+    progressOnly: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -313,9 +323,14 @@ function parseArgs(argv) {
       parsed.outputPath = path.resolve(argv[++index]);
     } else if (argument === "--validate-only") {
       parsed.validateOnly = true;
+    } else if (argument === "--progress-only") {
+      parsed.progressOnly = true;
     } else {
       throw new Error(`Unknown argument: ${argument}`);
     }
+  }
+  if (parsed.validateOnly && parsed.progressOnly) {
+    throw new Error("Use either --validate-only or --progress-only, not both.");
   }
   return parsed;
 }
@@ -532,6 +547,97 @@ function calculateBounds(boundary, routes) {
   return { ...MAP_BOUNDS };
 }
 
+function projectRouteCoordinate(coordinate, bounds) {
+  const lng = Number(coordinate[0]);
+  const lat = Number(coordinate[1]);
+  return {
+    x:
+      ROUTE_PROJECTION.x +
+      ((lng - bounds.minLng) / (bounds.maxLng - bounds.minLng)) *
+        ROUTE_PROJECTION.width,
+    y:
+      ROUTE_PROJECTION.y +
+      ((bounds.maxLat - lat) / (bounds.maxLat - bounds.minLat)) *
+        ROUTE_PROJECTION.height,
+  };
+}
+
+function computeDayProgress(routes, bounds) {
+  if (
+    !bounds ||
+    ![bounds.minLng, bounds.maxLng, bounds.minLat, bounds.maxLat].every(Number.isFinite) ||
+    bounds.maxLng <= bounds.minLng ||
+    bounds.maxLat <= bounds.minLat
+  ) {
+    throw new Error("Valid map bounds are required to derive day progress.");
+  }
+
+  const projected = [];
+  const dayEndIndex = new Map();
+  for (const route of routes) {
+    if (route.state === "branch") continue;
+    for (const coordinate of route.points) {
+      if (
+        !Array.isArray(coordinate) ||
+        coordinate.length < 2 ||
+        !Number.isFinite(Number(coordinate[0])) ||
+        !Number.isFinite(Number(coordinate[1]))
+      ) {
+        continue;
+      }
+      const point = projectRouteCoordinate(coordinate, bounds);
+      const previous = projected.at(-1);
+      if (!previous || Math.hypot(point.x - previous.x, point.y - previous.y) > 0.5) {
+        projected.push(point);
+      }
+    }
+    for (const dayId of route.dayIds) dayEndIndex.set(dayId, projected.length - 1);
+  }
+
+  if (projected.length < 2) throw new Error("At least two projected route points are required.");
+  const cumulative = [0];
+  for (let index = 1; index < projected.length; index += 1) {
+    cumulative.push(
+      cumulative[index - 1] +
+        Math.hypot(
+          projected[index].x - projected[index - 1].x,
+          projected[index].y - projected[index - 1].y,
+        ),
+    );
+  }
+  const total = cumulative.at(-1);
+  if (!(total > 0)) throw new Error("Projected route length must be positive.");
+
+  const progress = {};
+  for (const [index, dayId] of TRIP_DAY_IDS.entries()) {
+    if (index === 0) {
+      progress[dayId] = 0;
+      continue;
+    }
+    const endIndex = dayEndIndex.get(dayId);
+    if (!Number.isInteger(endIndex) || endIndex < 0) {
+      throw new Error(`${dayId} has no non-branch route endpoint.`);
+    }
+    const fraction = cumulative[endIndex] / total;
+    progress[dayId] = index === TRIP_DAY_IDS.length - 1
+      ? 1
+      : Number(fraction.toFixed(12));
+  }
+  return progress;
+}
+
+function attachDayProgress(snapshot) {
+  const dayProgress = computeDayProgress(snapshot.routes, snapshot.bounds);
+  const refreshed = {};
+  for (const [key, value] of Object.entries(snapshot)) {
+    if (key === "dayProgress") continue;
+    refreshed[key] = value;
+    if (key === "bounds") refreshed.dayProgress = dayProgress;
+  }
+  if (!("dayProgress" in refreshed)) refreshed.dayProgress = dayProgress;
+  return refreshed;
+}
+
 function validateSnapshot(snapshot) {
   if (snapshot.schemaVersion !== 1) throw new Error("schemaVersion must equal 1.");
   if (snapshot.sourceDocumentSha256 !== SOURCE_DOCUMENT_SHA256) {
@@ -655,6 +761,29 @@ function validateSnapshot(snapshot) {
   if (snapshot.routes.some((route) => /bardastrandar|barðastrandar/i.test(route.id))) {
     throw new Error("Bardastrandarsandur must remain unplaced and unrouted.");
   }
+  const expectedDayProgress = computeDayProgress(snapshot.routes, snapshot.bounds);
+  const actualDayIds = Object.keys(snapshot.dayProgress ?? {});
+  if (
+    actualDayIds.length !== TRIP_DAY_IDS.length ||
+    actualDayIds.some((dayId, index) => dayId !== TRIP_DAY_IDS[index])
+  ) {
+    throw new Error("dayProgress must contain every August 8–24 day in order.");
+  }
+  let previousProgress = -1;
+  for (const dayId of TRIP_DAY_IDS) {
+    const actual = snapshot.dayProgress[dayId];
+    const expected = expectedDayProgress[dayId];
+    if (!Number.isFinite(actual) || Math.abs(actual - expected) > 1e-12) {
+      throw new Error(`${dayId} dayProgress does not match the projected route ledger.`);
+    }
+    if (actual < previousProgress) {
+      throw new Error(`${dayId} dayProgress is not monotonic.`);
+    }
+    previousProgress = actual;
+  }
+  if (snapshot.dayProgress[TRIP_DAY_IDS[0]] !== 0 || snapshot.dayProgress[TRIP_DAY_IDS.at(-1)] !== 1) {
+    throw new Error("dayProgress must begin at 0 and end at 1.");
+  }
   return snapshot;
 }
 
@@ -670,6 +799,7 @@ async function buildSnapshot(boundaryPath) {
     );
     if (config.kind === "road") await wait(250);
   }
+  const bounds = calculateBounds(boundary, routes);
 
   const snapshot = {
     schemaVersion: 1,
@@ -698,7 +828,8 @@ async function buildSnapshot(boundaryPath) {
         snapshotDate: SNAPSHOT_DATE,
       },
     ],
-    bounds: calculateBounds(boundary, routes),
+    bounds,
+    dayProgress: computeDayProgress(routes, bounds),
     boundary,
     routes,
   };
@@ -707,6 +838,16 @@ async function buildSnapshot(boundaryPath) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  if (args.progressOnly) {
+    const snapshot = JSON.parse(await readFile(args.outputPath, "utf8"));
+    const refreshed = attachDayProgress(snapshot);
+    validateSnapshot(refreshed);
+    await writeFile(args.outputPath, `${JSON.stringify(refreshed, null, 2)}\n`, "utf8");
+    process.stdout.write(
+      `Refreshed ${TRIP_DAY_IDS.length} day-progress entries in ${args.outputPath} without routing calls.\n`,
+    );
+    return;
+  }
   if (args.validateOnly) {
     const snapshot = JSON.parse(await readFile(args.outputPath, "utf8"));
     validateSnapshot(snapshot);

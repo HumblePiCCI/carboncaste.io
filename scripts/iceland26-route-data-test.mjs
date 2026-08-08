@@ -92,6 +92,32 @@ function expectedLegDateLabel(leg) {
   return first === last ? `Aug ${first}` : `Aug ${first}–${last}`;
 }
 
+function projectedDayProgress(mapSnapshot, orderedDays) {
+  const { bounds } = mapSnapshot;
+  const project = ([lng, lat]) => ({
+    x: 55 + (((lng - bounds.minLng) / (bounds.maxLng - bounds.minLng)) * 890),
+    y: 45 + (((bounds.maxLat - lat) / (bounds.maxLat - bounds.minLat)) * 610),
+  });
+  const points = [];
+  const endDistanceByDay = new Map();
+  let total = 0;
+  mapSnapshot.routes.filter((route) => route.state !== 'branch').forEach((route) => {
+    route.points.forEach((coordinate) => {
+      const point = project(coordinate);
+      const previous = points[points.length - 1];
+      if (previous && Math.hypot(point.x - previous.x, point.y - previous.y) <= 0.5) return;
+      if (previous) total += Math.hypot(point.x - previous.x, point.y - previous.y);
+      points.push(point);
+    });
+    route.dayIds.forEach((dayId) => endDistanceByDay.set(dayId, total));
+  });
+  if (!total || !points.length) return {};
+  return Object.fromEntries(orderedDays.map((day, index) => [
+    day.id,
+    index === 0 ? 0 : (endDistanceByDay.get(day.id) ?? 0) / total,
+  ]));
+}
+
 const itineraryText = await readFile('iceland26/itinerary.json', 'utf8');
 const mapText = await readFile('iceland26/map-data.json', 'utf8');
 const itinerary = JSON.parse(itineraryText);
@@ -137,6 +163,18 @@ for (const day of itinerary.days) {
       && Number.isFinite(day.route?.camperMinutes)
       && day.route.camperMinutes < day.route.baseMinutes) {
     fail(`${day.id} motorhome plan is shorter than its road baseline.`);
+  }
+}
+
+const recomputedDayProgress = projectedDayProgress(mapData, itinerary.days);
+for (const day of itinerary.days) {
+  const recomputed = recomputedDayProgress[day.id];
+  const mapped = mapData.dayProgress?.[day.id];
+  if (!Number.isFinite(mapped) || Math.abs(mapped - recomputed) > 1e-11) {
+    fail(`${day.id} map progress does not match its projected non-branch route endpoint.`);
+  }
+  if (!Number.isFinite(day.progress) || Math.abs(day.progress - recomputed) > 1e-11) {
+    fail(`${day.id} itinerary progress would place the campers away from the dated route endpoint.`);
   }
 }
 
@@ -247,7 +285,8 @@ if (!archivedSnaefellsnes
     || archivedSnaefellsnes.status !== 'ruled-out'
     || !/struck through|ruled out/i.test(archivedSnaefellsnes.documentStatus || '')
     || !Array.isArray(archivedSnaefellsnes.items)
-    || archivedSnaefellsnes.items.length < 6) {
+    || archivedSnaefellsnes.items.length < 7
+    || !archivedSnaefellsnes.items.some((item) => /advance-booking inquiry was sent by email/i.test(item))) {
   fail('The revised source\'s struck-through Snæfellsnes decision is not preserved as a complete read-only archive record.');
 }
 if (optionIds.has('snaefellsnes-ruled-out')

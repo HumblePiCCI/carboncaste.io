@@ -81,7 +81,10 @@ The board:
 
 - separates booked/fixed anchors from open and conditional experiences;
 - exposes all 17 dated days through a timeline scrubber and moves two camper
-  markers over a local, attributed road-geometry snapshot;
+  markers to each day's measured route endpoint over a local, attributed
+  road-geometry snapshot;
+- turns overlapping map touch targets into an explicit place chooser so nearby
+  or co-located stops remain independently selectable on phones and desktops;
 - draws locked travel, the current working route, and mutually exclusive
   branches differently so unresolved logistics never look booked;
 - flags source-order/geography conflicts rather than silently rearranging the
@@ -133,6 +136,7 @@ Verification is split intentionally:
 npm test
 npm run interaction:iceland26
 node scripts/build-iceland26-itinerary.mjs
+node scripts/build-iceland26-map-data.mjs --progress-only
 node scripts/build-iceland26-map-data.mjs --validate-only
 ```
 
@@ -142,14 +146,16 @@ gate, schema validation, cross-site rejection, concurrent granular updates,
 production-shaped revision continuity, atomic persistence, restart recovery,
 and logout. The interaction run opens a
 task-owned local server and headless Chrome, exercises access, timeline and map
-navigation, accessibility-tree markers and touch targets, reduced motion, keyboard place selection,
+navigation, accessibility-tree markers, overlapping touch-target selection,
+all-date camper endpoints, reduced motion, keyboard place selection,
 serialized preference intent, preference focus, sticky-note drafts (including edits during a save), live-to-read-only
 transitions, discussion, suggestions, persistence and responsive layouts, records
 screenshots, and tears down its browser, listener, temporary state, and child
 process through signal-aware `finally` paths with force-stop fallbacks.
 The itinerary builder is deterministic against either the original committed
 catalog or its own v2 output; the route-data test requires byte-exact idempotence.
-The last command checks the committed coastline, route states, day bindings,
+The progress-only command recomputes the dated camper positions from committed
+geometry without making routing calls. The last command checks the committed coastline, route states, day bindings,
 coordinates, branches and measured arrival distance without making a network
 request. Running the map builder without `--validate-only` refreshes OSRM road
 geometry while reusing the committed Natural Earth coastline; pass a new

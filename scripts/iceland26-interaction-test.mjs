@@ -458,6 +458,76 @@ async function assertBoardStructure(page, label) {
   await assertExternalLinkSafety(page, label);
 }
 
+async function assertAllCamperDayEndpoints(page, label, scrubber) {
+  const expectedDays = await page.evaluate(async () => {
+    const [mapResponse, itineraryResponse] = await Promise.all([
+      fetch('/iceland26/map-data.json'),
+      fetch('/iceland26/itinerary.json'),
+    ]);
+    if (!mapResponse.ok || !itineraryResponse.ok) {
+      throw new Error(`route fixtures unavailable (${mapResponse.status}/${itineraryResponse.status})`);
+    }
+    const [mapSnapshot, itinerarySnapshot] = await Promise.all([
+      mapResponse.json(),
+      itineraryResponse.json(),
+    ]);
+    const { bounds } = mapSnapshot;
+    const project = ([lng, lat]) => ({
+      x: 55 + (((lng - bounds.minLng) / (bounds.maxLng - bounds.minLng)) * 890),
+      y: 45 + (((bounds.maxLat - lat) / (bounds.maxLat - bounds.minLat)) * 610),
+    });
+    const projected = [];
+    const endpointByDay = new Map();
+    mapSnapshot.routes.filter((route) => route.state !== 'branch').forEach((route) => {
+      route.points.forEach((coordinate) => {
+        const point = project(coordinate);
+        const previous = projected[projected.length - 1];
+        if (!previous || Math.hypot(point.x - previous.x, point.y - previous.y) > 0.5) {
+          projected.push(point);
+        }
+      });
+      route.dayIds.forEach((dayId) => endpointByDay.set(dayId, projected[projected.length - 1]));
+    });
+    return itinerarySnapshot.days.map((day, index) => ({
+      id: day.id,
+      index,
+      endpoint: index === 0 ? projected[0] : endpointByDay.get(day.id),
+    }));
+  });
+
+  for (const day of expectedDays) {
+    if (!day.endpoint) {
+      fail(`${label}: ${day.id} has no independently derived map endpoint.`);
+      continue;
+    }
+    await scrubber.evaluate((input, index) => {
+      input.value = String(index);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }, day.index);
+    await page.waitForFunction((index) => (
+      document.querySelector(`#date-track button[data-day-index="${index}"]`)
+        ?.getAttribute('aria-current') === 'date'
+    ), day.index);
+    const midpoint = await page.locator('.camper').evaluateAll((campers) => {
+      const points = campers.map((camper) => {
+        const matrix = camper.transform.baseVal.consolidate()?.matrix;
+        return matrix ? { x: matrix.e, y: matrix.f } : null;
+      });
+      if (!points.every(Boolean)) return null;
+      return {
+        x: (points[0].x + points[1].x) / 2,
+        y: (points[0].y + points[1].y) / 2,
+      };
+    });
+    const error = midpoint
+      ? Math.hypot(midpoint.x - day.endpoint.x, midpoint.y - day.endpoint.y)
+      : Number.POSITIVE_INFINITY;
+    if (error > 0.75) {
+      fail(`${label}: ${day.id} campers miss the dated route endpoint by ${error.toFixed(3)} map units.`);
+    }
+  }
+}
+
 async function exerciseTimeline(page, label, captureMap = false) {
   const dateButtons = page.locator('#date-track button[data-day-index]');
   const firstDate = dateButtons.first();
@@ -565,6 +635,7 @@ async function exerciseTimeline(page, label, captureMap = false) {
       path: join(screenshotDirectory, 'desktop-map.png'),
     });
     await page.emulateMedia({ reducedMotion: 'reduce' });
+    await assertAllCamperDayEndpoints(page, label, scrubber);
     await scrubber.evaluate((input) => {
       input.value = '16';
       input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -615,6 +686,90 @@ async function exerciseMapControls(page, label) {
   if (await viewport.evaluate((node) => node.style.transform) !== 'scale(1)'
       || !await reset.isDisabled()) {
     fail(`${label}: map reset did not restore the canonical view.`);
+  }
+}
+
+async function exercisePointerMarkerCollisions(page, label) {
+  const collisionGroups = [
+    ['outbound-flight', 'departure'],
+    ['thingvellir', 'silfra-split'],
+  ];
+  const closePanel = async () => {
+    if (await page.locator('#place-panel').getAttribute('aria-hidden') === 'false') {
+      await page.locator('#close-place-panel').click();
+      await page.locator('#place-panel.is-closed').waitFor();
+    }
+  };
+  const activatePoint = async ({ x, y }) => {
+    if (label === 'mobile') await page.touchscreen.tap(x, y);
+    else await page.mouse.click(x, y);
+  };
+
+  for (const group of collisionGroups) {
+    for (const optionId of group) {
+      await closePanel();
+      const anchorId = group[group.length - 1];
+      const anchorDot = page.locator(
+        `.map-marker[data-option-id="${anchorId}"] .map-marker__dot`,
+      );
+      await anchorDot.scrollIntoViewIfNeeded();
+      const centre = await anchorDot.evaluate((dot) => {
+        const box = dot.getBoundingClientRect();
+        return { x: box.left + (box.width / 2), y: box.top + (box.height / 2) };
+      });
+      await activatePoint(centre);
+      const chooser = page.locator('.map-choice-menu[role="dialog"]');
+      try {
+        await chooser.waitFor({ timeout: 3_000 });
+      } catch {
+        const diagnostic = await page.evaluate(({ x, y }) => ({
+          hitStack: document.elementsFromPoint(x, y).slice(0, 8).map((node) => ({
+            tag: node.tagName,
+            className: typeof node.className === 'object' ? node.className.baseVal : node.className,
+            optionId: node.closest?.('[data-option-id]')?.dataset.optionId || null,
+          })),
+          selectedTitle: document.querySelector('#place-title')?.textContent || null,
+          selectedOpen: document.querySelector('#place-panel')?.getAttribute('aria-hidden'),
+          mapFilter: document.querySelector('[data-map-filter][aria-pressed="true"]')?.dataset.mapFilter,
+        }), centre);
+        fail(`${label}: pointer at the ${group.join('/')} collision did not open the chooser (${JSON.stringify(diagnostic)}).`);
+        continue;
+      }
+      if (label === 'desktop' && group[0] === 'outbound-flight' && optionId === 'outbound-flight') {
+        await page.locator('.map-frame').screenshot({
+          path: join(screenshotDirectory, 'desktop-map-chooser.png'),
+        });
+      }
+      for (const expectedId of group) {
+        if (await chooser.locator(`button[data-option-id="${expectedId}"]`).count() !== 1) {
+          fail(`${label}: overlapping map chooser omitted ${expectedId}.`);
+        }
+      }
+      await chooser.locator(`button[data-option-id="${optionId}"]`).click();
+      await page.locator('#place-panel[aria-hidden="false"]').waitFor();
+      if (await page.locator(
+        `#selected-place-voting button[data-option-id="${optionId}"][data-action="preference"]`,
+      ).count() !== 3) {
+        fail(`${label}: pointer chooser did not activate the colliding option ${optionId}.`);
+      }
+    }
+  }
+
+  await closePanel();
+  const escapeDot = page.locator(
+    '.map-marker[data-option-id="departure"] .map-marker__dot',
+  );
+  await escapeDot.scrollIntoViewIfNeeded();
+  const escapeCentre = await escapeDot.evaluate((dot) => {
+    const box = dot.getBoundingClientRect();
+    return { x: box.left + (box.width / 2), y: box.top + (box.height / 2) };
+  });
+  await activatePoint(escapeCentre);
+  await page.locator('.map-choice-menu').waitFor();
+  await page.keyboard.press('Escape');
+  if (await page.locator('.map-choice-menu').count()
+      || !await page.locator('.map-marker:focus').count()) {
+    fail(`${label}: Escape did not close the overlapping-place chooser and restore map focus.`);
   }
 }
 
@@ -719,10 +874,18 @@ async function assertSourceChoiceIndependence(page, label) {
     const preferenceTargets = page.locator(
       `#selected-place-voting button[data-option-id="${optionId}"][data-action="preference"]`,
     );
+    const preferenceGroup = page.locator(
+      `#selected-place-voting .preference-grid[data-option-id="${optionId}"][role="group"][aria-labelledby]`,
+    );
     const commentForm = page.locator(
       `#selected-place-comments form[data-comment-form][data-option-id="${optionId}"]`,
     );
-    if (await preferenceTargets.count() !== 3 || await commentForm.count() !== 1) {
+    const groupLabelId = await preferenceGroup.getAttribute('aria-labelledby');
+    if (await preferenceTargets.count() !== 3
+        || await preferenceGroup.count() !== 1
+        || !groupLabelId
+        || await page.locator(`#${groupLabelId}`).count() !== 1
+        || await commentForm.count() !== 1) {
       fail(`${label}: ${optionId} is not an independent ranking and sticky-note target.`);
     }
   }
@@ -749,6 +912,7 @@ async function assertSourceChoiceIndependence(page, label) {
       || !/Djúpalónssandur/i.test(archive.text)
       || !/Lýsuhólslaug/i.test(archive.text)
       || !/Snæfellsjökull/i.test(archive.text)
+      || !/advance-booking inquiry was sent by email/i.test(archive.text)
       || archive.marker || archive.preference || archive.comment) {
     fail(`${label}: the struck-through Snæfellsnes set is not visible as a complete read-only source decision (${JSON.stringify(archive)}).`);
   }
@@ -1157,6 +1321,7 @@ async function runViewport(viewport, label, mutate = false) {
     await assertBoardStructure(page, label);
     await exerciseTimeline(page, label, label === 'desktop');
     await exerciseMapControls(page, label);
+    await exercisePointerMarkerCollisions(page, label);
     await assertReynisfjaraTruth(page, label);
 
     if (mutate) {
