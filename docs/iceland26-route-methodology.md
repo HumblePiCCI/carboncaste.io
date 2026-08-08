@@ -11,6 +11,8 @@ This note explains how `/iceland26/` turns the family planning document into a d
 
 The source document remains untouched. The site stores the source sequence and the proposed road sequence as different concepts. A source-order conflict appears as an **Order check** in the interface; it is never silently normalized.
 
+Direct strike-through is treated as an authored decision, not as missing data. The revised document's complete Snæfellsnes backup block is preserved in a read-only **Ruled out in the revised source** archive. It has no date, route, map pin, ranking or sticky-note thread, so an earlier idea cannot quietly return to the active plan.
+
 Private reservation numbers, prices, payment splits, opaque Drive links, child heights, personal packing details and identity-document logistics are deliberately excluded from client assets. Public operator contacts and safety links may be included when verified.
 
 ## Four kinds of truth
@@ -41,17 +43,21 @@ Live road and weather truth always overrides the snapshot. Check [Umferðin](htt
 
 ## Material geographic corrections
 
+- The locked August 9 line contains only the airport handoff, Borgarnes provisioning and the booked-base assertion. Deildartunguhver and Hraunfossar are a conditional branch with their own route cost; they never render as booked.
 - The address in the document at Borgarbraut 58–60 is Nettó, not Bónus.
 - Returning to Bjarkalundur after every southern-Westfjords outing creates large backtracks. The booked-night assertion and an efficient clockwise route are shown as a conflict pending a group decision.
 - Rauðasandur and Látrabjarg are separate selectable, rankable slow-road commitments. The full Bjarkalundur–south-coast loop is not represented as a child-realistic day.
 - Eclipse-day Patreksfjörður and Arngerðareyri are separate selectable gathering-site/sleep decisions. Roads 612 and 614 have one-way controls and no shoulder viewing; immediate departure after totality is not assumed.
 - Clockwise north-to-east order is Akureyri/Hauganes → Goðafoss → Mývatn/Hverir → Dettifoss → Stuðlagil → Egilsstaðir. Seyðisfjörður does not precede those northern stops.
+- Ásbyrgi and Húsavík remain active source-document candidates, but each is a separate Diamond Circle branch with a visible road cost. Neither is silently folded into the working eastbound line.
+- Hverir and Hverfjall are separate energy and safety decisions, not one combined vote. Djúpivogur and Stokksnes likewise have separate pins and discussion threads.
 - Seyðisfjörður and Borgarfjörður Eystri are separate Egilsstaðir spokes. Neither is treated as a through-stop on the coastal road south.
 - Large motorhomes stay on Route 1 through the Eastfjords; Route 939/Öxi is not part of the working geometry.
 - Eldhraun belongs between Fjaðrárgljúfur and Vík/Reynisfjara when travelling west.
 - Gljúfrabúi is a short walk north of Seljalandsfoss from the same stop, not across the road. The source hyperlink to Svartifoss is discarded.
 - Herjólfur is a scheduled 35-minute crossing. A day trip defaults to leaving the campers at Landeyjahöfn; taking them requires exact length/height inventory.
-- Westbound Golden Circle order is Gullfoss → Geysir → Þingvellir.
+- Dalfjall, Eldfell, the sanctuary and Herjólfsdalur camping are preserved as distinct island choices. Camping conflicts with the current foot-passenger day-trip assumption until camper-ferry logistics are explicitly changed.
+- Westbound Golden Circle order is Gullfoss → Geysir → Þingvellir, and each core stop has its own ranking and sticky-note thread.
 - Reykjadalur is about 3.5 km each way, not a 3 km total hike.
 - Sky Lagoon is a Reykjavík-area adult split, not an airport-adjacent whole-family stop.
 

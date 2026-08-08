@@ -405,7 +405,7 @@ async function assertBoardStructure(page, label) {
   const countDays = Number(await page.locator('#count-days').textContent());
   const countOptions = Number(await page.locator('#count-options').textContent());
   if (countDays !== 17) fail(`${label}: summary reports ${countDays} days instead of 17.`);
-  if (!Number.isFinite(countOptions) || countOptions < 25) {
+  if (!Number.isFinite(countOptions) || countOptions < 44) {
     fail(`${label}: mapped place count is incomplete (${countOptions}).`);
   }
 
@@ -433,14 +433,14 @@ async function assertBoardStructure(page, label) {
   }));
   if (structure.coastlinePaths < 1) fail(`${label}: Iceland coastline path is missing.`);
   if (structure.routePaths < 12) fail(`${label}: only ${structure.routePaths} route paths were rendered.`);
-  if (structure.markerCount < 25 || structure.accessibleMarkerCount < 25) {
+  if (structure.markerCount < 44 || structure.accessibleMarkerCount < 44) {
     fail(`${label}: map markers are incomplete or not keyboard accessible (${JSON.stringify({
       total: structure.markerCount,
       accessible: structure.accessibleMarkerCount,
     })}).`);
   }
   if (structure.mapRole !== 'group'
-      || await page.locator('#route-map-svg').getByRole('button').count() < 25) {
+      || await page.locator('#route-map-svg').getByRole('button').count() < 44) {
     fail(`${label}: interactive map markers are hidden from the browser accessibility tree.`);
   }
   if (structure.camperCount !== 2) fail(`${label}: expected two accessible camper groups, found ${structure.camperCount}.`);
@@ -700,6 +700,60 @@ async function assertCenteredPlaceDetail(page, label) {
   });
 }
 
+async function assertSourceChoiceIndependence(page, label) {
+  const independentIds = [
+    'asbyrgi',
+    'husavik-whale-watching',
+    'dalfjall-hike',
+    'herjolfsdalur-camping',
+    'hverir-hverfjall',
+    'hverfjall',
+    'djupivogur-stokksnes',
+    'djupivogur',
+    'golden-circle-core',
+    'gullfoss',
+    'thingvellir',
+  ];
+  for (const optionId of independentIds) {
+    await activateMarker(page, optionId);
+    const preferenceTargets = page.locator(
+      `#selected-place-voting button[data-option-id="${optionId}"][data-action="preference"]`,
+    );
+    const commentForm = page.locator(
+      `#selected-place-comments form[data-comment-form][data-option-id="${optionId}"]`,
+    );
+    if (await preferenceTargets.count() !== 3 || await commentForm.count() !== 1) {
+      fail(`${label}: ${optionId} is not an independent ranking and sticky-note target.`);
+    }
+  }
+
+  await activateMarker(page, 'jokulsarlon-boat');
+  const exactLagoonFaq = page.locator(
+    '#place-panel a[href="https://icelagoon.is/faq/is-it-possible-to-take-children-on-board-of-the-boats/"]',
+  );
+  if (await exactLagoonFaq.count() !== 1
+      || await page.locator('#place-panel a[href*="icelagoon.com"]').count()) {
+    fail(`${label}: Jökulsárlón evidence does not stay with the selected operator.`);
+  }
+
+  const archive = await page.evaluate(() => ({
+    text: document.querySelector('#method-details')?.textContent || '',
+    marker: Boolean(document.querySelector('.map-marker[data-option-id="snaefellsnes-ruled-out"]')),
+    preference: Boolean(document.querySelector('[data-action="preference"][data-option-id="snaefellsnes-ruled-out"]')),
+    comment: Boolean(document.querySelector('form[data-comment-form][data-option-id="snaefellsnes-ruled-out"]')),
+  }));
+  if (!/Snæfellsnes/i.test(archive.text)
+      || !/ruled out|struck through/i.test(archive.text)
+      || !/Búðir/i.test(archive.text)
+      || !/Arnarstapi/i.test(archive.text)
+      || !/Djúpalónssandur/i.test(archive.text)
+      || !/Lýsuhólslaug/i.test(archive.text)
+      || !/Snæfellsjökull/i.test(archive.text)
+      || archive.marker || archive.preference || archive.comment) {
+    fail(`${label}: the struck-through Snæfellsnes set is not visible as a complete read-only source decision (${JSON.stringify(archive)}).`);
+  }
+}
+
 async function mutateDesktop(page) {
   await page.locator('#participant-select').selectOption('mary');
   await activateMarker(page, 'dynjandi');
@@ -713,6 +767,11 @@ async function mutateDesktop(page) {
   const stalePollCaptured = new Promise((resolve) => { markStalePollCaptured = resolve; });
   const stalePollRelease = new Promise((resolve) => { releaseStalePoll = resolve; });
   const stalePollFinished = new Promise((resolve) => { markStalePollFinished = resolve; });
+  let releasePreference;
+  let markPreferenceCaptured;
+  let preferenceRequestCount = 0;
+  const preferenceCaptured = new Promise((resolve) => { markPreferenceCaptured = resolve; });
+  const preferenceRelease = new Promise((resolve) => { releasePreference = resolve; });
   const stalePollHandler = async (route) => {
     const requestUrl = new URL(route.request().url());
     if (route.request().method() !== 'GET' || requestUrl.pathname !== '/api/iceland26') {
@@ -730,7 +789,20 @@ async function mutateDesktop(page) {
     }
   };
 
+  const delayedPreferenceHandler = async (route) => {
+    const requestUrl = new URL(route.request().url());
+    if (route.request().method() !== 'POST' || requestUrl.pathname !== '/api/iceland26/preference') {
+      await route.continue();
+      return;
+    }
+    preferenceRequestCount += 1;
+    markPreferenceCaptured();
+    await preferenceRelease;
+    await route.continue();
+  };
+
   await page.route('**/api/iceland26', stalePollHandler);
+  await page.route('**/api/iceland26/preference', delayedPreferenceHandler);
   try {
     await page.evaluate(() => {
       window.__iceland26StaleRefreshProcessed = new Promise((resolve) => {
@@ -742,8 +814,30 @@ async function mutateDesktop(page) {
       stalePollCaptured,
       new Promise((_, reject) => setTimeout(() => reject(new Error('Stale polling request was not captured.')), 5_000)),
     ]);
-    await vote.click();
+    const voteClick = vote.click();
+    await Promise.race([
+      preferenceCaptured,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Preference request was not captured.')), 5_000)),
+    ]);
+    const pendingPreferenceState = await page.evaluate(() => ({
+      busy: document.querySelector('.preference-grid[data-option-id="dynjandi"]')?.getAttribute('aria-busy'),
+      total: document.querySelectorAll('.preference-grid[data-option-id="dynjandi"] button[data-action="preference"]').length,
+      locked: document.querySelectorAll('.preference-grid[data-option-id="dynjandi"] button[data-action="preference"][aria-disabled="true"]').length,
+    }));
+    await page.locator(
+      '#selected-place-voting button[data-option-id="dynjandi"][data-preference="interested"]',
+    ).evaluate((button) => button.click());
+    await page.waitForTimeout(60);
+    if (pendingPreferenceState.busy !== 'true'
+        || pendingPreferenceState.total !== 3
+        || pendingPreferenceState.locked !== 3
+        || preferenceRequestCount !== 1) {
+      fail(`desktop: an in-flight ranking did not lock the full place preference group (${JSON.stringify({ pendingPreferenceState, preferenceRequestCount })}).`);
+    }
+    releasePreference();
+    await voteClick;
     await page.locator('#sync-status').getByText(/revision 1/).waitFor();
+    await page.locator('.preference-grid[data-option-id="dynjandi"][aria-busy="false"]').waitFor();
     releaseStalePoll();
     await stalePollFinished;
     await page.evaluate(async () => {
@@ -766,8 +860,10 @@ async function mutateDesktop(page) {
     }
   } finally {
     releaseStalePoll?.();
+    releasePreference?.();
     await page.evaluate(() => { delete window.__iceland26StaleRefreshProcessed; }).catch(() => {});
     await page.unroute('**/api/iceland26', stalePollHandler).catch(() => {});
+    await page.unroute('**/api/iceland26/preference', delayedPreferenceHandler).catch(() => {});
   }
 
   const noteText = 'This feels like the Westfjords anchor.';
@@ -953,12 +1049,20 @@ async function assertMobileLayout(page) {
     const panel = document.querySelector('#place-panel')?.getBoundingClientRect();
     const planner = getComputedStyle(document.querySelector('.planner-shell'));
     const activeLabel = document.querySelector('.map-marker.is-active .map-marker__label');
+    const camperKey = document.querySelector('.camper-key')?.getBoundingClientRect();
+    const attribution = document.querySelector('.map-attribution')?.getBoundingClientRect();
+    const overlaps = (first, second) => Boolean(first && second
+      && first.left < second.right && first.right > second.left
+      && first.top < second.bottom && first.bottom > second.top);
     const touchTargets = [
       '#logout-button',
       '.date-track button[tabindex="0"]',
       '.map-filter button',
       '.map-zoom button',
+      '.day-stop-list button',
       '.preference-button',
+      '.sticky-form .mini-button',
+      '.alignment-item[role="button"]',
       '#close-place-panel',
     ].map((selector) => document.querySelector(selector)?.getBoundingClientRect().height || 0);
     return {
@@ -970,6 +1074,8 @@ async function assertMobileLayout(page) {
       plannerDisplay: planner.display,
       panelPosition: getComputedStyle(document.querySelector('#place-panel')).position,
       activeLabelDisplay: activeLabel ? getComputedStyle(activeLabel).display : null,
+      markerHitRadius: Number(document.querySelector('.map-marker.is-active .map-marker__touch')?.getAttribute('r')),
+      keyAttributionOverlap: overlaps(camperKey, attribution),
       touchTargets,
     };
   });
@@ -981,6 +1087,8 @@ async function assertMobileLayout(page) {
       || layout.plannerDisplay !== 'flex'
       || layout.panelPosition !== 'absolute'
       || layout.activeLabelDisplay === 'none'
+      || layout.markerHitRadius < 22
+      || layout.keyAttributionOverlap
       || layout.touchTargets.some((height) => height < 43.5)) {
     fail(`mobile: timeline/map/detail panel did not resolve to the mobile planner layout (${JSON.stringify(layout)}).`);
   }
@@ -1053,6 +1161,7 @@ async function runViewport(viewport, label, mutate = false) {
 
     if (mutate) {
       await assertCenteredPlaceDetail(page, label);
+      await assertSourceChoiceIndependence(page, label);
       await mutateDesktop(page);
     } else {
       await assertMobileLayout(page);

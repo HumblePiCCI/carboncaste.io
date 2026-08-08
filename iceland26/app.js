@@ -94,6 +94,7 @@ let camperNodes = [];
 let projectedRoute = [];
 let renderedPanelOptionId = null;
 const commentDrafts = new Map();
+const pendingPreferenceOptions = new Set();
 
 function createElement(tag, className, text) {
   const node = document.createElement(tag);
@@ -831,6 +832,7 @@ function renderMap(animateCampers = false) {
   elements.mapViewport.append(highlightLayer);
 
   const markerLayer = createSvgElement('g');
+  const markerTouchRadius = requiredMarkerTouchRadius();
   allOptions().filter((option) => mapCoordinate(option)).forEach((option) => {
     const point = projectCoordinate(mapCoordinate(option));
     const visible = markerMatchesFilter(option);
@@ -855,6 +857,11 @@ function renderMap(animateCampers = false) {
       'data-focus-key': `marker-${option.id}`,
     });
     marker.append(
+      createSvgElement('circle', {
+        class: 'map-marker__touch',
+        r: markerTouchRadius,
+        'aria-hidden': 'true',
+      }),
       createSvgElement('circle', { class: 'map-marker__halo', r: 15 }),
       createSvgElement('circle', { class: 'map-marker__dot', r: 6 }),
     );
@@ -884,6 +891,20 @@ function renderMap(animateCampers = false) {
   applyZoom();
   if (camperProgress !== null) positionCampers(camperProgress);
   animateCampersTo(progressForDay(selectedDay()), animateCampers);
+}
+
+function requiredMarkerTouchRadius() {
+  const box = elements.mapSvg.getBoundingClientRect();
+  const viewBox = elements.mapSvg.viewBox?.baseVal;
+  if (!viewBox?.width || !viewBox?.height || !box.width || !box.height) return 28;
+  const renderedScale = Math.min(box.width / viewBox.width, box.height / viewBox.height);
+  return renderedScale > 0 ? Math.max(22, Math.ceil(22 / renderedScale)) : 28;
+}
+
+function resizeMarkerTouchTargets() {
+  const radius = requiredMarkerTouchRadius();
+  elements.mapViewport.querySelectorAll('.map-marker__touch')
+    .forEach((target) => target.setAttribute('r', String(radius)));
 }
 
 function appendBadge(parent, text, modifier) {
@@ -1071,6 +1092,9 @@ function renderVoting() {
   panel.append(title);
 
   const preferences = createElement('div', 'preference-grid');
+  const preferencePending = pendingPreferenceOptions.has(option.id);
+  preferences.dataset.optionId = option.id;
+  preferences.setAttribute('aria-busy', String(preferencePending));
   const current = participant ? (votesFor(option.id)[participant] || 'undecided') : 'undecided';
   [
     ['love', 'Love it'],
@@ -1085,6 +1109,8 @@ function renderVoting() {
     button.dataset.focusKey = `preference-${option.id}-${value}`;
     button.classList.toggle('is-active', current === value);
     button.setAttribute('aria-pressed', String(current === value));
+    button.setAttribute('aria-disabled', String(!sharedState.available || preferencePending));
+    if (preferencePending) button.dataset.saving = 'true';
     button.disabled = !sharedState.available;
     preferences.append(button);
   });
@@ -1392,14 +1418,53 @@ function renderMethodology() {
   const methodology = itinerary?.methodology;
   if (typeof methodology === 'string') {
     elements.methodDetails.append(createElement('p', null, methodology));
-    return;
-  }
-  if (methodology && typeof methodology === 'object') {
+  } else if (methodology && typeof methodology === 'object') {
     Object.entries(methodology).forEach(([key, value]) => renderMethodValue(elements.methodDetails, key, value));
   }
+  renderArchivedSourceDecisions(elements.methodDetails);
   if (!elements.methodDetails.childElementCount) {
     elements.methodDetails.append(createElement('p', null, 'No methodology note was supplied with this route snapshot.'));
   }
+}
+
+function renderArchivedSourceDecisions(parent) {
+  const archived = asArray(itinerary?.archivedSourceDecisions);
+  if (!archived.length) return;
+
+  const section = createElement('section', 'archived-source-decisions');
+  const heading = createElement('h3', null, 'Ruled out in the revised source');
+  heading.id = 'archived-source-decisions-title';
+  section.setAttribute('aria-labelledby', heading.id);
+  section.append(
+    heading,
+    createElement(
+      'p',
+      'archived-source-decisions__intro',
+      'Read-only source history. These ideas are preserved for context, but are not route stops and cannot be ranked or discussed here.',
+    ),
+  );
+
+  const list = createElement('div', 'archived-source-decisions__list');
+  archived.forEach((decision) => {
+    const card = createElement('article', 'archived-source-decision');
+    const status = createElement('span', 'archived-source-decision__status', 'Ruled out');
+    card.append(status, createElement('h4', null, firstText(decision?.title, 'Archived source decision')));
+    if (decision?.documentStatus) card.append(createElement('p', null, decision.documentStatus));
+    appendDetailList(card, decision?.items);
+
+    const sourceList = createElement('ul', 'source-list archived-source-decision__sources');
+    asArray(decision?.sources).forEach((source) => {
+      const item = createElement('li');
+      if (appendSafeLink(item, {
+        url: source?.url,
+        label: `${source?.label || 'Source record'} ↗`,
+      })) sourceList.append(item);
+    });
+    if (sourceList.childElementCount) card.append(sourceList);
+    list.append(card);
+  });
+  section.append(list);
+  parent.append(section);
 }
 
 function renderIdeaLocations() {
@@ -1723,30 +1788,40 @@ document.addEventListener('keydown', (event) => {
 
 elements.selectedVoting.addEventListener('click', async (event) => {
   const button = event.target.closest('button[data-action="preference"]');
-  if (!button || button.dataset.saving === 'true') return;
+  if (!button
+      || button.getAttribute('aria-disabled') === 'true'
+      || pendingPreferenceOptions.has(button.dataset.optionId)) return;
   const participant = requireParticipant();
   if (!participant || !canWrite()) return;
+  const optionId = button.dataset.optionId;
   const previous = votesFor(button.dataset.optionId)[participant];
   const preference = previous === button.dataset.preference ? 'undecided' : button.dataset.preference;
-  // A disabled focused button immediately loses keyboard focus in browsers.
-  // Keep it focusable while the request is in flight and use an explicit
-  // saving guard; renderSharedState can then restore the stable focus key.
-  button.dataset.saving = 'true';
-  button.setAttribute('aria-busy', 'true');
+  // Keep the focused control focusable, but lock every ranking for this place
+  // until its mutation finishes. This preserves focus while making rapid user
+  // intent deterministic instead of request-arrival ordered.
+  pendingPreferenceOptions.add(optionId);
+  const preferenceGrid = button.closest('.preference-grid');
+  preferenceGrid?.setAttribute('aria-busy', 'true');
+  preferenceGrid?.querySelectorAll('button[data-action="preference"]').forEach((candidate) => {
+    candidate.dataset.saving = 'true';
+    candidate.setAttribute('aria-disabled', 'true');
+  });
   try {
     await mutate('/api/iceland26/preference', {
       participant,
-      optionId: button.dataset.optionId,
+      optionId,
       preference,
     });
     showToast(preference === 'undecided' ? 'Preference cleared.' : 'Preference saved for the group.');
   } catch {
     // mutate already reports the failure; leave the prior preference intact.
   } finally {
-    const current = [...elements.selectedVoting.querySelectorAll('[data-focus-key]')]
-      .find((candidate) => candidate.dataset.focusKey === button.dataset.focusKey);
-    current?.removeAttribute('data-saving');
-    current?.removeAttribute('aria-busy');
+    pendingPreferenceOptions.delete(optionId);
+    if (selectedOptionId === optionId) {
+      const snapshot = focusSnapshot();
+      renderVoting();
+      restoreFocus(snapshot);
+    }
   }
 });
 
@@ -1871,6 +1946,8 @@ elements.logout.addEventListener('click', async () => {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && itinerary) refreshState({ quiet: true });
 });
+
+window.addEventListener('resize', resizeMarkerTouchTargets, { passive: true });
 
 window.addEventListener('beforeunload', () => {
   clearInterval(refreshTimer);

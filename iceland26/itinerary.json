@@ -49,20 +49,20 @@
       "dayNumber": 2,
       "title": "Arrival to the Westfjords",
       "state": "locked",
-      "summary": "Pick up the two campers, provision at Nettó and reach the booked base. The two short nature stops survive only if the handoff stays on time.",
+      "summary": "Pick up the two campers, provision at Nettó in Borgarnes and follow the direct core to the booked base. The waterfall pair is a separate conditional branch, not part of the locked route.",
       "overnight": "Bjarkalundur · booked assertion",
       "route": {
-        "distanceKm": 331.9,
-        "baseMinutes": 295,
-        "camperMinutes": 390,
+        "distanceKm": 255.5,
+        "baseMinutes": 226,
+        "camperMinutes": 300,
         "confidence": "measured",
-        "note": "Drive time excludes pickup, groceries and visits."
+        "note": "Direct KEF → Borgarnes → Bjarkalundur core only; the conservative camper plan excludes pickup, groceries, visits and the waterfall branch."
       },
       "stopIds": [
         "arrival-bjarkalundur",
         "borgarfjordur-waterfalls"
       ],
-      "orderCheck": "The document’s optional full chain is too long after an overnight flight. Eiríksstaðir is cut; Deildartunguhver/Hraunfossar are conditional.",
+      "orderCheck": "The source’s optional chain is too long after an overnight flight. Eiríksstaðir is cut. From the Borgarnes provision stop, the Deildartunguhver → Hraunfossar → Bjarkalundur branch is 218.0 km / 3h10 car baseline and is excluded from the core.",
       "progress": 0.1321
     },
     {
@@ -163,22 +163,24 @@
       "dayNumber": 7,
       "title": "Akureyri to Mývatn",
       "state": "working",
-      "summary": "Resupply in Akureyri, continue to Goðafoss and choose one Mývatn-scale experience. Hauganes is a genuine out-and-back branch.",
+      "summary": "Resupply in Akureyri, continue to Goðafoss, then choose between the Húsavík whale branch and a Mývatn-scale experience. Hauganes is a separate out-and-back alternative.",
       "overnight": "Mývatn area · open",
       "route": {
         "distanceKm": 181.2,
         "baseMinutes": 168,
         "camperMinutes": 240,
         "confidence": "measured",
-        "note": "Hauganes branch and tour excluded."
+        "note": "Hauganes and Húsavík branches, tours and attraction time are excluded."
       },
       "stopIds": [
         "hauganes-whales",
         "godafoss",
+        "husavik-whale-watching",
         "hverir-hverfjall",
+        "hverfjall",
         "earth-lagoon"
       ],
-      "orderCheck": "The document lists Seyðisfjörður before Námaskarð, Hauganes and Dettifoss. Actual clockwise order is Akureyri/Hauganes → Goðafoss → Mývatn/Hverir → Dettifoss → East Iceland.",
+      "orderCheck": "The source lists Seyðisfjörður before Námaskarð, Hauganes and Dettifoss. Actual clockwise order is Akureyri/Hauganes → Goðafoss → optional Húsavík → Mývatn/Hverir/Hverfjall → Dettifoss → East Iceland. The measured Húsavík alternative is 101.8 km / 1h32 before its three-hour tour.",
       "progress": 0.4895
     },
     {
@@ -188,23 +190,24 @@
       "dayNumber": 8,
       "title": "Volcanic north to East Iceland",
       "state": "working",
-      "summary": "A family birthday travel day with Hverir, Dettifoss and the quick west-side Stuðlagil view before Egilsstaðir. Pick zero or one Eastfjords spoke.",
+      "summary": "A family birthday transfer through the volcanic north. Keep the direct Hverir → Dettifoss → Stuðlagil line, or substitute the Ásbyrgi branch; then pick zero or one Eastfjords spoke.",
       "overnight": "Egilsstaðir area · open",
       "route": {
         "distanceKm": 257,
         "baseMinutes": 257,
         "camperMinutes": 360,
         "confidence": "measured",
-        "note": "Stops turn this into roughly a 9–10h day."
+        "note": "Direct working line only; stops and the 114.0 km / 1h38 Ásbyrgi alternative are excluded."
       },
       "stopIds": [
         "hverir-hverfjall",
+        "asbyrgi",
         "dettifoss-selfoss",
         "studlagil",
         "seydisfjordur",
         "borgarfjordur-eystri"
       ],
-      "orderCheck": "Seyðisfjörður and Borgarfjörður Eystri are separate Egilsstaðir out-and-backs. Neither is “on the way” south, and the east Stuðlagil hike cannot share this schedule.",
+      "orderCheck": "On the Ásbyrgi alternative, actual order is Reykjahlíð → Ásbyrgi → Dettifoss. Seyðisfjörður and Borgarfjörður Eystri are separate Egilsstaðir out-and-backs, neither is “on the way” south, and the east Stuðlagil hike cannot share this schedule.",
       "progress": 0.5918
     },
     {
@@ -214,7 +217,7 @@
       "dayNumber": 9,
       "title": "Eastfjords to Stokksnes",
       "state": "working",
-      "summary": "Stay on coastal Route 1 through Djúpivogur and end at Stokksnes/Höfn.",
+      "summary": "Stay on coastal Route 1, use Djúpivogur as a separate service/reset stop and end at Stokksnes/Höfn.",
       "overnight": "Stokksnes/Höfn area · open",
       "route": {
         "distanceKm": 243.5,
@@ -224,9 +227,10 @@
         "note": "Geometry is forced through Breiðdalsvík to exclude Öxi."
       },
       "stopIds": [
+        "djupivogur",
         "djupivogur-stokksnes"
       ],
-      "orderCheck": "The document calls Djúpivogur → Stokksnes four hours. That adjacent leg is about 99 km; today’s real 244 km total begins at Egilsstaðir and must remain on Route 1, not gravel Route 939/Öxi.",
+      "orderCheck": "The source calls Djúpivogur → Stokksnes four hours. That adjacent leg is about 99 km; today’s real 244 km total begins at Egilsstaðir and must remain on Route 1, not gravel Route 939/Öxi.",
       "progress": 0.6887
     },
     {
@@ -285,20 +289,22 @@
       "dayNumber": 12,
       "title": "Heimaey day",
       "state": "open",
-      "summary": "Reserve an early 35-minute ferry, leave both campers in free Landeyjahöfn passenger parking and use a local tour/taxi on the island.",
+      "summary": "Default to an early 35-minute foot-passenger ferry with both campers left at Landeyjahöfn, then use local transport. Dalfjall is its own hike; camping in Herjólfsdalur is a conflicting overnight branch that first requires a different transport and sleep plan.",
       "overnight": "Mainland or Herjólfsdalur · decide with ferry",
       "route": {
         "distanceKm": 25.6,
         "baseMinutes": 70,
         "camperMinutes": 120,
         "confidence": "scheduled",
-        "note": "Water distance and two sailings; campers parked."
+        "note": "Two 35-minute sailings and mainland driving only; the 3.5 km / 8m Herjólfsdalur island loop requires island transport and is excluded."
       },
       "stopIds": [
+        "beluga-sanctuary",
         "heimaey-puffin-volcano",
-        "beluga-sanctuary"
+        "dalfjall-hike",
+        "herjolfsdalur-camping"
       ],
-      "orderCheck": "The document says 50 minutes and leaves camper logistics unresolved. Current sailing is 35 minutes; taking both rigs requires exact length/height inventory.",
+      "orderCheck": "The source says 50 minutes and leaves camper logistics unresolved. Current scheduled sailing is 35 minutes. Herjólfsdalur camping cannot coexist with leaving the campers on the mainland unless separate island accommodation and equipment are booked.",
       "progress": 0.8559
     },
     {
@@ -308,7 +314,7 @@
       "dayNumber": 13,
       "title": "Golden Circle in road order",
       "state": "working",
-      "summary": "Travel from the Landey/Hella corridor through the core three and camp at Þingvellir.",
+      "summary": "Travel from the Landey/Hella corridor through three independently rankable stops and camp at Þingvellir.",
       "overnight": "Þingvellir · open/bookable",
       "route": {
         "distanceKm": 196.7,
@@ -318,10 +324,12 @@
         "note": "Visits excluded."
       },
       "stopIds": [
+        "gullfoss",
         "golden-circle-core",
+        "thingvellir",
         "silfra-split"
       ],
-      "orderCheck": "The document interleaves the sites. Correct westbound order is Gullfoss → Geysir → Þingvellir.",
+      "orderCheck": "The source interleaves the sites. Correct westbound order is Gullfoss → Geysir/Strokkur → Þingvellir; Silfra is a separate eligibility-gated activity at Þingvellir.",
       "progress": 0.9342
     },
     {
@@ -566,8 +574,8 @@
             "Short waterfall walks can be cut without breaking the day."
           ],
           "drawbacks": [
-            "The routed chain is about 332 km before errands and visits.",
-            "Eiríksstaðir is not realistic after a normal pickup and the two earlier stops.",
+            "The direct core is 255.5 km / 3h46 car baseline before pickup, groceries or visits; the conservative camper plan is 5 hours.",
+            "Eiríksstaðir is not realistic after a normal pickup and the optional waterfall branch.",
             "The booking dates conflict with the efficient Westfjords sequence."
           ]
         },
@@ -577,15 +585,15 @@
           "status": "conditional",
           "standout": false,
           "hook": "A compact first taste of geothermal power and lava-fed waterfalls, both built around short, easy walks.",
-          "planningContext": "The planning document places both between the Borgarnes grocery stop and Bjarkalundur; Eiríksstaðir is a separate optional add-on.",
+          "planningContext": "From the Borgarnes provision stop, the measured waterfall branch via Deildartunguhver and Hraunfossar to Bjarkalundur is 218.0 km / 3h10 car baseline. That is the branch total, not an incremental delta from the direct route.",
           "tags": [
             "family",
             "weather-flex"
           ],
           "logistics": [
-            "Short walks",
-            "Easy terrain",
-            "Keep the first day light"
+            "Optional branch after Borgarnes",
+            "218.0 km / 3h10 car baseline from provision stop",
+            "Visits and camper/weather margin excluded"
           ],
           "sources": [
             {
@@ -604,7 +612,7 @@
               "type": "official"
             }
           ],
-          "documentStatus": "Planned arrival-day stops; not booked and first to cut if pickup runs late.",
+          "documentStatus": "Planned arrival-day stops; not booked and first to cut if pickup runs late. The locked arrival route now bypasses this branch.",
           "location": "West Iceland · Deildartunguhver and Hraunfossar",
           "dayIds": [
             "day-2026-08-09"
@@ -1191,7 +1199,7 @@
       "id": "north",
       "number": "02",
       "title": "North Iceland & the volcanic lake",
-      "dates": "Aug 13–14",
+      "dates": "Aug 13–15",
       "route": "Bjarkalundur → Skagafjörður → Mývatn → Dettifoss",
       "summary": "The itinerary opens up after the eclipse. This chapter needs one honest choice: spend the time on a whale-watching detour, or keep a clean volcanic-and-waterfall line across the north.",
       "options": [
@@ -1430,31 +1438,115 @@
           ]
         },
         {
+          "id": "husavik-whale-watching",
+          "title": "Húsavík Original Whale Watching",
+          "shortTitle": "Húsavík whales",
+          "location": "Húsavík harbour · Skjálfandi Bay",
+          "status": "conditional",
+          "documentStatus": "Ásbyrgi / Húsavík is preserved from the source’s north-Iceland list. No whale tour is booked.",
+          "standout": true,
+          "reviewSignal": "Thousands of tour reviews repeatedly praise the crew, wildlife interpretation and memorable sightings. The consistent drawbacks are cold, seasickness and wildlife variability—no departure can guarantee whales.",
+          "hook": "A three-hour traditional-oak-boat search for whales in the place most associated with the experience.",
+          "planningContext": "This uses North Sailing’s Original tour as the researched operator. The measured Goðafoss → Húsavík → Reykjahlíð alternative is 101.8 km / 1h32 car baseline, excluding check-in and the three-hour tour; it is not part of the working route.",
+          "tags": [
+            "family",
+            "standout",
+            "book-ahead"
+          ],
+          "logistics": [
+            "101.8 km / 1h32 branch baseline",
+            "Tour about 3h",
+            "Book a few days ahead"
+          ],
+          "dayIds": [
+            "day-2026-08-14"
+          ],
+          "map": {
+            "lat": 66.0450541,
+            "lng": -17.3434773,
+            "labelOffset": [
+              14,
+              -14
+            ]
+          },
+          "visit": {
+            "duration": "About 3h plus check-in",
+            "walk": "Harbour boarding",
+            "difficulty": "Cold open-water tour"
+          },
+          "family": {
+            "fit": "North Sailing welcomes children of all ages and allows strollers aboard; cold and duration still need an honest family check.",
+            "stroller": "Allowed aboard by operator",
+            "carrier": "Not applicable aboard",
+            "hazards": [
+              "Cold/wet exposure",
+              "Seasickness",
+              "No sighting guarantee"
+            ],
+            "notes": "Dress children very warmly even when the land weather feels mild."
+          },
+          "amenities": [
+            "Warm overalls and raincoats if needed",
+            "Hot chocolate and cinnamon cookie",
+            "Harbour food and ticket office",
+            "Whale Museum discount with boarding card"
+          ],
+          "booking": {
+            "required": true,
+            "notes": "Reserve a dated departure a few days ahead and reconfirm sea conditions when travelling a long distance.",
+            "url": "https://www.northsailing.is/tour/husavik-original-whale-watching/",
+            "label": "North Sailing Original tour ↗",
+            "phone": "+354 464 7272"
+          },
+          "pros": [
+            "One of North Iceland’s clearest review-backed experiences.",
+            "All-ages operator policy keeps the group together.",
+            "Professional guide and traditional oak boat add context beyond a sighting checklist."
+          ],
+          "drawbacks": [
+            "Adds a booked three-hour activity to an already active north day.",
+            "Cold and seasickness can be significant.",
+            "Wild whales are never guaranteed."
+          ],
+          "sources": [
+            {
+              "label": "North Sailing Original tour",
+              "url": "https://www.northsailing.is/tour/husavik-original-whale-watching/",
+              "type": "official"
+            },
+            {
+              "label": "North Sailing family and weather FAQ",
+              "url": "https://www.northsailing.is/whale-watching/frequently-asked-questions/",
+              "type": "official"
+            },
+            {
+              "label": "Original-tour traveller reviews",
+              "url": "https://www.tripadvisor.com/AttractionProductReview-g189963-d11462056-Traditional_Oak_Ship_Whale_Watching_Tour_From_Husavik-Husavik_Northeast_Region.html",
+              "type": "reviews"
+            }
+          ]
+        },
+        {
           "id": "hverir-hverfjall",
-          "title": "Hverir + Hverfjall",
+          "title": "Hverir geothermal area",
           "status": "open",
           "standout": true,
           "reviewSignal": "A current Mývatn travel guide pairs Hverir’s otherworldly geothermal colour with Hverfjall’s short, steep crater climb; the combination scales cleanly to the day’s energy.",
           "hook": "Steam, sulphur and a near-perfect black tephra crater above Lake Mývatn.",
-          "planningContext": "Hverir can be the short sensory stop. Add the crater rim only if wind, energy and the preceding drive allow.",
+          "planningContext": "This is the short geothermal stop. Rank the longer crater hike independently instead of treating both as one commitment.",
           "tags": [
             "family",
             "standout",
             "weather-flex"
           ],
           "logistics": [
-            "Hverir is brief",
-            "Hverfjall rim about 1 hour",
-            "Mývatn insects can be intense"
+            "30–60 minutes",
+            "Stay on marked paths",
+            "Paid parking/current access to recheck"
           ],
           "sources": [
             {
-              "label": "Hverfjall trail guidance",
-              "url": "https://www.ust.is/english/visiting-iceland/protected-areas/north-east/hverfjall/",
-              "type": "official"
-            },
-            {
-              "label": "Hverir",
+              "label": "Hverir official site",
               "url": "https://www.hverir.com/en",
               "type": "official"
             },
@@ -1464,8 +1556,8 @@
               "type": "travel writing"
             }
           ],
-          "documentStatus": "The document combines several Mývatn ideas. Hverfjall and Hverir are separate energy/safety choices.",
-          "location": "Lake Mývatn volcanic area",
+          "documentStatus": "Named separately in the source. The legacy combined ID remains attached to Hverir so existing rankings and notes survive; Hverfjall now has its own card.",
+          "location": "Námaskarð · Lake Mývatn",
           "dayIds": [
             "day-2026-08-14",
             "day-2026-08-15"
@@ -1479,39 +1571,129 @@
             ]
           },
           "visit": {
-            "duration": "Hverir 30–60m; Hverfjall 1.5–2.5h",
-            "walk": "Marked geothermal paths / steep crater",
-            "difficulty": "Easy Hverir; strenuous loose-ash climb"
+            "duration": "30–60m",
+            "walk": "Short marked geothermal paths",
+            "difficulty": "Easy walking / severe off-path hazard"
           },
           "family": {
-            "fit": "Hverir is the short whole-family choice; Hverfjall depends on wind and hiking energy.",
+            "fit": "A short, vivid whole-family stop only with strict path discipline.",
             "stroller": "No",
-            "carrier": "Useful on Hverfjall",
+            "carrier": "Usually unnecessary",
             "hazards": [
               "Severe geothermal burns",
               "Fragile crust",
-              "Sulfur steam",
-              "Steep loose ash and wind"
+              "Sulfur steam"
             ],
-            "notes": "Never leave marked paths at Hverir. Hverfjall is not stroller-accessible."
+            "notes": "Never leave marked paths or approach vents and boiling mud."
           },
           "amenities": [
-            "Use Reykjahlíð/Dimmuborgir services",
-            "No verified Hverfjall trailhead toilet"
+            "Parking",
+            "Use Reykjahlíð services for food, fuel and toilets"
           ],
           "booking": {
             "required": false,
-            "notes": "No nature-site reservation. Recheck approach and weather."
+            "notes": "No attraction reservation. Recheck parking and live access signs.",
+            "url": "https://www.hverir.com/en",
+            "label": "Official Hverir page ↗"
           },
           "pros": [
-            "Hverir delivers intense volcanic colour in a short stop.",
-            "Hverfjall gives a true crater-scale experience.",
-            "The pair can be scaled to energy."
+            "Intense volcanic colour and steam in a short stop.",
+            "Easy to time-box on either north day.",
+            "Very different sensory experience from the waterfalls."
           ],
           "drawbacks": [
-            "Combining both can crowd an eastbound day.",
-            "Hverir requires strict child control.",
-            "Hverfjall is exposed and physically demanding."
+            "Requires constant child control.",
+            "Sulfur smell and steam can overwhelm some visitors.",
+            "Wind and crowding reduce the payoff."
+          ],
+          "shortTitle": "Hverir"
+        },
+        {
+          "id": "hverfjall",
+          "title": "Hverfjall crater hike",
+          "shortTitle": "Hverfjall",
+          "location": "Lake Mývatn · northwest crater trail",
+          "status": "conditional",
+          "documentStatus": "Named as its own hike in the source. It is now independently rankable instead of being bundled with Hverir.",
+          "standout": true,
+          "reviewSignal": "Traveller reports consistently value the crater-scale view and short ascent; the recurring cautions are the steep loose surface, exposed wind, current parking fee and rough summer access road.",
+          "hook": "Climb the black tephra rim for a volcanic panorama over Lake Mývatn.",
+          "planningContext": "The official northwest route climbs about 600 m to the rim in 10–25 minutes; the full rim is about 3.2 km / one hour before descent. Treat it as the day’s hike, not an automatic add-on to Hverir.",
+          "tags": [
+            "standout",
+            "hike",
+            "weather-flex"
+          ],
+          "logistics": [
+            "600 m ascent trail to rim",
+            "3.2 km rim circuit",
+            "Rough summer approach and wind gate"
+          ],
+          "dayIds": [
+            "day-2026-08-14"
+          ],
+          "map": {
+            "lat": 65.606098,
+            "lng": -16.875055,
+            "labelOffset": [
+              14,
+              18
+            ]
+          },
+          "visit": {
+            "duration": "45–75m summit return; 1.5–2h with rim",
+            "walk": "600 m to rim; 3.2 km rim circuit",
+            "difficulty": "Short, steep and exposed"
+          },
+          "family": {
+            "fit": "A higher-energy hiking choice, not the default whole-family stop.",
+            "stroller": "No",
+            "carrier": "Only for a confident adult in low wind",
+            "hazards": [
+              "Loose tephra",
+              "20–25° slopes",
+              "Exposed crater rim",
+              "Strong wind"
+            ],
+            "notes": "Turn back below the rim if footing, wind or energy is wrong; the south trail toward Dimmuborgir is the steep difficult route."
+          },
+          "amenities": [
+            "Northwest parking area",
+            "No reliable food or full service at the trailhead",
+            "Use Reykjahlíð/Dimmuborgir for services"
+          ],
+          "booking": {
+            "required": false,
+            "notes": "No attraction reservation. Read current parking signs and confirm the approach is suitable for both rigs.",
+            "url": "https://www.ust.is/english/visiting-iceland/protected-areas/north-east/hverfjall/",
+            "label": "Official Hverfjall guidance ↗"
+          },
+          "pros": [
+            "True crater-scale experience in a compact hike.",
+            "Panoramic Mývatn view.",
+            "Summit-only turnaround scales the effort."
+          ],
+          "drawbacks": [
+            "Exposed rim and loose footing are not stroller-friendly.",
+            "Poor approach road needs a live camper check.",
+            "Combining a rim walk with every Mývatn stop overloads the day."
+          ],
+          "sources": [
+            {
+              "label": "Official Hverfjall access and trail lengths",
+              "url": "https://www.ust.is/english/visiting-iceland/protected-areas/north-east/hverfjall/",
+              "type": "official"
+            },
+            {
+              "label": "Official North Iceland destination",
+              "url": "https://www.northiceland.is/en/destinations/family-friendly/hverfjall",
+              "type": "official"
+            },
+            {
+              "label": "Detailed camper trip report",
+              "url": "https://www.reddit.com/r/VisitingIceland/comments/1ex4u9l/julyaug_2024_17_days_campervan_around_iceland/",
+              "type": "travel post"
+            }
           ]
         },
         {
@@ -1594,6 +1776,99 @@
             "Older reviews describe a different facility.",
             "Early post-rebuild value/temperature feedback is mixed.",
             "A fixed slot reduces route flexibility."
+          ]
+        },
+        {
+          "id": "asbyrgi",
+          "title": "Ásbyrgi canyon and Botnstjörn",
+          "shortTitle": "Ásbyrgi",
+          "location": "Jökulsárgljúfur · north of Dettifoss",
+          "status": "conditional",
+          "documentStatus": "Preserved from the source’s “Ásbyrgi / Húsavík” north-Iceland idea. It is not booked and is not on the working Mývatn → Dettifoss line.",
+          "standout": false,
+          "reviewSignal": "The easy pond-and-forest walk draws strong family and tranquillity reports; other travellers rank the canyon floor below Iceland’s more dramatic stops or report rougher footing on optional rim trails.",
+          "hook": "Trade volcanic barrenness for a sheltered horseshoe canyon, birch forest and a quiet pond.",
+          "planningContext": "The measured Reykjahlíð → Ásbyrgi → Dettifoss alternative is 114.0 km / 1h38 car baseline, excluding the visit. On August 15 it only fits by dropping another long stop or changing the overnight target.",
+          "tags": [
+            "family",
+            "weather-flex"
+          ],
+          "logistics": [
+            "114.0 km / 1h38 branch baseline",
+            "A1 Botnstjörn 1 km / 30m",
+            "Visitor centre and campground"
+          ],
+          "dayIds": [
+            "day-2026-08-15"
+          ],
+          "map": {
+            "lat": 66.0284991,
+            "lng": -16.4871638,
+            "labelOffset": [
+              14,
+              -14
+            ]
+          },
+          "visit": {
+            "duration": "45–90m for the easy canyon-floor version",
+            "walk": "A1 Botnstjörn · 1 km / about 30m",
+            "difficulty": "Easy; official limited-mobility route"
+          },
+          "family": {
+            "fit": "The A1 pond trail is the whole-family version; skip exposed rim routes on this schedule.",
+            "stroller": "A1 is designated for limited mobility; verify surface onsite",
+            "carrier": "Not normally needed on A1",
+            "hazards": [
+              "Pond edge",
+              "Cliffs on optional routes",
+              "Long route detour"
+            ],
+            "notes": "Use Gljúfrastofa staff to confirm the simplest open trail and do not drift onto a longer rim hike."
+          },
+          "amenities": [
+            "Gljúfrastofa visitor centre",
+            "Campground washrooms and showers",
+            "Cooking facilities and drinking water",
+            "Laundry and electric pitches at campground"
+          ],
+          "booking": {
+            "required": "Only if sleeping at Ásbyrgi",
+            "notes": "No day-visit ticket. The park advises booking the popular campground, especially for electricity.",
+            "url": "https://www.vatnajokulsthjodgardur.is/en/areas/jokulsargljufur/tjaldsvaedid-i-asbyrgi",
+            "label": "Official Ásbyrgi campground ↗",
+            "phone": "+354 470 7100"
+          },
+          "pros": [
+            "A gentle forest-and-pond contrast to the volcanic north.",
+            "Official short limited-mobility trail.",
+            "Visitor centre and strong campsite services."
+          ],
+          "drawbacks": [
+            "The branch competes directly with Dettifoss, Stuðlagil and reaching Egilsstaðir.",
+            "Some reviews find the easy canyon-floor view modest after other Iceland highlights.",
+            "Longer rim trails introduce cliff and footing risk."
+          ],
+          "sources": [
+            {
+              "label": "Official Ásbyrgi trails",
+              "url": "https://www.vatnajokulsthjodgardur.is/en/areas/jokulsargljufur/asbyrgi",
+              "type": "official"
+            },
+            {
+              "label": "Official Ásbyrgi campground",
+              "url": "https://www.vatnajokulsthjodgardur.is/en/areas/jokulsargljufur/tjaldsvaedid-i-asbyrgi",
+              "type": "official"
+            },
+            {
+              "label": "Current traveller reviews",
+              "url": "https://www.tripadvisor.com/Attraction_Review-g7892530-d523242-Reviews-Asbyrgi_Shelter_of_the_Gods-Asbyrgi_Northeast_Region.html",
+              "type": "reviews"
+            },
+            {
+              "label": "Family trip report",
+              "url": "https://www.reddit.com/r/VisitingIceland/comments/w9gzz0/",
+              "type": "travel post"
+            }
           ]
         },
         {
@@ -1689,7 +1964,7 @@
       "id": "east",
       "number": "03",
       "title": "Eastfjords & the family birthday",
-      "dates": "Aug 15",
+      "dates": "Aug 15–16",
       "route": "Mývatn → Stuðlagil → Eastfjords → Stokksnes",
       "summary": "The birthday day is currently overfull. Stuðlagil needs its own deliberate block; the late-season puffin detour should survive only if the fjord and village are part of the appeal.",
       "options": [
@@ -1777,6 +2052,88 @@
           ]
         },
         {
+          "id": "seydisfjordur",
+          "title": "Seyðisfjörður as a deliberate spoke",
+          "shortTitle": "Seyðisfjörður",
+          "location": "Road 93 from Egilsstaðir",
+          "status": "conditional",
+          "documentStatus": "The source lists Seyðisfjörður before northern stops. Geographically it is a separate Egilsstaðir out-and-back after Stuðlagil, not a through-road south.",
+          "standout": false,
+          "reviewSignal": "Travellers value the fjord arrival and compact town; 2026 campsite reports disagree on crowding/cleanliness, so arrival time matters.",
+          "hook": "A beautiful fjord town worth choosing deliberately—not a free stop between the north and South Coast.",
+          "planningContext": "Only add it by dropping another east detour or accepting a later camp; Road 93 is exposed in fog and wind.",
+          "tags": [
+            "family",
+            "weather-flex"
+          ],
+          "logistics": [
+            "54.5 km return from Egilsstaðir",
+            "2–4h or overnight",
+            "First-come campsite"
+          ],
+          "dayIds": [
+            "day-2026-08-15"
+          ],
+          "map": {
+            "lat": 65.260598,
+            "lng": -14.012072,
+            "labelOffset": [
+              14,
+              18
+            ]
+          },
+          "visit": {
+            "duration": "2–4h or overnight",
+            "walk": "Compact town",
+            "difficulty": "Easy town / exposed mountain road"
+          },
+          "family": {
+            "fit": "Town and campsite are child-friendly when Road 93 conditions are good.",
+            "stroller": "Town dependent",
+            "carrier": "Not normally needed",
+            "hazards": [
+              "Fog/high wind on Fjarðarheiði"
+            ],
+            "notes": "Do not treat it as a through-road south."
+          },
+          "amenities": [
+            "Camp showers",
+            "Kitchen/common room",
+            "Laundry",
+            "Waste/electricity",
+            "Adjacent grocery",
+            "Nearby pool/food/fuel"
+          ],
+          "booking": {
+            "required": false,
+            "notes": "Campsite is first-come; bookings are not possible.",
+            "url": "https://seydisfjordurcampsite.com/",
+            "label": "Official campsite ↗",
+            "phone": "+354 792 0070"
+          },
+          "pros": [
+            "Memorable fjord descent and walkable town.",
+            "Excellent full-service camp."
+          ],
+          "drawbacks": [
+            "Separate 54.5 km return spoke.",
+            "First-come camp can crowd.",
+            "Exposed road requires a live weather call."
+          ],
+          "sources": [
+            {
+              "label": "Official East Iceland destination",
+              "url": "https://www.east.is/en/destinations/communities/seydisfjordur",
+              "type": "official"
+            },
+            {
+              "label": "Official campsite",
+              "url": "https://seydisfjordurcampsite.com/",
+              "type": "official"
+            }
+          ]
+        },
+        {
           "id": "borgarfjordur-eystri",
           "title": "Borgarfjörður Eystri puffin hedge",
           "status": "backup",
@@ -1859,30 +2216,123 @@
           ]
         },
         {
+          "id": "djupivogur",
+          "title": "Djúpivogur slow-town break",
+          "shortTitle": "Djúpivogur",
+          "location": "Eastfjords · Route 1",
+          "status": "working",
+          "documentStatus": "The source calls Djúpivogur a “happy little town on the way to Stokksnes.” It now has its own ranking and notes.",
+          "standout": false,
+          "reviewSignal": "Travellers value the quiet waterfront, services and unusual Eggs of Merry Bay; weaker reviews treat the eggs as a brief photo stop rather than a destination.",
+          "hook": "A deliberately unhurried harbour, useful services and 34 oversized bird eggs beside the water.",
+          "planningContext": "Use this as the flexible service and movement break before Stokksnes, not as part of a fictional four-hour adjacent leg.",
+          "tags": [
+            "family",
+            "services",
+            "weather-flex"
+          ],
+          "logistics": [
+            "30–60 minutes",
+            "Directly on paved Route 1",
+            "Food, fuel, pool and campsite nearby"
+          ],
+          "dayIds": [
+            "day-2026-08-16"
+          ],
+          "map": {
+            "lat": 64.656158,
+            "lng": -14.280251,
+            "labelOffset": [
+              14,
+              18
+            ]
+          },
+          "visit": {
+            "duration": "30–60m",
+            "walk": "Short town/waterfront stroll",
+            "difficulty": "Easy"
+          },
+          "family": {
+            "fit": "A low-pressure movement and resupply stop for the whole group.",
+            "stroller": "Town and waterfront surfaces vary",
+            "carrier": "Usually unnecessary",
+            "hazards": [
+              "Harbour edge",
+              "Road crossings",
+              "Wind"
+            ],
+            "notes": "Let the youngest pace decide whether this is eggs, food, pool or simply a reset."
+          },
+          "amenities": [
+            "Campsite with basic services within 500 m of town amenities",
+            "Swimming pool with hot tubs and small children’s pool",
+            "Food/café",
+            "Fuel and groceries"
+          ],
+          "booking": {
+            "required": false,
+            "notes": "No attraction reservation. Check live hours if relying on the pool, Langabúð or campsite.",
+            "url": "https://www.east.is/en/destinations/communities/djupivogur",
+            "label": "Official East Iceland guide ↗"
+          },
+          "pros": [
+            "Directly on the correct coastal Route 1 line.",
+            "Useful family services and resupply.",
+            "Easy to shorten without losing the route."
+          ],
+          "drawbacks": [
+            "Not a major standalone landscape.",
+            "Waterfront art gets mixed reviews.",
+            "A long lunch here reduces Stokksnes margin."
+          ],
+          "sources": [
+            {
+              "label": "Official East Iceland destination and services",
+              "url": "https://www.east.is/en/destinations/communities/djupivogur",
+              "type": "official"
+            },
+            {
+              "label": "Current Djúpivogur attraction reviews",
+              "url": "https://www.tripadvisor.com/Attractions-g315846-Activities-Djupivogur_East_Region.html",
+              "type": "reviews"
+            }
+          ]
+        },
+        {
           "id": "djupivogur-stokksnes",
-          "title": "Djúpivogur + Stokksnes",
+          "title": "Stokksnes and Vestrahorn",
           "status": "working",
           "standout": false,
           "hook": "A gentler Eastfjords town break followed by black dunes and the sharp Vestrahorn skyline.",
-          "planningContext": "Both appear in the planning document as the line toward the glacier lagoon, not as bookings.",
+          "planningContext": "The adjacent Djúpivogur–Stokksnes road segment is about 99 km, not four hours. The full Egilsstaðir coastal day remains substantial and must stay on Route 1 rather than Öxi/939.",
           "tags": [
             "family",
             "weather-flex"
           ],
           "logistics": [
-            "Scenic drive",
-            "Wind-sensitive",
-            "No wildlife promise"
+            "60–90 minutes",
+            "Paid private access",
+            "Stay on Route 1; no Öxi/939"
           ],
           "sources": [
+            {
+              "label": "Viking Café / Stokksnes",
+              "url": "https://www.vestrahorn.is/viking-cafe-guesthouse",
+              "type": "official"
+            },
             {
               "label": "Stokksnes guide",
               "url": "https://guidetoiceland.is/travel-iceland/drive/stokksnes",
               "type": "guide"
+            },
+            {
+              "label": "Current motorhome discussion",
+              "url": "https://www.reddit.com/r/VisitingIceland/comments/1v3i5sp/can_you_access_vestrahornstokksnes_with_a_smaller/",
+              "type": "travel post"
             }
           ],
-          "documentStatus": "Both are in the document. The adjacent leg is about 99 km, not four hours; the full Egilsstaðir coastal day is still substantial.",
-          "location": "Eastfjords Route 1 · Djúpivogur to Stokksnes",
+          "documentStatus": "Named in the source after Djúpivogur. The legacy combined ID remains attached to Stokksnes so existing rankings and notes survive; Djúpivogur now has its own card.",
+          "location": "Stokksnes · Vestrahorn",
           "dayIds": [
             "day-2026-08-16"
           ],
@@ -1895,25 +2345,25 @@
             ]
           },
           "visit": {
-            "duration": "Djúpivogur 30–60m; Stokksnes 60–90m",
-            "walk": "Short harbour/beach exploration",
-            "difficulty": "Easy; exposed weather"
+            "duration": "60–90m",
+            "walk": "Flexible beach/dune viewpoints",
+            "difficulty": "Easy terrain; exposed weather"
           },
           "family": {
-            "fit": "Good flexible stops on a scenic but long driving day.",
-            "stroller": "Some town/visitor areas",
+            "fit": "A flexible landscape stop if wind and the long coastal drive leave margin.",
+            "stroller": "No on dunes/beach",
             "carrier": "Useful on beach terrain",
             "hazards": [
               "Wind",
               "Black-sand waterline",
               "Unsafe unfinished film-set buildings"
             ],
-            "notes": "Stay on paved Route 1 through the Eastfjords; do not route these campers over Öxi/939."
+            "notes": "Use only the paid access road and signed areas; do not enter unsafe structures."
           },
           "amenities": [
-            "Djúpivogur camp/services",
-            "Fuel/resupply in Djúpivogur or Höfn",
-            "Viking Café toilets/camping"
+            "Viking Café",
+            "Toilets/camping at Viking Café",
+            "Fuel and full resupply in Höfn"
           ],
           "booking": {
             "required": false,
@@ -1923,97 +2373,16 @@
             "phone": "+354 478 2577"
           },
           "pros": [
-            "Scenic coastal Route 1 sequence.",
-            "Djúpivogur is a practical resupply break.",
-            "Vestrahorn is a high-impact landscape."
+            "Vestrahorn is a high-impact landscape.",
+            "Flexible walking and photography.",
+            "Natural end point before Höfn/ice country."
           ],
           "drawbacks": [
-            "About 244 km / 3h40 car baseline from Egilsstaðir via the coast.",
-            "Stokksnes access is private gravel with possible ruts.",
-            "Crowding/value reviews are mixed."
-          ]
-        },
-        {
-          "id": "seydisfjordur",
-          "title": "Seyðisfjörður as a deliberate spoke",
-          "shortTitle": "Seyðisfjörður",
-          "location": "Road 93 from Egilsstaðir",
-          "status": "conditional",
-          "documentStatus": "The source lists Seyðisfjörður before northern stops. Geographically it is a separate Egilsstaðir out-and-back after Stuðlagil, not a through-road south.",
-          "standout": false,
-          "reviewSignal": "Travellers value the fjord arrival and compact town; 2026 campsite reports disagree on crowding/cleanliness, so arrival time matters.",
-          "hook": "A beautiful fjord town worth choosing deliberately—not a free stop between the north and South Coast.",
-          "planningContext": "Only add it by dropping another east detour or accepting a later camp; Road 93 is exposed in fog and wind.",
-          "tags": [
-            "family",
-            "weather-flex"
+            "Private gravel access can have ruts.",
+            "Wind and cloud can hide the mountain.",
+            "Crowding and value reviews are mixed."
           ],
-          "logistics": [
-            "54.5 km return from Egilsstaðir",
-            "2–4h or overnight",
-            "First-come campsite"
-          ],
-          "dayIds": [
-            "day-2026-08-15"
-          ],
-          "map": {
-            "lat": 65.260598,
-            "lng": -14.012072,
-            "labelOffset": [
-              14,
-              18
-            ]
-          },
-          "visit": {
-            "duration": "2–4h or overnight",
-            "walk": "Compact town",
-            "difficulty": "Easy town / exposed mountain road"
-          },
-          "family": {
-            "fit": "Town and campsite are child-friendly when Road 93 conditions are good.",
-            "stroller": "Town dependent",
-            "carrier": "Not normally needed",
-            "hazards": [
-              "Fog/high wind on Fjarðarheiði"
-            ],
-            "notes": "Do not treat it as a through-road south."
-          },
-          "amenities": [
-            "Camp showers",
-            "Kitchen/common room",
-            "Laundry",
-            "Waste/electricity",
-            "Adjacent grocery",
-            "Nearby pool/food/fuel"
-          ],
-          "booking": {
-            "required": false,
-            "notes": "Campsite is first-come; bookings are not possible.",
-            "url": "https://seydisfjordurcampsite.com/",
-            "label": "Official campsite ↗",
-            "phone": "+354 792 0070"
-          },
-          "pros": [
-            "Memorable fjord descent and walkable town.",
-            "Excellent full-service camp."
-          ],
-          "drawbacks": [
-            "Separate 54.5 km return spoke.",
-            "First-come camp can crowd.",
-            "Exposed road requires a live weather call."
-          ],
-          "sources": [
-            {
-              "label": "Official East Iceland destination",
-              "url": "https://www.east.is/en/destinations/communities/seydisfjordur",
-              "type": "official"
-            },
-            {
-              "label": "Official campsite",
-              "url": "https://seydisfjordurcampsite.com/",
-              "type": "official"
-            }
-          ]
+          "shortTitle": "Stokksnes"
         }
       ]
     },
@@ -2021,7 +2390,7 @@
       "id": "glacier",
       "number": "04",
       "title": "Glacier lagoon & ice country",
-      "dates": "Aug 16",
+      "dates": "Aug 17",
       "route": "Stokksnes → Jökulsárlón → Skaftafell",
       "summary": "The clearest unbooked anchor in the plan. Jökulsárlón earns protected time; the group must choose a whole-family boat or split for an age-gated experience.",
       "options": [
@@ -2030,33 +2399,38 @@
           "title": "Jökulsárlón + a lagoon boat",
           "status": "open",
           "standout": true,
-          "reviewSignal": "The Zodiac is repeatedly called a trip highlight and books months ahead, while the shorter amphibian boat is the current whole-family fit.",
+          "reviewSignal": "Recent reviews of the selected operator’s Amphibian praise knowledgeable guides and a safe close-up view of the icebergs. Zodiac reports favour greater immersion, but the Amphibian is the current whole-group fit.",
           "hook": "Move among glacier-blue icebergs, then cross the road to the black-sand Diamond Beach.",
-          "planningContext": "Choose the amphibian for everyone. A Zodiac requires age 10+, so it only works with a childcare split.",
+          "planningContext": "Use Jökulsárlón Boat Tours at icelagoon.is as the selected operator. Its Amphibian is suitable for all ages. Its exact child FAQ sets a 130 cm Zodiac threshold; its 2026 price table lists Zodiac child tickets for ages 10–12, so confirm any edge case directly before paying.",
           "tags": [
             "family",
             "standout",
             "book-ahead"
           ],
           "logistics": [
-            "Amphibian 30–40 minutes",
-            "Zodiac age 10+",
-            "Book once route timing is locked"
+            "Amphibian 30–40m · check in 20m early",
+            "Zodiac 1h15 · check in 30m early",
+            "Selected operator: icelagoon.is"
           ],
           "sources": [
             {
-              "label": "Official 2026 booking",
+              "label": "Selected operator · official 2026 booking",
               "url": "https://icelagoon.is/booking/",
               "type": "official"
             },
             {
-              "label": "Operator FAQ",
-              "url": "https://www.icelagoon.com/frequently-asked-questions/",
+              "label": "Selected operator · exact child FAQ",
+              "url": "https://icelagoon.is/faq/is-it-possible-to-take-children-on-board-of-the-boats/",
               "type": "official"
             },
             {
-              "label": "Recent Zodiac reviews",
-              "url": "https://www.tripadvisor.co.uk/AttractionProductReview-g3676470-d14038000-Small_Group_Glacier_Lagoon_Zodiac_Boat_Tour-East_Region.html",
+              "label": "Selected operator · tour durations",
+              "url": "https://icelagoon.is/tours/",
+              "type": "official"
+            },
+            {
+              "label": "Selected operator · Amphibian reviews",
+              "url": "https://www.tripadvisor.com/Attraction_Review-g12344476-d17644313-Reviews-Amphibian_Boat_Tour-Jokulsarlon_East_Region.html",
               "type": "reviews"
             }
           ],
@@ -2079,7 +2453,7 @@
             "difficulty": "Easy shores; cold/wind exposure"
           },
           "family": {
-            "fit": "Amphibian is the all-ages family option. Zodiac requires children at least 130 cm and its categories begin at age 10.",
+            "fit": "The selected operator’s Amphibian is the all-ages family option. Zodiac requires children to be at least 130 cm.",
             "stroller": "Main service areas",
             "carrier": "Not normally needed",
             "hazards": [
@@ -2109,7 +2483,7 @@
             "Recent reports show Zodiac can sell out same day."
           ],
           "drawbacks": [
-            "Zodiac age/height gates likely split the group.",
+            "The Zodiac height gate likely splits the group.",
             "Weather and ice change operations.",
             "A booked time constrains an already long Aug 17."
           ]
@@ -2595,7 +2969,7 @@
           "standout": true,
           "reviewSignal": "An exceptional review record—about 5.0/5 across hundreds of reviews, including 2026 reports—and one of the itinerary’s best late-season puffin hedges.",
           "hook": "A compact island circuit through Stórhöfði, Eldfell and Herjólfsdalur with a local guide.",
-          "planningContext": "This turns the document’s undefined Heimaey day into a bookable family anchor. Build it around the ferry before adding hikes.",
+          "planningContext": "This local vehicle tour is the researched Eldfell and Stórhöfði option, not a substitute for Dalfjall. The working logistics leave both campers at Landeyjahöfn.",
           "tags": [
             "family",
             "standout",
@@ -2628,7 +3002,7 @@
               "type": "official"
             }
           ],
-          "documentStatus": "The document records strong enthusiasm, not a ferry/tour booking. The working logistics leave both campers at Landeyjahöfn.",
+          "documentStatus": "The document records strong enthusiasm, not a ferry/tour booking. This card preserves the researched Eldfell/puffin vehicle tour; the source-authored Dalfjall hike now has its own card.",
           "location": "Heimaey · foot-passenger day trip",
           "dayIds": [
             "day-2026-08-19"
@@ -2678,6 +3052,187 @@
             "Puffins are not guaranteed on August 19.",
             "Ferry disruption can change ports.",
             "Vehicle ferrying requires exact camper dimensions and scarce inventory."
+          ]
+        },
+        {
+          "id": "dalfjall-hike",
+          "title": "Dalfjall and Eggjar ridge hike",
+          "shortTitle": "Dalfjall hike",
+          "location": "Heimaey · Herjólfsdalur",
+          "status": "conditional",
+          "documentStatus": "Explicitly requested in the source. It is now separate from the researched Eldfell tour and has not been booked.",
+          "standout": false,
+          "reviewSignal": "Traveller posts praise the ridge and ocean views, while local guidance makes the exposure plain: it is self-responsibility terrain, wind changes the decision and the full ridge is not a casual young-child walk.",
+          "hook": "Climb from the green valley onto a narrow island ridge with sea views in every direction.",
+          "planningContext": "The municipality lists about 2.3 km, one hour and 220 m ascent, ending near Sprangan with a 15-minute walk back to Herjólfsdalur. With campers left on the mainland, reach the trailhead by local transport or a long walk—Eldfell is a separate option, not a substitute.",
+          "tags": [
+            "hike",
+            "weather-flex"
+          ],
+          "logistics": [
+            "About 2.3 km / 1h",
+            "About 220 m ascent",
+            "Local transport needed from harbour"
+          ],
+          "dayIds": [
+            "day-2026-08-19"
+          ],
+          "map": {
+            "lat": 63.4448,
+            "lng": -20.2942,
+            "labelOffset": [
+              14,
+              -14
+            ]
+          },
+          "visit": {
+            "duration": "1–1.5h plus local transfer",
+            "walk": "About 2.3 km point-to-point/ridge route",
+            "difficulty": "Steep and exposed"
+          },
+          "family": {
+            "fit": "An adult/strong-hiker split unless live conditions and the group’s demonstrated hiking pace clearly support it.",
+            "stroller": "No",
+            "carrier": "Not recommended on the exposed ridge",
+            "hazards": [
+              "Steep slopes",
+              "Exposed ridge",
+              "Strong wind",
+              "Route-finding"
+            ],
+            "notes": "Local guidance says hikers proceed at their own risk; do not force this into the whole-family day."
+          },
+          "amenities": [
+            "Herjólfsdalur campsite services near trail start",
+            "No services on the ridge",
+            "Town services before/after"
+          ],
+          "booking": {
+            "required": false,
+            "notes": "No hike reservation. Arrange local transport and use the municipal route description plus live wind before committing.",
+            "url": "https://www.vestmannaeyjar.is/menning-mannlif/heilsuraekt-og-utivist/gonguleidir",
+            "label": "Official municipal hiking routes ↗"
+          },
+          "pros": [
+            "Preserves a source-authored island priority.",
+            "Large views from a compact route.",
+            "Starts beside Herjólfsdalur."
+          ],
+          "drawbacks": [
+            "Not the safe whole-family default.",
+            "Wind or wet ground can erase the option.",
+            "Competes with the puffin tour, sanctuary and ferry schedule."
+          ],
+          "sources": [
+            {
+              "label": "Official municipal Dalfjall and Eggjar route",
+              "url": "https://www.vestmannaeyjar.is/menning-mannlif/heilsuraekt-og-utivist/gonguleidir",
+              "type": "official"
+            },
+            {
+              "label": "Current traveller discussion",
+              "url": "https://www.reddit.com/r/VisitingIceland/comments/1d29fbz/hiking_dalfjjall_on_the_westman_islands/",
+              "type": "travel post"
+            },
+            {
+              "label": "Family day-trip perspective",
+              "url": "https://www.reddit.com/r/VisitingIceland/comments/1skm0dl/westman_islands_day_trip/",
+              "type": "travel post"
+            }
+          ]
+        },
+        {
+          "id": "herjolfsdalur-camping",
+          "title": "Camp in Herjólfsdalur",
+          "shortTitle": "Herjólfsdalur camp",
+          "location": "Heimaey · Herjólfsdalur valley",
+          "status": "conditional",
+          "documentStatus": "The source says “camping at base of hike—figure this out.” No pitch, glamping unit or vehicle ferry is booked.",
+          "standout": false,
+          "reviewSignal": "Verified-stay listings rate the valley location exceptionally highly and praise the setting and shared facilities; some campsite reviews warn that toilets can feel too limited at peak occupancy.",
+          "hook": "Sleep beneath the island cliffs at the Dalfjall trailhead instead of racing back to the mainland.",
+          "planningContext": "This conflicts with the current foot-passenger plan that leaves both campers at Landeyjahöfn. Sleeping here in the rented campers requires two vehicle-ferry spaces using exact rig dimensions; otherwise the group needs separately booked tents/glamping or other island lodging. The measured harbour → camp → harbour road loop is 3.5 km / 8 minutes only after transport is on the island.",
+          "tags": [
+            "camping",
+            "book-ahead",
+            "branch"
+          ],
+          "logistics": [
+            "Conflicts with leave-campers-mainland plan",
+            "3.5 km / 8m island road loop",
+            "Contact camp and ferry before assent"
+          ],
+          "dayIds": [
+            "day-2026-08-19"
+          ],
+          "map": {
+            "lat": 63.4424937,
+            "lng": -20.2982342,
+            "labelOffset": [
+              -132,
+              18
+            ]
+          },
+          "visit": {
+            "duration": "Overnight alternative",
+            "walk": "At Dalfjall trail base",
+            "difficulty": "Transport and booking decision"
+          },
+          "family": {
+            "fit": "Potentially excellent family setting only after sleep equipment, toilets and transport are genuinely solved.",
+            "stroller": "Camp-dependent",
+            "carrier": "Optional",
+            "hazards": [
+              "Peak-site crowding",
+              "Cliff/ridge surroundings",
+              "Ferry disruption"
+            ],
+            "notes": "Do not turn a scenic campsite into an unplanned night without the actual sleeping setup."
+          },
+          "amenities": [
+            "Service centre",
+            "Restrooms and showers",
+            "Cooking facilities with dining area",
+            "Cleaning facilities"
+          ],
+          "booking": {
+            "required": "Camp contact plus island transport required",
+            "notes": "Ask the current operator about two pitches or alternative lodging; separately confirm vehicle-ferry inventory if taking either camper.",
+            "url": "https://www.vestmannaeyjar.is/frettir/tjaldsvaedi-i-vestmannaeyjum-1",
+            "label": "Official municipal camp contact ↗",
+            "phone": "+354 860 9073"
+          },
+          "pros": [
+            "Exceptional valley setting and trailhead access.",
+            "Removes same-day ferry return pressure.",
+            "Strong location and facility review signal."
+          ],
+          "drawbacks": [
+            "Directly conflicts with the working foot-passenger plan.",
+            "Ferrying two large rigs requires exact dimensions and scarce inventory.",
+            "Peak-time toilet capacity draws complaints."
+          ],
+          "sources": [
+            {
+              "label": "Official municipal campsite contact",
+              "url": "https://www.vestmannaeyjar.is/frettir/tjaldsvaedi-i-vestmannaeyjum-1",
+              "type": "official"
+            },
+            {
+              "label": "Official Iceland campground directory",
+              "url": "https://tjalda.is/en/campsite/vestmannaeyjar",
+              "type": "official"
+            },
+            {
+              "label": "Current verified-stay reviews",
+              "url": "https://www.booking.com/hotel/is/glamping-amp-camping.en-gb.html",
+              "type": "reviews"
+            },
+            {
+              "label": "Balanced campsite reviews",
+              "url": "https://www.tripadvisor.co.uk/Hotel_Review-g189977-d10440443-Reviews-Glamping_Camping-Vestmannaeyjar_Heimaey_Island_Westmann_Islands_South_Region.html",
+              "type": "reviews"
+            }
           ]
         },
         {
@@ -2766,41 +3321,129 @@
           ]
         },
         {
+          "id": "gullfoss",
+          "title": "Gullfoss waterfall",
+          "shortTitle": "Gullfoss",
+          "location": "Golden Circle · Hvítá river",
+          "status": "working",
+          "documentStatus": "Named in the source, which calls it the country’s busiest waterfall. It now has its own ranking and note target.",
+          "standout": true,
+          "reviewSignal": "A 2026 Travellers’ Choice attraction with 4.7/5 across more than 12,000 reviews at the research snapshot. Visitors praise the scale, power and clear viewpoints; crowds, spray, wind and slippery stairs are the repeated drawbacks.",
+          "hook": "A two-stage glacial waterfall that still delivers scale after a waterfall-heavy circuit.",
+          "planningContext": "First stop in the corrected westbound Golden Circle order: Gullfoss → Geysir → Þingvellir.",
+          "tags": [
+            "family",
+            "standout",
+            "weather-flex"
+          ],
+          "logistics": [
+            "45–60 minutes",
+            "Upper and lower viewpoints",
+            "Go early for the best crowd margin"
+          ],
+          "dayIds": [
+            "day-2026-08-20"
+          ],
+          "map": {
+            "lat": 64.325235,
+            "lng": -20.130594,
+            "labelOffset": [
+              14,
+              -14
+            ]
+          },
+          "visit": {
+            "duration": "45–60m",
+            "walk": "Short signed viewpoints; stairs to lower views",
+            "difficulty": "Easy upper view / wet stairs and path below"
+          },
+          "family": {
+            "fit": "Strong whole-family payoff from the main viewpoints.",
+            "stroller": "Upper area dependent",
+            "carrier": "Helpful for lower path only",
+            "hazards": [
+              "Wet/slippery paths",
+              "Waterfall edge",
+              "Cold spray and wind"
+            ],
+            "notes": "Use the upper view if stairs, spray or crowding make the lower path the wrong choice."
+          },
+          "amenities": [
+            "Parking",
+            "Food/café",
+            "Toilets",
+            "Shop"
+          ],
+          "booking": {
+            "required": false,
+            "notes": "No attraction reservation. Check current path closures and live parking signs.",
+            "url": "https://www.ust.is/english/visiting-iceland/protected-areas/south/gullfoss/",
+            "label": "Official Gullfoss page ↗"
+          },
+          "pros": [
+            "Exceptional current review signal.",
+            "Large payoff with little walking.",
+            "Directly first in the correct road order."
+          ],
+          "drawbacks": [
+            "Peak-hour crowds can dominate the stop.",
+            "Spray and wind make surfaces cold and slippery.",
+            "The group will already have seen many waterfalls."
+          ],
+          "sources": [
+            {
+              "label": "Official Gullfoss protected-area page",
+              "url": "https://www.ust.is/english/visiting-iceland/protected-areas/south/gullfoss/",
+              "type": "official"
+            },
+            {
+              "label": "2026 Gullfoss traveller reviews",
+              "url": "https://www.tripadvisor.co.uk/Attraction_Review-g7940590-d1740559-Reviews-Gullfoss_Falls-Blaskogabyggd_South_Region.html",
+              "type": "reviews"
+            },
+            {
+              "label": "June 2026 reverse-order trip report",
+              "url": "https://www.reddit.com/r/VisitingIceland/comments/1ubuqcp/trip_report_june_613_2026/",
+              "type": "travel post"
+            }
+          ]
+        },
+        {
           "id": "golden-circle-core",
-          "title": "Golden Circle core three",
+          "title": "Geysir geothermal area",
           "status": "working",
           "standout": false,
-          "reviewSignal": "First-time families value the compact mix; repeat visitors often rank it below the Ring Road’s wilder landscapes. Keeping only the core prevents attraction fatigue.",
+          "reviewSignal": "Recent visitors value Strokkur’s repeated eruptions and easy access; crowding, paid parking and confusion between dormant Geysir and active Strokkur drive the weaker reports.",
           "hook": "Þingvellir’s rift and history, Strokkur’s eruption cycle, and the two-tier drop of Gullfoss.",
-          "planningContext": "All three are already in the August 20 plan. Resist stacking secondary detours after a waterfall-rich trip.",
+          "planningContext": "Geysir itself is usually dormant; Strokkur is the repeating eruption people come to see. On this westbound day the road order is Gullfoss → Geysir → Þingvellir.",
           "tags": [
             "family",
             "weather-flex"
           ],
           "logistics": [
-            "Full day at an easy pace",
-            "Stay on geothermal paths",
-            "Expect crowds"
+            "45–60 minutes",
+            "Stay on marked geothermal paths",
+            "Expect peak-hour crowds"
           ],
           "sources": [
             {
-              "label": "Þingvellir Visitor Centre",
-              "url": "https://www.thingvellir.is/en/things-to-do/visitor-centre/",
-              "type": "official"
-            },
-            {
-              "label": "Geysir area rules",
+              "label": "Official Geysir area",
               "url": "https://www.ust.is/english/visiting-iceland/protected-areas/south/geysir-area/about-the-area/",
               "type": "official"
             },
             {
-              "label": "Recent traveller discussion",
-              "url": "https://www.reddit.com/r/VisitingIceland/comments/1mzte9x",
+              "label": "2026 Geysir reviews",
+              "url": "https://www.tripadvisor.co.uk/Attraction_Review-g8342555-d14861044-Reviews-Site_de_Geysir-Haukadalur_South_Region.html",
+              "type": "reviews"
+            },
+            {
+              "label": "June 2026 traveller report",
+              "url": "https://www.reddit.com/r/VisitingIceland/comments/1ubuqcp/trip_report_june_613_2026/",
               "type": "travel post"
             }
           ],
-          "documentStatus": "The document conflates and interleaves these stops. Westbound road order is Gullfoss, then Geysir, then Þingvellir.",
-          "location": "Gullfoss → Geysir → Þingvellir",
+          "documentStatus": "Named in the source. The legacy Golden Circle ID remains attached to Geysir so existing rankings and notes survive; Gullfoss and Þingvellir now have their own cards.",
+          "location": "Haukadalur · Geysir and Strokkur",
           "dayIds": [
             "day-2026-08-20"
           ],
@@ -2813,42 +3456,133 @@
             ]
           },
           "visit": {
-            "duration": "Full 196.7 km touring day",
-            "walk": "Several short sites",
-            "difficulty": "Easy paths; long cumulative day"
+            "duration": "45–60m",
+            "walk": "Short marked geothermal paths",
+            "difficulty": "Easy main path / severe off-path hazard"
           },
           "family": {
-            "fit": "A coherent first-visit trio when kept to the core.",
-            "stroller": "Varies; main visitor areas",
-            "carrier": "Useful",
+            "fit": "A short, dramatic family stop when everyone stays behind barriers.",
+            "stroller": "Main path conditions vary",
+            "carrier": "Usually unnecessary",
             "hazards": [
               "Scalding geothermal water",
-              "Wet waterfall edges",
-              "Hidden fissures"
+              "Unstable crust",
+              "Crowd pressure near Strokkur"
             ],
-            "notes": "Use Gullfoss/Geysir services, then camp at Þingvellir rather than backtrack."
+            "notes": "Keep children beside an adult and never step off the marked path."
           },
           "amenities": [
-            "Gullfoss food/toilets/shop",
-            "Geysir food/fuel/campsite",
-            "Þingvellir visitor centre/camping"
+            "Food",
+            "Fuel",
+            "Toilets",
+            "Shop/hotel/campsite nearby"
           ],
           "booking": {
-            "required": "Attractions do not require booking; Þingvellir camping can be booked.",
-            "notes": "Keep stops time-boxed to avoid attraction fatigue.",
+            "required": false,
+            "notes": "No attraction reservation. Pay any current parking fee and follow live access signs.",
+            "url": "https://www.ust.is/english/visiting-iceland/protected-areas/south/geysir-area/about-the-area/",
+            "label": "Official Geysir area ↗"
+          },
+          "pros": [
+            "Repeated Strokkur eruptions deliver a clear payoff.",
+            "Compact, serviced stop.",
+            "Naturally between Gullfoss and Þingvellir westbound."
+          ],
+          "drawbacks": [
+            "Often the day’s most crowded stop.",
+            "Geysir itself is generally dormant.",
+            "Geothermal hazards require strict path discipline."
+          ],
+          "shortTitle": "Geysir / Strokkur"
+        },
+        {
+          "id": "thingvellir",
+          "title": "Þingvellir National Park",
+          "shortTitle": "Þingvellir",
+          "location": "Golden Circle · rift and Alþingi landscape",
+          "status": "working",
+          "documentStatus": "Named in the source and the working overnight. It now has its own ranking and note target, separate from Silfra.",
+          "standout": true,
+          "reviewSignal": "A 2026 Travellers’ Choice attraction with more than 4,000 reviews at the research snapshot. Travellers value the history, rift landscape and marked walks; crowding, dispersed parking and underestimating the walking time drive weaker reports.",
+          "hook": "End the Golden Circle where Iceland’s parliament and a visible continental rift share one landscape.",
+          "planningContext": "Final stop and working sleep in the corrected westbound order. Rank the national park separately from the age/eligibility-gated Silfra activity.",
+          "tags": [
+            "family",
+            "standout",
+            "camping"
+          ],
+          "logistics": [
+            "1–2 hours for a core walk",
+            "Bookable motorhome campsite",
+            "Hidden fissure supervision"
+          ],
+          "dayIds": [
+            "day-2026-08-20"
+          ],
+          "map": {
+            "lat": 64.25541,
+            "lng": -21.128043,
+            "labelOffset": [
+              -122,
+              -14
+            ]
+          },
+          "visit": {
+            "duration": "1–2h core visit; longer if desired",
+            "walk": "Flexible marked rift/history paths",
+            "difficulty": "Easy to moderate; dispersed site"
+          },
+          "family": {
+            "fit": "A flexible whole-family stop when the route is kept short and adults actively supervise fissures.",
+            "stroller": "Main visitor areas vary",
+            "carrier": "Useful for longer paths",
+            "hazards": [
+              "Hidden fissures and cracks",
+              "Wet paths",
+              "Road and parking crossings"
+            ],
+            "notes": "Official camp rules explicitly require careful child supervision because fissures can be hidden."
+          },
+          "amenities": [
+            "Visitor centre and toilets",
+            "Leirar campsite showers",
+            "Laundry",
+            "Motorhome electricity at Nyrðri/Syðri-Leirar",
+            "Chemical-toilet disposal at Syðri-Leirar"
+          ],
+          "booking": {
+            "required": "Attraction no; campsite optional",
+            "notes": "Advance camping is not required but can be booked. Use a motorhome-capable Leirar area, not the tent-only fields.",
             "url": "https://www.thingvellir.is/en/service/camping/",
-            "label": "Þingvellir camping ↗",
+            "label": "Official Þingvellir camping ↗",
             "phone": "+354 488 1800"
           },
           "pros": [
-            "Three distinct landscapes in one logical line.",
-            "Excellent services between camper nights.",
-            "Easy to shorten without breaking route geography."
+            "National history and rift geology in one stop.",
+            "Core walk can scale to family energy.",
+            "A serviced overnight prevents westbound backtracking."
           ],
           "drawbacks": [
-            "The busiest sightseeing day.",
-            "Can feel less wild after the Ring Road.",
-            "Crowds and cumulative walking add fatigue."
+            "Large, dispersed site is easy to underestimate.",
+            "Crowds and multiple parking areas complicate a short visit.",
+            "Hidden fissures require active supervision."
+          ],
+          "sources": [
+            {
+              "label": "Official Þingvellir visitor centre",
+              "url": "https://www.thingvellir.is/en/things-to-do/visitor-centre/",
+              "type": "official"
+            },
+            {
+              "label": "Official Þingvellir camping and safety rules",
+              "url": "https://www.thingvellir.is/en/service/camping/",
+              "type": "official"
+            },
+            {
+              "label": "2026 Þingvellir traveller reviews",
+              "url": "https://www.tripadvisor.com/Attraction_Review-g315853-d276576-Reviews-Thingvellir_National_Park-Thingvellir_South_Region.html",
+              "type": "reviews"
+            }
           ]
         },
         {
@@ -3438,8 +4172,8 @@
     {
       "id": "decision-north-sleeps",
       "priority": "4 · route shaping",
-      "title": "Name every post-eclipse campsite",
-      "why": "No sleep after the booked base is established. Varmahlíð, Mývatn/Egilsstaðir and the Eastfjords need a real camper pass before bookings.",
+      "title": "Choose north branches + every sleep",
+      "why": "Varmahlíð, Mývatn/Egilsstaðir and the Eastfjords need real camper stops. Hauganes, Húsavík, Hverfjall and Ásbyrgi are competing time commitments, not a stackable list.",
       "deadline": "By Aug 11",
       "status": "open",
       "dayIds": [
@@ -3449,6 +4183,11 @@
       ],
       "optionIds": [
         "hvitserkur-skagafjordur",
+        "hauganes-whales",
+        "husavik-whale-watching",
+        "hverir-hverfjall",
+        "hverfjall",
+        "asbyrgi",
         "earth-lagoon"
       ]
     },
@@ -3470,16 +4209,18 @@
     {
       "id": "decision-heimaey",
       "priority": "6 · book ahead",
-      "title": "Book the ferry and island transport",
-      "why": "Default to foot passengers with campers at Landeyjahöfn. Taking the rigs needs exact dimensions and vehicle inventory.",
+      "title": "Choose the Heimaey day + sleep model",
+      "why": "Default to foot passengers with campers at Landeyjahöfn. Dalfjall needs local transport; Herjólfsdalur camping conflicts with that default and requires either exact-dimension vehicle space or separately booked island sleeping equipment/lodging.",
       "deadline": "At least several days ahead",
       "status": "open",
       "dayIds": [
         "day-2026-08-19"
       ],
       "optionIds": [
+        "beluga-sanctuary",
         "heimaey-puffin-volcano",
-        "beluga-sanctuary"
+        "dalfjall-hike",
+        "herjolfsdalur-camping"
       ]
     },
     {
@@ -3660,6 +4401,34 @@
         {
           "label": "KEF traveller guide",
           "url": "https://www.kefairport.com/news/first-time-in-iceland"
+        }
+      ]
+    }
+  ],
+  "archivedSourceDecisions": [
+    {
+      "id": "snaefellsnes-ruled-out",
+      "title": "Snæfellsnes peninsula",
+      "status": "ruled-out",
+      "documentStatus": "Ruled out in the revised source",
+      "items": [
+        "Búðir · white beach",
+        "Arnarstapi · coastal-cliff hike and birdlife",
+        "Djúpalónssandur · basalt-pebble beach",
+        "Lýsuhólslaug · thermal pools",
+        "Snæfellsjökull glacier",
+        "Ólafsvík-area camping research"
+      ],
+      "sources": [
+        {
+          "label": "Official Snæfellsjökull National Park",
+          "url": "https://www.ust.is/english/visiting-iceland/snaefellsjokull-national-park/",
+          "type": "official"
+        },
+        {
+          "label": "Source-authored Ólafsvík camping page",
+          "url": "https://www.snb.is/is/mannlif/ferdathjonusta/tjaldsvaedi#camping-in-olafsvik",
+          "type": "official"
         }
       ]
     }

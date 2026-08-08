@@ -86,6 +86,10 @@ The board:
   branches differently so unresolved logistics never look booked;
 - flags source-order/geography conflicts rather than silently rearranging the
   source document;
+- gives materially different places their own pin, preference key, and
+  sticky-note thread instead of hiding route choices inside bundled cards;
+- preserves directly struck-through source ideas in a read-only ruled-out
+  archive without returning them to the route or decision system;
 - highlights research-backed standouts with direct official, review, and travel
   post links;
 - shows motorhome planning time separately from the raw routing baseline;
@@ -138,8 +142,8 @@ gate, schema validation, cross-site rejection, concurrent granular updates,
 production-shaped revision continuity, atomic persistence, restart recovery,
 and logout. The interaction run opens a
 task-owned local server and headless Chrome, exercises access, timeline and map
-navigation, accessibility-tree markers, reduced motion, keyboard place selection,
-preference focus, sticky-note drafts (including edits during a save), live-to-read-only
+navigation, accessibility-tree markers and touch targets, reduced motion, keyboard place selection,
+serialized preference intent, preference focus, sticky-note drafts (including edits during a save), live-to-read-only
 transitions, discussion, suggestions, persistence and responsive layouts, records
 screenshots, and tears down its browser, listener, temporary state, and child
 process through signal-aware `finally` paths with force-stop fallbacks.

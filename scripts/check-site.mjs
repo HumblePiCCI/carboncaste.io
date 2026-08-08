@@ -189,8 +189,31 @@ if (itinerary) {
     'jokulsarlon-boat',
     'heimaey-puffin-volcano',
     'departure',
+    'asbyrgi',
+    'husavik-whale-watching',
+    'dalfjall-hike',
+    'herjolfsdalur-camping',
+    'hverfjall',
+    'djupivogur',
+    'gullfoss',
+    'thingvellir',
   ]) {
     if (!ids.includes(preservedId)) failures.push(`Iceland itinerary lost stable option ID: ${preservedId}`);
+  }
+  const archivedSnaefellsnes = itinerary.archivedSourceDecisions?.find(
+    (record) => record.id === 'snaefellsnes-ruled-out',
+  );
+  if (!archivedSnaefellsnes
+      || archivedSnaefellsnes.status !== 'ruled-out'
+      || !Array.isArray(archivedSnaefellsnes.items)
+      || archivedSnaefellsnes.items.length < 6
+      || ids.includes(archivedSnaefellsnes.id)
+      || itinerary.days?.some((day) => day.stopIds.includes(archivedSnaefellsnes.id))) {
+    failures.push('Iceland itinerary must preserve struck-through Snæfellsnes as a complete read-only source decision');
+  }
+  if (itineraryText.includes('icelagoon.com')
+      || !itineraryText.includes('https://icelagoon.is/faq/is-it-possible-to-take-children-on-board-of-the-boats/')) {
+    failures.push('Iceland itinerary must use the selected Jökulsárlón operator\'s own child-policy evidence');
   }
   if (!Array.isArray(itinerary.decisions) || itinerary.decisions.length < 6) {
     failures.push('Iceland itinerary must expose the ordered logistics decision queue');
@@ -255,6 +278,9 @@ for (const value of [
   'requestAnimationFrame',
   'prefers-reduced-motion',
   'commentDrafts',
+  'pendingPreferenceOptions',
+  'archivedSourceDecisions',
+  'map-marker__touch',
   'noreferrer noopener',
 ]) {
   if (!icelandClient.includes(value)) failures.push(`iceland26/app.js is missing ${value}`);

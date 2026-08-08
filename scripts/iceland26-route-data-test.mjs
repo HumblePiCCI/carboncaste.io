@@ -52,6 +52,46 @@ function assertWaypointOrder(mapData, dayId, namedTargets) {
   }
 }
 
+function assertRouteWaypointOrder(mapData, routeId, namedTargets) {
+  const route = mapData.routes.find((candidate) => candidate.id === routeId);
+  if (!route) {
+    fail(`${routeId} is missing.`);
+    return;
+  }
+  const indices = namedTargets.map(([name, target]) => {
+    let bestIndex = -1;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    route.points.forEach((point, index) => {
+      const candidate = distanceSquared(point, target);
+      if (candidate < bestDistance) {
+        bestDistance = candidate;
+        bestIndex = index;
+      }
+    });
+    if (bestDistance > 0.035 ** 2) {
+      fail(`${routeId} geometry does not pass close enough to ${name}.`);
+    }
+    return bestIndex;
+  });
+  for (let index = 1; index < indices.length; index += 1) {
+    if (indices[index] <= indices[index - 1]) {
+      fail(`${routeId} is not in geographic order at ${namedTargets[index][0]}.`);
+      break;
+    }
+  }
+}
+
+function expectedLegDateLabel(leg) {
+  const dayNumbers = leg.options
+    .flatMap((option) => option.dayIds || [])
+    .map((id) => Number(id.slice(-2)))
+    .filter(Number.isFinite);
+  if (!dayNumbers.length) return '';
+  const first = Math.min(...dayNumbers);
+  const last = Math.max(...dayNumbers);
+  return first === last ? `Aug ${first}` : `Aug ${first}–${last}`;
+}
+
 const itineraryText = await readFile('iceland26/itinerary.json', 'utf8');
 const mapText = await readFile('iceland26/map-data.json', 'utf8');
 const itinerary = JSON.parse(itineraryText);
@@ -116,6 +156,13 @@ for (const option of options) {
   }
 }
 
+for (const leg of itinerary.legs) {
+  const expectedDates = expectedLegDateLabel(leg);
+  if (!expectedDates || leg.dates !== expectedDates) {
+    fail(`${leg.id} date label ${JSON.stringify(leg.dates)} does not cover its option days; expected ${JSON.stringify(expectedDates)}.`);
+  }
+}
+
 for (const route of mapData.routes) {
   for (const dayId of route.dayIds) {
     if (!dayIds.has(dayId)) fail(`${route.id} names unknown day ${dayId}.`);
@@ -139,6 +186,14 @@ for (const stableId of [
   'jokulsarlon-boat',
   'heimaey-puffin-volcano',
   'departure',
+  'asbyrgi',
+  'husavik-whale-watching',
+  'dalfjall-hike',
+  'herjolfsdalur-camping',
+  'hverfjall',
+  'djupivogur',
+  'gullfoss',
+  'thingvellir',
 ]) {
   if (!optionIds.has(stableId)) fail(`Stable state key was removed: ${stableId}.`);
 }
@@ -154,8 +209,70 @@ if (!eclipseChoices.includes('eclipse-patreksfjordur')
   fail('Patreksfjörður and Arngerðareyri must remain independently rankable eclipse sites.');
 }
 
-assertWaypointOrder(mapData, 'day-2026-08-09', [
+
+for (const [dayId, requiredIds] of [
+  ['day-2026-08-14', ['husavik-whale-watching', 'hverir-hverfjall', 'hverfjall']],
+  ['day-2026-08-15', ['asbyrgi']],
+  ['day-2026-08-16', ['djupivogur-stokksnes', 'djupivogur']],
+  ['day-2026-08-19', ['dalfjall-hike', 'herjolfsdalur-camping']],
+  ['day-2026-08-20', ['golden-circle-core', 'gullfoss', 'thingvellir']],
+]) {
+  const stopIds = itinerary.days.find((day) => day.id === dayId)?.stopIds || [];
+  for (const requiredId of requiredIds) {
+    if (!stopIds.includes(requiredId)) {
+      fail(`${dayId} does not expose active source choice ${requiredId} as an independent rank/comment target.`);
+    }
+  }
+}
+
+for (const group of [
+  ['hverir-hverfjall', 'hverfjall'],
+  ['djupivogur-stokksnes', 'djupivogur'],
+  ['golden-circle-core', 'gullfoss', 'thingvellir'],
+]) {
+  const records = group.map((id) => options.find((option) => option.id === id));
+  if (records.some((option) => !option?.map)) {
+    fail(`Independent place group is missing a map marker: ${group.join(', ')}.`);
+    continue;
+  }
+  const coordinateKeys = records.map((option) => `${option.map.lat.toFixed(5)},${option.map.lng.toFixed(5)}`);
+  if (new Set(coordinateKeys).size !== coordinateKeys.length) {
+    fail(`Independent place group reuses a combined marker: ${group.join(', ')}.`);
+  }
+}
+
+const archivedDecisions = itinerary.archivedSourceDecisions || [];
+const archivedSnaefellsnes = archivedDecisions.find((record) => record.id === 'snaefellsnes-ruled-out');
+if (!archivedSnaefellsnes
+    || archivedSnaefellsnes.status !== 'ruled-out'
+    || !/struck through|ruled out/i.test(archivedSnaefellsnes.documentStatus || '')
+    || !Array.isArray(archivedSnaefellsnes.items)
+    || archivedSnaefellsnes.items.length < 6) {
+  fail('The revised source\'s struck-through Snæfellsnes decision is not preserved as a complete read-only archive record.');
+}
+if (optionIds.has('snaefellsnes-ruled-out')
+    || itinerary.days.some((day) => day.stopIds.includes('snaefellsnes-ruled-out'))
+    || archivedSnaefellsnes?.map) {
+  fail('Ruled-out Snæfellsnes content must not become a rankable option, dated stop, or map marker.');
+}
+
+if (itineraryText.includes('icelagoon.com')) {
+  fail('Jökulsárlón evidence crosses operators to icelagoon.com.');
+}
+const lagoonOption = options.find((option) => option.id === 'jokulsarlon-boat');
+if (!lagoonOption?.sources?.some((entry) => (
+  entry.url === 'https://icelagoon.is/faq/is-it-possible-to-take-children-on-board-of-the-boats/'
+))) {
+  fail('Jökulsárlón is missing the selected operator\'s exact children-on-boats FAQ.');
+}
+
+assertRouteWaypointOrder(mapData, 'route-2026-08-09', [
   ['Keflavík', [-22.6056, 63.985]],
+  ['Borgarnes', [-21.911829, 64.543145]],
+  ['Bjarkalundur', [-22.103905, 65.556306]],
+]);
+
+assertRouteWaypointOrder(mapData, 'branch-2026-08-09-waterfalls', [
   ['Borgarnes', [-21.911829, 64.543145]],
   ['Deildartunguhver', [-21.410615, 64.663593]],
   ['Hraunfossar', [-20.977717, 64.702799]],
@@ -167,6 +284,18 @@ assertWaypointOrder(mapData, 'day-2026-08-15', [
   ['Dettifoss west', [-16.3994, 65.8122]],
   ['Stuðlagil west', [-15.308125, 65.162327]],
   ['Egilsstaðir', [-14.3948, 65.2669]],
+]);
+
+assertRouteWaypointOrder(mapData, 'branch-2026-08-14-husavik', [
+  ['Goðafoss', [-17.54958, 65.682821]],
+  ['Húsavík harbour', [-17.3434773, 66.0450541]],
+  ['Reykjahlíð', [-16.914, 65.64]],
+]);
+
+assertRouteWaypointOrder(mapData, 'branch-2026-08-15-asbyrgi', [
+  ['Reykjahlíð', [-16.914, 65.64]],
+  ['Ásbyrgi visitor centre', [-16.4871638, 66.0284991]],
+  ['Dettifoss west', [-16.3994, 65.8122]],
 ]);
 
 assertWaypointOrder(mapData, 'day-2026-08-17', [
@@ -185,8 +314,34 @@ const arrivalRoute = mapData.routes.find((route) => (
   route.state === 'locked' && route.dayIds.includes('day-2026-08-09')
 ));
 if (!arrivalRoute) fail('Arrival-day route is not marked locked.');
-if (arrivalRoute && (arrivalRoute.distanceKm < 325 || arrivalRoute.distanceKm > 355)) {
-  fail(`Arrival-day routed distance ${arrivalRoute.distanceKm} km is outside the researched range.`);
+const arrivalDay = itinerary.days.find((day) => day.id === 'day-2026-08-09');
+if (arrivalRoute && Math.abs(arrivalRoute.distanceKm - arrivalDay?.route?.distanceKm) > 0.2) {
+  fail(`Arrival-day core distance disagrees between map (${arrivalRoute.distanceKm} km) and itinerary (${arrivalDay?.route?.distanceKm} km).`);
+}
+const arrivalBranch = mapData.routes.find((route) => route.id === 'branch-2026-08-09-waterfalls');
+if (!arrivalBranch || arrivalBranch.state !== 'branch') {
+  fail('The conditional arrival waterfalls are not isolated in an explicit branch route.');
+}
+
+for (const [routeId, distanceKm, durationMinutes] of [
+  ['route-2026-08-09', 255.5, 226],
+  ['branch-2026-08-09-waterfalls', 218, 190],
+  ['branch-2026-08-14-husavik', 101.8, 92],
+  ['branch-2026-08-15-asbyrgi', 114, 98],
+  ['branch-2026-08-19-herjolfsdalur', 3.5, 8],
+]) {
+  const route = mapData.routes.find((candidate) => candidate.id === routeId);
+  if (!route
+      || Math.abs(route.distanceKm - distanceKm) > 0.1
+      || route.durationMinutes !== durationMinutes) {
+    fail(`${routeId} no longer matches its frozen OSRM route cost (${distanceKm} km / ${durationMinutes} min).`);
+  }
+}
+if (arrivalRoute?.points.some((point) => (
+  distanceSquared(point, [-21.410615, 64.663593]) < 0.02 ** 2
+  || distanceSquared(point, [-20.977717, 64.702799]) < 0.02 ** 2
+))) {
+  fail('The locked arrival core still passes through a conditional waterfall detour.');
 }
 
 const ferryRoutes = mapData.routes.filter((route) => /ferry/i.test(route.id));
@@ -199,6 +354,7 @@ const branchDayIds = new Set(mapData.routes
   .filter((route) => route.state === 'branch')
   .flatMap((route) => route.dayIds));
 for (const requiredBranchDay of [
+  'day-2026-08-09',
   'day-2026-08-10',
   'day-2026-08-11',
   'day-2026-08-14',

@@ -57,7 +57,9 @@ const LOCATIONS = Object.freeze({
   godafoss: [-17.54958, 65.682821],
   reykjahlid: [-16.910007, 65.641561],
   hauganes: [-18.299683, 65.923266],
+  husavikHarbor: [-17.3434773, 66.0450541],
   hverir: [-16.809182, 65.641143],
+  asbyrgiVisitorCentre: [-16.4871638, 66.0284991],
   dettifossWest: [-16.3994, 65.8122],
   studlagilWest: [-15.308125, 65.162327],
   egilsstadir: [-14.3948, 65.2669],
@@ -84,6 +86,7 @@ const LOCATIONS = Object.freeze({
   belugaSanctuary: [-20.269044, 63.442875],
   eldfellParking: [-20.2556, 63.4323],
   storhofdi: [-20.288457, 63.399596],
+  herjolfsdalurCamp: [-20.2982342, 63.4424937],
   gullfoss: [-20.130594, 64.325235],
   geysir: [-20.300735, 64.309511],
   thingvellirP1: [-21.128043, 64.25541],
@@ -93,11 +96,12 @@ const LOCATIONS = Object.freeze({
   skyLagoon: [-21.946435, 64.116465],
 });
 
-const road = (id, day, state, locations) => ({
+const road = (id, day, state, locations, sourceNote = "") => ({
   id,
   dayIds: [day],
   state,
   locations,
+  sourceNote,
   kind: "road",
 });
 
@@ -118,10 +122,15 @@ const ROUTE_CONFIGS = Object.freeze([
   road("route-2026-08-09", "day-2026-08-09", "locked", [
     "kef",
     "nettoBorgarnes",
-    "deildartunguhver",
-    "hraunfossar",
     "bjarkalundur",
   ]),
+  road(
+    "branch-2026-08-09-waterfalls",
+    "day-2026-08-09",
+    "branch",
+    ["nettoBorgarnes", "deildartunguhver", "hraunfossar", "bjarkalundur"],
+    "Optional alternative segment from Borgarnes Nettó through Deildartunguhver and Hraunfossar to Bjarkalundur; not part of the locked core.",
+  ),
   road("route-2026-08-10", "day-2026-08-10", "working", [
     "bjarkalundur",
     "hellulaug",
@@ -174,6 +183,13 @@ const ROUTE_CONFIGS = Object.freeze([
     "hauganes",
     "akureyri",
   ]),
+  road(
+    "branch-2026-08-14-husavik",
+    "day-2026-08-14",
+    "branch",
+    ["godafoss", "husavikHarbor", "reykjahlid"],
+    "Optional Húsavík waterfront alternative between Goðafoss and Reykjahlíð; not part of the working route.",
+  ),
   road("route-2026-08-15", "day-2026-08-15", "working", [
     "reykjahlid",
     "hverir",
@@ -191,6 +207,13 @@ const ROUTE_CONFIGS = Object.freeze([
     "hafnarholmi",
     "egilsstadir",
   ]),
+  road(
+    "branch-2026-08-15-asbyrgi",
+    "day-2026-08-15",
+    "branch",
+    ["reykjahlid", "asbyrgiVisitorCentre", "dettifossWest"],
+    "Optional Ásbyrgi visitor-centre alternative from Reykjahlíð to Dettifoss; not part of the working route.",
+  ),
   road("route-2026-08-16", "day-2026-08-16", "working", [
     "egilsstadir",
     "breiddalsvikCoastVia",
@@ -228,6 +251,13 @@ const ROUTE_CONFIGS = Object.freeze([
     "storhofdi",
     "heimaeyHarbor",
   ]),
+  road(
+    "branch-2026-08-19-herjolfsdalur",
+    "day-2026-08-19",
+    "branch",
+    ["heimaeyHarbor", "herjolfsdalurCamp", "heimaeyHarbor"],
+    "Optional local-transfer road baseline to Herjólfsdalur campsite; the working plan remains foot-passenger ferry travel with both campers parked at Landeyjahöfn.",
+  ),
   manual(
     "route-2026-08-19-ferry-return",
     "day-2026-08-19",
@@ -454,7 +484,7 @@ async function buildRoadRoute(config) {
     distanceKm: Number((route.distance / 1000).toFixed(1)),
     durationMinutes: Math.round(route.duration / 60),
     points,
-    source: `${OSRM_BASE}; OpenStreetMap road graph; fastest driving route through ordered waypoints; car baseline; snapshot ${SNAPSHOT_DATE}.`,
+    source: `${OSRM_BASE}; OpenStreetMap road graph; fastest driving route through ordered waypoints; car baseline; snapshot ${SNAPSHOT_DATE}.${config.sourceNote ? ` ${config.sourceNote}` : ""}`,
   };
 }
 
@@ -549,8 +579,52 @@ function validateSnapshot(snapshot) {
   }
 
   const arrival = snapshot.routes.find((route) => route.id === "route-2026-08-09");
-  if (!arrival || arrival.state !== "locked" || arrival.distanceKm < 325 || arrival.distanceKm > 355) {
-    throw new Error("Locked August 9 road baseline must be between 325 and 355 km.");
+  if (!arrival || arrival.state !== "locked" || arrival.distanceKm < 245 || arrival.distanceKm > 265) {
+    throw new Error("Locked August 9 core road baseline must be between 245 and 265 km.");
+  }
+  if (
+    [LOCATIONS.deildartunguhver, LOCATIONS.hraunfossar].some((optionalStop) =>
+      arrival.points.some((point) => haversineKm(point, optionalStop) < 5),
+    )
+  ) {
+    throw new Error("The locked August 9 core must not traverse the optional waterfalls.");
+  }
+  const requiredBranches = [
+    ["branch-2026-08-09-waterfalls", LOCATIONS.hraunfossar],
+    ["branch-2026-08-14-husavik", LOCATIONS.husavikHarbor],
+    ["branch-2026-08-15-asbyrgi", LOCATIONS.asbyrgiVisitorCentre],
+    ["branch-2026-08-19-herjolfsdalur", LOCATIONS.herjolfsdalurCamp],
+  ];
+  for (const [routeId, destination] of requiredBranches) {
+    const route = snapshot.routes.find((candidate) => candidate.id === routeId);
+    if (
+      !route ||
+      route.state !== "branch" ||
+      route.distanceKm <= 0 ||
+      route.durationMinutes <= 0 ||
+      !route.points.some((point) => haversineKm(point, destination) < 2)
+    ) {
+      throw new Error(`${routeId} is missing accurate optional-branch geometry.`);
+    }
+  }
+  const waterfallBranch = snapshot.routes.find(
+    (route) => route.id === "branch-2026-08-09-waterfalls",
+  );
+  if (
+    [LOCATIONS.deildartunguhver, LOCATIONS.hraunfossar].some(
+      (stop) => !waterfallBranch.points.some((point) => haversineKm(point, stop) < 2),
+    )
+  ) {
+    throw new Error("The waterfall branch must pass both researched waterfall stops.");
+  }
+  for (const [workingRouteId, optionalStop] of [
+    ["route-2026-08-14", LOCATIONS.husavikHarbor],
+    ["route-2026-08-15", LOCATIONS.asbyrgiVisitorCentre],
+  ]) {
+    const workingRoute = snapshot.routes.find((route) => route.id === workingRouteId);
+    if (workingRoute.points.some((point) => haversineKm(point, optionalStop) < 5)) {
+      throw new Error(`${workingRouteId} must not absorb its optional northern branch.`);
+    }
   }
   const ferryRoutes = snapshot.routes.filter((route) => /ferry/i.test(route.id));
   if (
@@ -572,7 +646,7 @@ function validateSnapshot(snapshot) {
   ) {
     throw new Error("The August 16 route must pass Breiddalsvik and avoid Oxi/939.");
   }
-  for (const date of ["10", "11", "14", "15", "19", "23"]) {
+  for (const date of ["09", "10", "11", "14", "15", "19", "23"]) {
     const day = `day-2026-08-${date}`;
     if (!snapshot.routes.some((route) => route.state === "branch" && route.dayIds.includes(day))) {
       throw new Error(`Expected branch geometry for ${day}.`);

@@ -749,8 +749,12 @@ summary:focus-visible,
 }
 
 .day-stop-list button {
+  display: flex;
+  min-height: 44px;
   width: 100%;
-  padding: 0;
+  padding: 0.25rem 0;
+  flex-direction: column;
+  justify-content: center;
   border: 0;
   background: transparent;
   text-align: left;
@@ -938,6 +942,12 @@ summary:focus-visible,
   cursor: pointer;
 }
 
+.map-marker__touch {
+  fill: transparent;
+  pointer-events: all;
+  stroke: none;
+}
+
 .map-marker__halo {
   fill: rgba(255, 253, 246, 0.82);
   stroke: rgba(18, 55, 51, 0.18);
@@ -962,6 +972,7 @@ summary:focus-visible,
 .map-marker.is-active .map-marker__halo { fill: var(--sun); stroke: var(--lava-dark); stroke-width: 2; }
 .map-marker:focus .map-marker__halo { stroke: var(--sun); stroke-width: 6; }
 .map-marker.is-muted { opacity: 0.16; pointer-events: none; }
+.map-marker.is-muted .map-marker__touch { pointer-events: none; }
 
 .map-marker__label {
   fill: var(--ink-deep);
@@ -977,7 +988,6 @@ summary:focus-visible,
 }
 
 .map-marker.is-current-day .map-marker__label,
-.map-marker--standout .map-marker__label,
 .map-marker.is-active .map-marker__label,
 .map-marker:hover .map-marker__label,
 .map-marker:focus .map-marker__label { opacity: 1; }
@@ -1294,6 +1304,16 @@ summary:focus-visible,
 
 .preference-button[data-preference="pass"].is-active { background: var(--open); border-color: var(--open); }
 
+.preference-grid[aria-busy="true"] .preference-button {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.preference-button[aria-disabled="true"]:not([data-saving="true"]) {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
 .voter-summary {
   display: grid;
   gap: 0.38rem;
@@ -1368,6 +1388,7 @@ summary:focus-visible,
 }
 
 .mini-button {
+  min-height: 44px;
   padding: 0.5rem 0.7rem;
   border: 1px solid var(--ink);
   border-radius: 999px;
@@ -1455,8 +1476,13 @@ summary:focus-visible,
 }
 
 .alignment-item {
-  padding-left: 0.65rem;
+  display: flex;
+  min-height: 44px;
+  padding: 0.4rem 0 0.4rem 0.65rem;
+  flex-direction: column;
+  justify-content: center;
   border-left: 3px solid var(--moss);
+  cursor: pointer;
 }
 
 .alignment-item strong,
@@ -1640,6 +1666,73 @@ summary:focus-visible,
 .method-copy details { margin-top: 1.4rem; padding-top: 1rem; border-top: 1px solid var(--line); font-family: var(--sans); font-size: 0.76rem; }
 .method-copy details p { font-family: var(--sans); font-size: 0.72rem; }
 
+.archived-source-decisions {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+  font-family: var(--sans);
+}
+
+.archived-source-decisions h3 {
+  margin: 0;
+  color: var(--lava-dark);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.archived-source-decisions__intro {
+  margin: 0.55rem 0 0;
+}
+
+.archived-source-decisions__list {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.9rem;
+}
+
+.archived-source-decision {
+  padding: 0.9rem;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--lava-dark);
+  background: rgba(255, 253, 246, 0.62);
+}
+
+.archived-source-decision h4 {
+  margin: 0.4rem 0 0;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1rem;
+}
+
+.archived-source-decision p {
+  margin: 0.5rem 0 0;
+}
+
+.archived-source-decision > ul:not(.source-list) {
+  margin: 0.65rem 0 0;
+  padding-left: 1rem;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.archived-source-decision__status {
+  display: inline-flex;
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  color: #633a4d;
+  background: #f1dbe6;
+  font-size: 0.56rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.archived-source-decision__sources {
+  margin-top: 0.7rem;
+}
+
 .idea-dialog {
   width: min(620px, calc(100vw - 2rem));
   padding: 0;
@@ -1810,13 +1903,32 @@ summary:focus-visible,
   .map-section__heading, .section-heading { display: block; }
   .map-section__heading > p, .section-heading > p { margin-top: 1.2rem; }
   .day-rail { max-height: none; }
-  .map-frame { min-height: 650px; }
+  .map-frame {
+    display: flex;
+    min-height: 650px;
+    flex-direction: column;
+  }
   .map-filter button { padding: 0.42rem 0.48rem; font-size: 0.52rem; }
   .map-zoom #zoom-reset { display: none; }
   .map-marker__label { display: none; }
   .map-marker.is-current-day .map-marker__label,
   .map-marker.is-active .map-marker__label,
   .map-marker:focus .map-marker__label { display: block; }
+  .camper-key {
+    position: relative;
+    bottom: auto;
+    left: auto;
+    align-self: flex-start;
+    margin: auto 0.65rem 0.4rem;
+  }
+  .map-attribution {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    margin: 0 0.65rem 0.5rem;
+    line-height: 1.4;
+  }
   .lock-button,
   .identity select,
   .date-track button,
@@ -1825,6 +1937,9 @@ summary:focus-visible,
   .place-panel__close,
   .dialog-close,
   .preference-button,
+  .day-stop-list button,
+  .mini-button,
+  .alignment-item,
   .button { min-height: 44px; }
   .date-track button { min-width: 44px; }
   .place-panel__close,
