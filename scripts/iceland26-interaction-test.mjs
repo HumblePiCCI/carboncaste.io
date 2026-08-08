@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -11,14 +11,27 @@ const baseUrl = `http://127.0.0.1:${port}`;
 const testAccessCode = 'test-only-iceland-code';
 const testAccessHash = createHash('sha256').update(testAccessCode).digest('hex');
 const testInstanceNonce = randomUUID();
+const screenshotDirectory = 'output/playwright/iceland26';
 const chromePaths = [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   '/Applications/Chromium.app/Contents/MacOS/Chromium',
 ];
 const executablePath = chromePaths.find(existsSync);
+const privateLeakPatterns = [
+  /\b\d{3}-\d{3}-\d{5}-\d{6}\b/,
+  /drive\.google\.com/i,
+  /docs\.google\.com/i,
+  /\b(?:reservation|confirmation)\s+(?:id\b|number\b|#)\s*[:#]?\s*[A-Z0-9][A-Z0-9-]{5,}\b/i,
+];
 
-mkdirSync('output/playwright/iceland26', { recursive: true });
+// Never mix this run's QA evidence with screenshots from an older planner.
+rmSync(screenshotDirectory, { recursive: true, force: true });
+mkdirSync(screenshotDirectory, { recursive: true });
+
 const failures = [];
+const ownedPages = new Set();
+const ownedContexts = new Set();
+const ownedProcesses = new Map();
 let temporaryDirectory = null;
 let statePath = null;
 let serverProcess = null;
@@ -30,6 +43,46 @@ let requestedSignalCode = null;
 
 function fail(message) {
   failures.push(message);
+}
+
+function recordProcess(child, label) {
+  if (child?.pid) ownedProcesses.set(child.pid, { child, label });
+}
+
+function processIsAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error?.code === 'EPERM';
+  }
+}
+
+async function waitForExit(child, timeout) {
+  if (!child || child.exitCode !== null || !processIsAlive(child.pid)) return true;
+  return new Promise((resolve) => {
+    const onExit = () => {
+      clearTimeout(timer);
+      resolve(true);
+    };
+    const timer = setTimeout(() => {
+      child.removeListener('exit', onExit);
+      resolve(!processIsAlive(child.pid));
+    }, timeout);
+    child.once('exit', onExit);
+  });
+}
+
+async function settleWithin(promise, timeout) {
+  let timer;
+  try {
+    return await Promise.race([
+      promise.then(() => true, () => false),
+      new Promise((resolve) => { timer = setTimeout(() => resolve(false), timeout); }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function startServer() {
@@ -48,6 +101,7 @@ async function startServer() {
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
+  recordProcess(serverProcess, 'Iceland interaction server');
   let output = '';
   serverProcess.stdout.on('data', (chunk) => { output += chunk; });
   serverProcess.stderr.on('data', (chunk) => { output += chunk; });
@@ -66,30 +120,15 @@ async function startServer() {
           && health.instance === testInstanceNonce
           && serverProcess.exitCode === null) return;
     } catch {
-      // Listener is still starting.
+      // The task-owned listener is still starting.
     }
     await new Promise((resolve) => setTimeout(resolve, 80));
   }
   throw new Error(`Timed out waiting for server.\n${output}`);
 }
 
-async function waitForExit(child, timeout) {
-  if (child.exitCode !== null) return true;
-  return new Promise((resolve) => {
-    const onExit = () => {
-      clearTimeout(timer);
-      resolve(true);
-    };
-    const timer = setTimeout(() => {
-      child.removeListener('exit', onExit);
-      resolve(false);
-    }, timeout);
-    child.once('exit', onExit);
-  });
-}
-
 async function stopServer(child) {
-  if (!child || child.exitCode !== null) return;
+  if (!child || child.exitCode !== null || !processIsAlive(child.pid)) return;
   child.kill('SIGTERM');
   if (await waitForExit(child, 3_000)) return;
   child.kill('SIGKILL');
@@ -98,21 +137,61 @@ async function stopServer(child) {
   }
 }
 
-async function settleWithin(promise, timeout) {
-  let timer;
+async function stopBrowserServer(server) {
+  if (!server) return;
+  const child = server.process();
+  const closed = await settleWithin(server.close(), 3_000);
+  if (!closed && processIsAlive(child?.pid)) await server.kill();
+  if (child && !await waitForExit(child, 3_000)) {
+    await server.kill();
+    if (!await waitForExit(child, 3_000)) {
+      throw new Error(`UI test browser process ${child.pid} survived close and kill.`);
+    }
+  }
+}
+
+async function taskListenerIsAlive() {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 250);
   try {
-    return await Promise.race([
-      promise.then(() => true, () => false),
-      new Promise((resolve) => { timer = setTimeout(() => resolve(false), timeout); }),
-    ]);
+    const response = await fetch(`${baseUrl}/api/iceland26/health`, { signal: controller.signal });
+    const health = await response.json();
+    return response.ok && health.instance === testInstanceNonce;
+  } catch {
+    return false;
   } finally {
     clearTimeout(timer);
+  }
+}
+
+async function verifyOwnedResourcesReleased() {
+  const deadline = Date.now() + 2_000;
+  while (Date.now() < deadline) {
+    const survivingProcess = [...ownedProcesses.entries()]
+      .find(([pid]) => processIsAlive(pid));
+    if (!survivingProcess && !await taskListenerIsAlive()) break;
+    await new Promise((resolve) => setTimeout(resolve, 80));
+  }
+
+  const survivors = [...ownedProcesses.entries()]
+    .filter(([pid]) => processIsAlive(pid))
+    .map(([pid, record]) => `${record.label} pid ${pid}`);
+  if (survivors.length) {
+    throw new Error(`Task-owned processes survived teardown: ${survivors.join(', ')}.`);
+  }
+  if (await taskListenerIsAlive()) {
+    throw new Error(`Task-owned listener survived teardown on 127.0.0.1:${port}.`);
+  }
+  if (ownedPages.size || ownedContexts.size) {
+    throw new Error(`Task-owned browser resources survived teardown (${ownedPages.size} pages, ${ownedContexts.size} contexts).`);
   }
 }
 
 async function cleanupResources() {
   if (cleanupPromise) return cleanupPromise;
   cleanupPromise = (async () => {
+    const pages = [...ownedPages];
+    const contexts = [...ownedContexts];
     const ownedBrowser = browser;
     const ownedBrowserServer = browserServer;
     const ownedServer = serverProcess;
@@ -121,16 +200,31 @@ async function cleanupResources() {
     serverProcess = null;
     const cleanupErrors = [];
 
+    for (const page of pages) {
+      try {
+        await settleWithin(page.close({ runBeforeUnload: false }), 2_000);
+      } catch (error) {
+        cleanupErrors.push(error);
+      } finally {
+        ownedPages.delete(page);
+      }
+    }
+    for (const context of contexts) {
+      try {
+        await settleWithin(context.close(), 2_000);
+      } catch (error) {
+        cleanupErrors.push(error);
+      } finally {
+        ownedContexts.delete(context);
+      }
+    }
     try {
       if (ownedBrowser) await settleWithin(ownedBrowser.close(), 3_000);
     } catch (error) {
       cleanupErrors.push(error);
     }
     try {
-      if (ownedBrowserServer) {
-        const closed = await settleWithin(ownedBrowserServer.close(), 3_000);
-        if (!closed) await ownedBrowserServer.kill();
-      }
+      await stopBrowserServer(ownedBrowserServer);
     } catch (error) {
       cleanupErrors.push(error);
     }
@@ -139,9 +233,16 @@ async function cleanupResources() {
     } catch (error) {
       cleanupErrors.push(error);
     }
+    try {
+      await verifyOwnedResourcesReleased();
+    } catch (error) {
+      cleanupErrors.push(error);
+    }
     if (temporaryDirectory) {
+      const directory = temporaryDirectory;
       try {
-        await rm(temporaryDirectory, { recursive: true, force: true });
+        await rm(directory, { recursive: true, force: true });
+        if (existsSync(directory)) throw new Error(`Temporary test directory survived teardown: ${directory}`);
       } catch (error) {
         cleanupErrors.push(error);
       }
@@ -158,6 +259,7 @@ async function exitAfterCleanup(code) {
     if (browserLaunchPromise) {
       try {
         browserServer ||= await browserLaunchPromise;
+        recordProcess(browserServer.process(), 'Iceland interaction browser');
       } catch {
         // A failed launch owns no live browser process.
       }
@@ -172,313 +274,803 @@ process.once('SIGINT', () => { void exitAfterCleanup(130); });
 process.once('SIGTERM', () => { void exitAfterCleanup(143); });
 process.once('SIGHUP', () => { void exitAfterCleanup(129); });
 
+async function responseHeaders(response) {
+  return response ? await response.headers() : {};
+}
+
+function assertNoPrivateLeak(text, label) {
+  const match = privateLeakPatterns.find((pattern) => pattern.test(text));
+  if (match) fail(`${label}: shared trip content contains private reservation material matching ${match}.`);
+  if (/\b(?:anxiety|anxious|overwhelmed)\b/i.test(text)) {
+    fail(`${label}: interface copy exposes the private emotional context that must stay out of the planner.`);
+  }
+}
+
+async function assertLockedAsset(context, path, label) {
+  const response = await context.request.get(`${baseUrl}${path}`, { maxRedirects: 0 });
+  const headers = await responseHeaders(response);
+  if (response.status() !== 302
+      || !headers.location?.startsWith('/iceland26/access.html')) {
+    fail(`${label}: private asset was not redirected to the trip-code gate (${response.status()}).`);
+  }
+}
+
+async function assertPrivateAsset(context, path, label, inspectText = false) {
+  const response = await context.request.get(`${baseUrl}${path}`);
+  const headers = await responseHeaders(response);
+  if (response.status() !== 200
+      || headers['cache-control'] !== 'private, no-store'
+      || !headers.vary?.toLowerCase().includes('cookie')
+      || !headers['x-robots-tag']?.includes('noindex')) {
+    fail(`${label}: authenticated private asset lacks status/cache/vary/noindex protection.`);
+  }
+  const text = await response.text();
+  if (inspectText) assertNoPrivateLeak(text, label);
+  return text;
+}
+
+async function waitForStateRefresh(page) {
+  await page.evaluate(() => new Promise((resolve) => {
+    document.addEventListener('iceland26:state-refresh-complete', resolve, { once: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  }));
+}
+
+async function assertExternalLinkSafety(page, label) {
+  const unsafe = await page.locator('a[href^="http://"], a[href^="https://"]').evaluateAll((links) => (
+    links.filter((link) => (
+      link.target !== '_blank'
+      || !link.relList.contains('noopener')
+      || !link.relList.contains('noreferrer')
+    )).map((link) => link.href)
+  ));
+  if (unsafe.length) fail(`${label}: external links are missing safe target/rel behavior: ${unsafe.join(', ')}`);
+}
+
+async function assertNoHorizontalOverflow(page, label) {
+  const geometry = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+    bodyScrollWidth: document.body.scrollWidth,
+  }));
+  if (geometry.scrollWidth > geometry.clientWidth + 2
+      || geometry.bodyScrollWidth > geometry.clientWidth + 2) {
+    fail(`${label}: page has horizontal overflow (${JSON.stringify(geometry)}).`);
+  }
+}
+
+async function login(page, context, label) {
+  const accessResponse = await page.goto(`${baseUrl}/iceland26/`, { waitUntil: 'networkidle' });
+  if (!page.url().includes('/iceland26/access.html')) {
+    fail(`${label}: protected trip route did not redirect to the access page.`);
+  }
+  if (accessResponse?.status() !== 200) {
+    fail(`${label}: Iceland access page returned ${accessResponse?.status()}.`);
+  }
+  const accessHeaders = await responseHeaders(accessResponse);
+  if (!accessHeaders['x-robots-tag']?.includes('noindex')) {
+    fail(`${label}: access page is not marked noindex.`);
+  }
+  await assertLockedAsset(context, '/iceland26/itinerary.json', `${label} itinerary gate`);
+  await assertLockedAsset(context, '/iceland26/map-data.json', `${label} map gate`);
+
+  const codeInput = page.locator('#trip-code');
+  await page.screenshot({ path: join(screenshotDirectory, `${label}-access.png`) });
+  await codeInput.focus();
+  const accessFocus = await codeInput.evaluate((input) => {
+    const style = getComputedStyle(input);
+    return { outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth };
+  });
+  if (accessFocus.outlineStyle === 'none' || accessFocus.outlineWidth === '0px') {
+    fail(`${label}: trip-code input has no visible keyboard focus indicator.`);
+  }
+  await codeInput.fill(testAccessCode);
+  await page.getByRole('button', { name: /Enter/ }).click();
+  await page.waitForURL((url) => (
+    url.origin === new URL(baseUrl).origin && /^\/iceland26\/?$/.test(url.pathname)
+  ));
+  await page.waitForLoadState('networkidle');
+
+  const response = await page.reload({ waitUntil: 'networkidle' });
+  const mainHeaders = await responseHeaders(response);
+  if (response?.status() !== 200) fail(`${label}: authenticated Iceland page returned ${response?.status()}.`);
+  if (!mainHeaders['x-robots-tag']?.includes('noindex')
+      || mainHeaders['cache-control'] !== 'private, no-store'
+      || !mainHeaders.vary?.toLowerCase().includes('cookie')) {
+    fail(`${label}: authenticated planner lacks private noindex/cache/vary headers.`);
+  }
+
+  const itineraryText = await assertPrivateAsset(
+    context,
+    '/iceland26/itinerary.json',
+    `${label} itinerary`,
+    true,
+  );
+  const mapText = await assertPrivateAsset(context, '/iceland26/map-data.json', `${label} map`);
+  try {
+    const itinerary = JSON.parse(itineraryText);
+    const map = JSON.parse(mapText);
+    if (itinerary.days?.length !== 17) fail(`${label}: private itinerary does not contain exactly 17 dated days.`);
+    if ((map.routes?.length || 0) < 12) fail(`${label}: private route snapshot contains fewer than 12 route paths.`);
+  } catch (error) {
+    fail(`${label}: private trip assets are not valid JSON (${error.message}).`);
+  }
+
+  await page.locator('#sync-status').getByText(/Shared board live/).waitFor();
+  await page.locator('.map-marker').first().waitFor();
+  await page.screenshot({ path: join(screenshotDirectory, `${label}-hero.png`) });
+}
+
+async function assertBoardStructure(page, label) {
+  const countDays = Number(await page.locator('#count-days').textContent());
+  const countOptions = Number(await page.locator('#count-options').textContent());
+  if (countDays !== 17) fail(`${label}: summary reports ${countDays} days instead of 17.`);
+  if (!Number.isFinite(countOptions) || countOptions < 25) {
+    fail(`${label}: mapped place count is incomplete (${countOptions}).`);
+  }
+
+  const structure = await page.evaluate(() => ({
+    coastlinePaths: [...document.querySelectorAll('.map-land')]
+      .filter((path) => Boolean(path.getAttribute('d'))).length,
+    routePaths: [...document.querySelectorAll('.route-path')]
+      .filter((path) => Boolean(path.getAttribute('d'))).length,
+    markerCount: document.querySelectorAll('.map-marker').length,
+    accessibleMarkerCount: document.querySelectorAll(
+      '.map-marker[role="button"][tabindex="0"][aria-hidden="false"][aria-label]',
+    ).length,
+    mapRole: document.querySelector('#route-map-svg')?.getAttribute('role'),
+    camperCount: document.querySelectorAll('.camper[role="img"][aria-label]').length,
+    dateCount: document.querySelectorAll('#date-track button[data-day-index]').length,
+    tabbableDateCount: document.querySelectorAll('#date-track button[data-day-index][tabindex="0"]').length,
+    range: {
+      min: document.querySelector('#day-scrubber')?.min,
+      max: document.querySelector('#day-scrubber')?.max,
+      step: document.querySelector('#day-scrubber')?.step,
+    },
+    firstDate: document.querySelector('#date-track button')?.getAttribute('aria-label'),
+    lastDate: document.querySelector('#date-track li:last-child button')?.getAttribute('aria-label'),
+    visibleText: document.body.innerText,
+  }));
+  if (structure.coastlinePaths < 1) fail(`${label}: Iceland coastline path is missing.`);
+  if (structure.routePaths < 12) fail(`${label}: only ${structure.routePaths} route paths were rendered.`);
+  if (structure.markerCount < 25 || structure.accessibleMarkerCount < 25) {
+    fail(`${label}: map markers are incomplete or not keyboard accessible (${JSON.stringify({
+      total: structure.markerCount,
+      accessible: structure.accessibleMarkerCount,
+    })}).`);
+  }
+  if (structure.mapRole !== 'group'
+      || await page.locator('#route-map-svg').getByRole('button').count() < 25) {
+    fail(`${label}: interactive map markers are hidden from the browser accessibility tree.`);
+  }
+  if (structure.camperCount !== 2) fail(`${label}: expected two accessible camper groups, found ${structure.camperCount}.`);
+  if (structure.dateCount !== 17
+      || structure.tabbableDateCount !== 1
+      || structure.range.min !== '0'
+      || structure.range.max !== '16'
+      || structure.range.step !== '1'
+      || !/Aug(?:ust)? 8/i.test(structure.firstDate || '')
+      || !/Aug(?:ust)? 24/i.test(structure.lastDate || '')) {
+    fail(`${label}: dated timeline/range is incomplete (${JSON.stringify(structure.range)}; ${structure.dateCount} dates).`);
+  }
+  assertNoPrivateLeak(structure.visibleText, `${label} visible UI`);
+  await assertNoHorizontalOverflow(page, label);
+  await assertExternalLinkSafety(page, label);
+}
+
+async function exerciseTimeline(page, label, captureMap = false) {
+  const dateButtons = page.locator('#date-track button[data-day-index]');
+  const firstDate = dateButtons.first();
+  const secondDate = dateButtons.nth(1);
+  const lastDate = dateButtons.last();
+
+  await firstDate.focus();
+  await page.keyboard.press('End');
+  if (await lastDate.getAttribute('aria-current') !== 'date'
+      || await page.evaluate(() => document.activeElement?.dataset.dayIndex) !== '16') {
+    fail(`${label}: End did not move the timeline to/focus Aug 24.`);
+  }
+  await page.waitForTimeout(720);
+  const finalCamperSeparation = await page.locator('.camper').evaluateAll((campers) => {
+    const points = campers.map((camper) => {
+      const matrix = camper.transform.baseVal.consolidate()?.matrix;
+      return matrix ? { x: matrix.e, y: matrix.f } : null;
+    });
+    return points.every(Boolean) ? Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y) : null;
+  });
+  if (!Number.isFinite(finalCamperSeparation) || finalCamperSeparation > 15) {
+    fail(`${label}: both campers did not reach the final route endpoint together (${finalCamperSeparation}).`);
+  }
+  await page.keyboard.press('Home');
+  if (await firstDate.getAttribute('aria-current') !== 'date'
+      || await page.evaluate(() => document.activeElement?.dataset.dayIndex) !== '0') {
+    fail(`${label}: Home did not move the timeline to/focus Aug 8.`);
+  }
+  await page.keyboard.press('ArrowRight');
+  if (await secondDate.getAttribute('aria-current') !== 'date'
+      || await page.evaluate(() => document.activeElement?.dataset.dayIndex) !== '1') {
+    fail(`${label}: ArrowRight did not provide roving date navigation.`);
+  }
+  const lockedHighlightPattern = await page.locator(
+    '.route-day-highlight[data-route-state="locked"]',
+  ).first().evaluate((path) => getComputedStyle(path).strokeDasharray);
+  await firstDate.focus();
+  await page.keyboard.press('Home');
+  await page.waitForTimeout(720);
+  const camperBefore = await page.locator('.camper').evaluateAll((campers) => (
+    campers.map((camper) => camper.getAttribute('transform'))
+  ));
+
+  const scrubber = page.locator('#day-scrubber');
+  await scrubber.evaluate((input) => {
+    input.value = '11';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await page.locator('#selected-day-date').getByText(/Aug 19/i).waitFor();
+  const highlightStyles = await page.locator('.route-day-highlight').evaluateAll((paths) => (
+    paths.map((path) => ({
+      state: path.dataset.routeState,
+      dash: getComputedStyle(path).strokeDasharray,
+    }))
+  ));
+  const workingHighlight = highlightStyles.find((entry) => entry.state === 'working');
+  const branchHighlight = highlightStyles.find((entry) => entry.state === 'branch');
+  if (!workingHighlight || !branchHighlight
+      || workingHighlight.dash === lockedHighlightPattern
+      || branchHighlight.dash === workingHighlight.dash) {
+    fail(`${label}: selected-day locked, working and branch routes are not visually distinct (${JSON.stringify({ lockedHighlightPattern, highlightStyles })}).`);
+  }
+
+  await scrubber.evaluate((input) => {
+    input.value = '12';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await page.locator('#selected-day-date').getByText(/Aug 20/i).waitFor();
+  await page.locator('#order-check:not([hidden])').waitFor();
+  await page.waitForFunction((before) => {
+    const current = [...document.querySelectorAll('.camper')]
+      .map((camper) => camper.getAttribute('transform'));
+    return current.length === 2 && current.some((value, index) => value !== before[index]);
+  }, camperBefore);
+  await page.waitForTimeout(720);
+
+  const timelineState = await page.evaluate(() => ({
+    date: document.querySelector('#selected-day-date')?.textContent,
+    title: document.querySelector('#day-rail-title')?.textContent,
+    order: document.querySelector('#order-check')?.textContent,
+    rangeValue: document.querySelector('#day-scrubber')?.value,
+    rangeText: document.querySelector('#day-scrubber')?.getAttribute('aria-valuetext'),
+    campers: [...document.querySelectorAll('.camper')]
+      .map((camper) => camper.getAttribute('transform')),
+  }));
+  const order = timelineState.order || '';
+  const geographicOrder = ['Gullfoss', 'Geysir', 'Þingvellir'].map((place) => order.indexOf(place));
+  if (!/Aug 20/i.test(timelineState.date || '')
+      || !/Golden Circle/i.test(`${timelineState.title} ${order}`)
+      || geographicOrder.some((index) => index < 0)
+      || !(geographicOrder[0] < geographicOrder[1] && geographicOrder[1] < geographicOrder[2])
+      || timelineState.rangeValue !== '12'
+      || !/Day 13 of 17/i.test(timelineState.rangeText || '')) {
+    fail(`${label}: Aug 20 Golden Circle order check is missing or not in geographic order (${JSON.stringify(timelineState)}).`);
+  }
+  if (timelineState.campers.every((value, index) => value === camperBefore[index])) {
+    fail(`${label}: moving the date scrubber did not move the two campers.`);
+  }
+
+  if (captureMap) {
+    await page.locator('#close-place-panel').click();
+    await page.locator('#place-panel.is-closed').waitFor();
+    await page.waitForTimeout(220);
+    await page.locator('.planner-shell').screenshot({
+      path: join(screenshotDirectory, 'desktop-map.png'),
+    });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await scrubber.evaluate((input) => {
+      input.value = '16';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    const reducedImmediately = await page.locator('.camper').evaluateAll((campers) => (
+      campers.map((camper) => camper.getAttribute('transform'))
+    ));
+    await page.waitForTimeout(80);
+    const reducedAfter = await page.locator('.camper').evaluateAll((campers) => (
+      campers.map((camper) => camper.getAttribute('transform'))
+    ));
+    if (JSON.stringify(reducedImmediately) !== JSON.stringify(reducedAfter)) {
+      fail(`${label}: reduced-motion mode still animated the campers.`);
+    }
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+  }
+}
+
+async function exerciseMapControls(page, label) {
+  const totalMarkers = await page.locator('.map-marker').count();
+  for (const filter of ['locked', 'standout', 'open']) {
+    const button = page.locator(`[data-map-filter="${filter}"]`);
+    await button.click();
+    const visible = await page.locator('.map-marker[aria-hidden="false"][tabindex="0"]').count();
+    if (await button.getAttribute('aria-pressed') !== 'true'
+        || visible < 1
+        || visible >= totalMarkers
+        || await page.locator('.map-marker[aria-hidden="true"]:not([tabindex="-1"])').count()) {
+      fail(`${label}: ${filter} map filter does not expose a valid accessible subset (${visible}/${totalMarkers}).`);
+    }
+  }
+  const all = page.locator('[data-map-filter="all"]');
+  await all.click();
+  if (await all.getAttribute('aria-pressed') !== 'true'
+      || await page.locator('.map-marker[aria-hidden="false"][tabindex="0"]').count() !== totalMarkers) {
+    fail(`${label}: All map filter did not restore every marker.`);
+  }
+
+  const viewport = page.locator('#map-viewport');
+  await page.locator('#zoom-in').click();
+  if (await viewport.evaluate((node) => node.style.transform) !== 'scale(1.2)'
+      || await page.locator('#zoom-out').isDisabled()) {
+    fail(`${label}: map zoom-in did not update the view and controls.`);
+  }
+  const reset = page.locator('#zoom-reset');
+  if (await reset.isVisible()) await reset.click();
+  else await page.locator('#zoom-out').click();
+  if (await viewport.evaluate((node) => node.style.transform) !== 'scale(1)'
+      || !await reset.isDisabled()) {
+    fail(`${label}: map reset did not restore the canonical view.`);
+  }
+}
+
+async function activateMarker(page, optionId, key = 'Enter') {
+  const marker = page.locator(`.map-marker[data-option-id="${optionId}"]`);
+  await marker.focus();
+  await marker.press(key);
+  await page.locator('#place-panel[aria-hidden="false"]').waitFor();
+  return marker;
+}
+
+async function assertReynisfjaraTruth(page, label) {
+  await activateMarker(page, 'reynisfjara');
+  const panel = page.locator('#place-panel');
+  const panelText = await panel.innerText();
+  if (!/viewpoint[\s\-–—‑]*only/i.test(panelText)) {
+    fail(`${label}: Reynisfjara does not expose the current viewpoint-only access state.`);
+  }
+  const evidence = panel.locator('details', { hasText: /Evidence and source links/i });
+  await evidence.locator('summary').click();
+  const safeTravelSource = evidence.locator('a[href*="safetravel.is"]');
+  if (!await safeTravelSource.count()) {
+    fail(`${label}: Reynisfjara viewpoint-only guidance lacks its current SafeTravel source.`);
+  }
+  await assertExternalLinkSafety(page, `${label} Reynisfjara evidence`);
+}
+
+async function assertCenteredPlaceDetail(page, label) {
+  await activateMarker(page, 'dynjandi');
+  const panel = page.locator('#place-panel');
+  await panel.getByRole('heading', { name: /Dynjandi/i }).waitFor();
+  const detailState = await page.evaluate(() => ({
+    activeId: document.activeElement?.id,
+    panelHidden: document.querySelector('#place-panel')?.getAttribute('aria-hidden'),
+    panel: document.querySelector('#place-panel')?.getBoundingClientRect().toJSON(),
+    map: document.querySelector('#map-frame')?.getBoundingClientRect().toJSON(),
+    closeHit: (() => {
+      const close = document.querySelector('#close-place-panel');
+      const box = close?.getBoundingClientRect();
+      if (!box) return null;
+      return document.elementFromPoint(box.x + (box.width / 2), box.y + (box.height / 2))?.id;
+    })(),
+  }));
+  const panelCenter = detailState.panel.x + (detailState.panel.width / 2);
+  const mapCenter = detailState.map.x + (detailState.map.width / 2);
+  if (detailState.activeId !== 'place-panel'
+      || detailState.panelHidden !== 'false'
+      || detailState.closeHit !== 'close-place-panel'
+      || Math.abs(panelCenter - mapCenter) > 8) {
+    fail(`${label}: keyboard marker activation did not open/focus a centered detail panel (${JSON.stringify(detailState)}).`);
+  }
+  await page.keyboard.press('Escape');
+  const escapeState = await page.evaluate(() => ({
+    panelHidden: document.querySelector('#place-panel')?.getAttribute('aria-hidden'),
+    focusedOption: document.activeElement?.dataset.optionId,
+  }));
+  if (escapeState.panelHidden !== 'true' || escapeState.focusedOption !== 'dynjandi') {
+    fail(`${label}: Escape did not close the place detail and restore its map/stop focus (${JSON.stringify(escapeState)}).`);
+  }
+  await activateMarker(page, 'dynjandi');
+  for (const heading of ['Family fit', 'Amenities', 'Why it earns time', 'What could break it']) {
+    if (!await panel.getByRole('heading', { name: heading, exact: true }).count()) {
+      fail(`${label}: Dynjandi detail is missing the ${heading} section.`);
+    }
+  }
+  const evidence = panel.locator('details', { hasText: /Evidence and source links/i });
+  if (!await evidence.count()) fail(`${label}: Dynjandi detail has no expandable evidence section.`);
+  else {
+    await evidence.locator('summary').click();
+    if (!await evidence.locator('a[href^="http"]').count()) {
+      fail(`${label}: Dynjandi evidence dropdown contains no source links.`);
+    }
+  }
+  await panel.evaluate((node) => { node.scrollTop = node.scrollHeight; });
+  await activateMarker(page, 'reynisfjara');
+  if (await panel.evaluate((node) => node.scrollTop) !== 0) {
+    fail(`${label}: choosing another place retained the prior card's scroll position.`);
+  }
+  await activateMarker(page, 'dynjandi');
+  await assertExternalLinkSafety(page, `${label} Dynjandi detail`);
+  await page.locator('.planner-shell').screenshot({
+    path: join(screenshotDirectory, 'desktop-place.png'),
+  });
+}
+
+async function mutateDesktop(page) {
+  await page.locator('#participant-select').selectOption('mary');
+  await activateMarker(page, 'dynjandi');
+  const vote = page.locator(
+    '#selected-place-voting button[data-option-id="dynjandi"][data-preference="love"]',
+  );
+
+  let releaseStalePoll;
+  let markStalePollCaptured;
+  let markStalePollFinished;
+  const stalePollCaptured = new Promise((resolve) => { markStalePollCaptured = resolve; });
+  const stalePollRelease = new Promise((resolve) => { releaseStalePoll = resolve; });
+  const stalePollFinished = new Promise((resolve) => { markStalePollFinished = resolve; });
+  const stalePollHandler = async (route) => {
+    const requestUrl = new URL(route.request().url());
+    if (route.request().method() !== 'GET' || requestUrl.pathname !== '/api/iceland26') {
+      await route.continue();
+      return;
+    }
+    const upstream = await route.fetch();
+    const body = await upstream.body();
+    markStalePollCaptured();
+    try {
+      await stalePollRelease;
+      await route.fulfill({ response: upstream, body });
+    } finally {
+      markStalePollFinished();
+    }
+  };
+
+  await page.route('**/api/iceland26', stalePollHandler);
+  try {
+    await page.evaluate(() => {
+      window.__iceland26StaleRefreshProcessed = new Promise((resolve) => {
+        document.addEventListener('iceland26:state-refresh-complete', resolve, { once: true });
+      });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await Promise.race([
+      stalePollCaptured,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Stale polling request was not captured.')), 5_000)),
+    ]);
+    await vote.click();
+    await page.locator('#sync-status').getByText(/revision 1/).waitFor();
+    releaseStalePoll();
+    await stalePollFinished;
+    await page.evaluate(async () => {
+      await window.__iceland26StaleRefreshProcessed;
+      delete window.__iceland26StaleRefreshProcessed;
+    });
+    if (!await page.locator('#sync-status').getByText(/revision 1/).count()
+        || await vote.getAttribute('aria-pressed') !== 'true') {
+      fail('desktop: an older polling response regressed Mary’s newer Dynjandi ranking.');
+    }
+    const focus = await page.evaluate(() => ({
+      action: document.activeElement?.dataset.action,
+      optionId: document.activeElement?.dataset.optionId,
+      preference: document.activeElement?.dataset.preference,
+    }));
+    if (focus.action !== 'preference'
+        || focus.optionId !== 'dynjandi'
+        || focus.preference !== 'love') {
+      fail(`desktop: preference save lost keyboard focus (${JSON.stringify(focus)}).`);
+    }
+  } finally {
+    releaseStalePoll?.();
+    await page.evaluate(() => { delete window.__iceland26StaleRefreshProcessed; }).catch(() => {});
+    await page.unroute('**/api/iceland26', stalePollHandler).catch(() => {});
+  }
+
+  const noteText = 'This feels like the Westfjords anchor.';
+  const dynjandiComment = page.locator('#selected-place-comments textarea[aria-label*="Dynjandi"]');
+  await dynjandiComment.fill(noteText);
+  await page.evaluate(async () => {
+    const response = await fetch('/api/iceland26/preference', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        participant: 'ben',
+        optionId: 'eclipse-patreksfjordur',
+        preference: 'interested',
+      }),
+    });
+    if (!response.ok) throw new Error(`Background preference failed: ${response.status}`);
+  });
+  await waitForStateRefresh(page);
+  await page.locator('#sync-status').getByText(/revision 2/).waitFor();
+  if (await dynjandiComment.inputValue() !== noteText) {
+    fail('desktop: a background preference refresh erased the in-progress sticky-note draft.');
+  }
+  const nextDraft = 'A second note typed while the first is saving.';
+  let releaseComment;
+  let captureComment;
+  const commentCaptured = new Promise((resolve) => { captureComment = resolve; });
+  const commentRelease = new Promise((resolve) => { releaseComment = resolve; });
+  const delayedCommentHandler = async (route) => {
+    const requestUrl = new URL(route.request().url());
+    if (route.request().method() !== 'POST' || requestUrl.pathname !== '/api/iceland26/comment') {
+      await route.continue();
+      return;
+    }
+    captureComment();
+    await commentRelease;
+    await route.continue();
+  };
+  await page.route('**/api/iceland26/comment', delayedCommentHandler);
+  try {
+    await page.locator('#selected-place-comments').getByRole('button', { name: 'Pin note' }).click();
+    await Promise.race([
+      commentCaptured,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Comment request was not captured.')), 5_000)),
+    ]);
+    await dynjandiComment.fill(nextDraft);
+    releaseComment();
+    await page.locator('#selected-place-comments').getByText(noteText).waitFor();
+    await page.locator('#sync-status').getByText(/revision 3/).waitFor();
+    if (await dynjandiComment.inputValue() !== nextDraft) {
+      fail('desktop: a completed sticky-note save erased text entered for the next note.');
+    }
+  } finally {
+    releaseComment?.();
+    await page.unroute('**/api/iceland26/comment', delayedCommentHandler).catch(() => {});
+  }
+
+  await page.locator('#open-idea-dialog').click();
+  if (!await page.getByRole('dialog', { name: 'Add something to the road' }).count()) {
+    fail('desktop: the open shared-idea dialog has no accessible name.');
+  }
+  const ideaForm = page.locator('#idea-form');
+  const stageOption = ideaForm.locator('#idea-location option', { hasText: /Aug 20/i }).first();
+  const stageValue = await stageOption.getAttribute('value');
+  if (!stageValue) throw new Error('Aug 20 route-stage option is missing from the shared idea form.');
+  await ideaForm.locator('[name="title"]').fill('A bakery morning');
+  await ideaForm.locator('#idea-location').selectOption(stageValue);
+  await ideaForm.locator('[name="details"]').fill('Leave room for a slow local breakfast before the flight.');
+  await ideaForm.getByRole('button', { name: 'Add to the board' }).click();
+  await page.locator('#sync-status').getByText(/revision 4/).waitFor();
+  await page.locator('.decision-card').getByRole('heading', { name: 'A bakery morning' }).waitFor();
+
+  const state = await page.evaluate(async () => (await fetch('/api/iceland26')).json());
+  const suggestion = state.suggestions?.[0];
+  const exactState = {
+    revision: state.revision,
+    dynjandi: state.preferences?.dynjandi,
+    eclipse: state.preferences?.['eclipse-patreksfjordur'],
+    commentCount: state.comments?.length,
+    comment: state.comments?.[0] && {
+      participant: state.comments[0].participant,
+      optionId: state.comments[0].optionId,
+      text: state.comments[0].text,
+    },
+    suggestionCount: state.suggestions?.length,
+    suggestion: suggestion && {
+      title: suggestion.title,
+      location: suggestion.location,
+      details: suggestion.details,
+      createdBy: suggestion.createdBy,
+    },
+    suggestionPreference: suggestion && state.preferences?.[suggestion.id],
+    activity: state.activity?.map((entry) => entry.type),
+  };
+  const expectedState = {
+    revision: 4,
+    dynjandi: { mary: 'love' },
+    eclipse: { ben: 'interested' },
+    commentCount: 1,
+    comment: { participant: 'mary', optionId: 'dynjandi', text: noteText },
+    suggestionCount: 1,
+    suggestion: {
+      title: 'A bakery morning',
+      location: stageValue,
+      details: 'Leave room for a slow local breakfast before the flight.',
+      createdBy: 'mary',
+    },
+    suggestionPreference: { mary: 'interested' },
+    activity: ['preference', 'preference', 'comment', 'suggestion'],
+  };
+  if (JSON.stringify(exactState) !== JSON.stringify(expectedState)
+      || !suggestion?.id?.startsWith('custom-')) {
+    fail(`desktop: collaborative state did not persist at the exact expected revision: ${JSON.stringify(exactState)}`);
+  }
+
+  await page.locator('.planner-shell').screenshot({
+    path: join(screenshotDirectory, 'desktop-idea.png'),
+  });
+
+  const unavailableHandler = async (route) => {
+    const requestUrl = new URL(route.request().url());
+    if (route.request().method() === 'GET' && requestUrl.pathname === '/api/iceland26') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: '{"available":false,"error":"simulated state repair"}',
+      });
+      return;
+    }
+    await route.continue();
+  };
+  await page.route('**/api/iceland26', unavailableHandler);
+  await waitForStateRefresh(page);
+  const readOnlyVote = page.locator(
+    '#selected-place-voting button[data-action="preference"]',
+  ).first();
+  if (!await readOnlyVote.isDisabled()
+      || !await page.locator('#sync-status').getByText(/temporarily read-only/i).count()) {
+    fail('desktop: a live-to-unavailable state transition left write controls enabled.');
+  }
+  await page.unroute('**/api/iceland26', unavailableHandler);
+  await waitForStateRefresh(page);
+  await page.locator('#sync-status').getByText(/revision 4/).waitFor();
+  if (await readOnlyVote.isDisabled()) {
+    fail('desktop: write controls did not recover when state availability returned.');
+  }
+
+  await page.evaluate(async () => {
+    const votes = [
+      ['ben', 'love'],
+      ['mary', 'love'],
+      ['laura', 'interested'],
+      ['brad', 'pass'],
+    ];
+    const responses = await Promise.all(votes.map(([participant, preference]) => (
+      fetch('/api/iceland26/preference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ participant, optionId: 'latrabjarg-raudasandur', preference }),
+      })
+    )));
+    if (responses.some((response) => !response.ok)) {
+      throw new Error('Split-consensus background preferences failed.');
+    }
+  });
+  await waitForStateRefresh(page);
+  await page.locator('#sync-status').getByText(/revision 8/).waitFor();
+  await activateMarker(page, 'latrabjarg-raudasandur');
+  const signal = page.locator('#selected-place-voting .group-signal');
+  await signal.getByText(/Worth a conversation · preferences differ/i).waitFor();
+  if (await signal.evaluate((node) => node.classList.contains('group-signal--yes'))
+      || /group yes/i.test(await signal.innerText())
+      || Number(await page.locator('#count-agreements').textContent()) !== 0) {
+    fail('desktop: three positive votes plus one pass was mislabeled as group agreement.');
+  }
+}
+
+async function assertMobileLayout(page) {
+  await activateMarker(page, 'dynjandi');
+  const layout = await page.evaluate(() => {
+    const viewportWidth = document.documentElement.clientWidth;
+    const timeline = document.querySelector('.timeline-section');
+    const map = document.querySelector('#map-frame')?.getBoundingClientRect();
+    const panel = document.querySelector('#place-panel')?.getBoundingClientRect();
+    const planner = getComputedStyle(document.querySelector('.planner-shell'));
+    const activeLabel = document.querySelector('.map-marker.is-active .map-marker__label');
+    const touchTargets = [
+      '#logout-button',
+      '.date-track button[tabindex="0"]',
+      '.map-filter button',
+      '.map-zoom button',
+      '.preference-button',
+      '#close-place-panel',
+    ].map((selector) => document.querySelector(selector)?.getBoundingClientRect().height || 0);
+    return {
+      viewportWidth,
+      timelineClientWidth: timeline?.clientWidth,
+      timelineScrollWidth: timeline?.scrollWidth,
+      map: map?.toJSON(),
+      panel: panel?.toJSON(),
+      plannerDisplay: planner.display,
+      panelPosition: getComputedStyle(document.querySelector('#place-panel')).position,
+      activeLabelDisplay: activeLabel ? getComputedStyle(activeLabel).display : null,
+      touchTargets,
+    };
+  });
+  if (layout.timelineScrollWidth <= layout.timelineClientWidth
+      || layout.map.width > layout.viewportWidth + 2
+      || layout.panel.left < 0
+      || layout.panel.right > layout.viewportWidth + 1
+      || layout.panel.width < layout.viewportWidth - 40
+      || layout.plannerDisplay !== 'flex'
+      || layout.panelPosition !== 'absolute'
+      || layout.activeLabelDisplay === 'none'
+      || layout.touchTargets.some((height) => height < 43.5)) {
+    fail(`mobile: timeline/map/detail panel did not resolve to the mobile planner layout (${JSON.stringify(layout)}).`);
+  }
+  await assertNoHorizontalOverflow(page, 'mobile responsive layout');
+  await page.locator('#close-place-panel').click();
+  await page.locator('#place-panel.is-closed').waitFor();
+  await page.waitForTimeout(220);
+  await page.locator('#map-frame').screenshot({
+    path: join(screenshotDirectory, 'mobile-map.png'),
+  });
+}
+
+async function exerciseLogout(page, label, setExpectedLogoutFailure) {
+  await page.locator('#participant-select').selectOption('laura');
+  const lockButton = page.locator('#logout-button');
+  if (!await lockButton.isVisible()) {
+    fail(`${label}: Lock control is not available on the phone layout.`);
+  }
+  setExpectedLogoutFailure(true);
+  await page.route('**/api/iceland26/logout', (route) => route.fulfill({
+    status: 503,
+    contentType: 'application/json',
+    body: '{"error":"simulated failure"}',
+  }));
+  await lockButton.click();
+  await page.locator('#toast').getByText(/still signed in/i).waitFor();
+  const stillAuthenticated = await page.evaluate(async () => (await fetch('/api/iceland26')).status);
+  if (page.url().includes('/access.html') || stillAuthenticated !== 200
+      || await page.evaluate(() => localStorage.getItem('iceland26-participant')) !== 'laura') {
+    fail(`${label}: failed logout presented a false locked state or cleared identity/session.`);
+  }
+  await page.unroute('**/api/iceland26/logout');
+  setExpectedLogoutFailure(false);
+
+  await lockButton.click();
+  await page.waitForURL(/\/iceland26\/access\.html$/);
+  if (await page.evaluate(() => localStorage.getItem('iceland26-participant')) !== null) {
+    fail(`${label}: successful logout retained the remembered participant identity.`);
+  }
+  const lockedState = await page.context().request.get(`${baseUrl}/api/iceland26`);
+  if (lockedState.status() !== 401) {
+    fail(`${label}: successful logout left coordination state readable (${lockedState.status()}).`);
+  }
+}
+
 async function runViewport(viewport, label, mutate = false) {
-  const page = await browser.newPage({
+  const context = await browser.newContext({
     viewport,
     hasTouch: label === 'mobile',
   });
+  ownedContexts.add(context);
+  const page = await context.newPage();
+  ownedPages.add(page);
   const errors = [];
   let expectedLogoutFailure = false;
   page.on('console', (message) => {
-    if (message.type() === 'error'
-        && !(expectedLogoutFailure && message.text().includes('status of 503'))) {
-      errors.push(message.text());
-    }
+    if (message.type() !== 'error') return;
+    const text = message.text();
+    if (expectedLogoutFailure && /503|failed to load resource/i.test(text)) return;
+    errors.push(`console: ${text}`);
   });
-  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
 
   try {
-    const accessResponse = await page.goto(`${baseUrl}/iceland26/`, { waitUntil: 'networkidle' });
-    if (!page.url().includes('/iceland26/access.html')) {
-      fail(`${label}: protected trip route did not redirect to the access page.`);
-    }
-    if (accessResponse?.status() !== 200) {
-      fail(`${label}: Iceland access page returned ${accessResponse?.status()}.`);
-    }
-    await page.screenshot({
-      path: `output/playwright/iceland26/${label}-access.png`,
-      fullPage: false,
-    });
-    await page.locator('#trip-code').focus();
-    const accessFocus = await page.locator('#trip-code').evaluate((input) => {
-      const style = getComputedStyle(input);
-      return { outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth };
-    });
-    if (accessFocus.outlineStyle === 'none' || accessFocus.outlineWidth === '0px') {
-      fail(`${label}: trip-code input has no visible keyboard focus indicator.`);
-    }
-    await page.locator('#trip-code').fill(testAccessCode);
-    await page.getByRole('button', { name: /Enter/ }).click();
-    await page.waitForURL((url) => (
-      url.origin === new URL(baseUrl).origin && /^\/iceland26\/?$/.test(url.pathname)
-    ));
-    const response = await page.reload({ waitUntil: 'networkidle' });
-    if (response?.status() !== 200) fail(`${label}: authenticated Iceland page returned ${response?.status()}.`);
-    if (!response?.headers()['x-robots-tag']?.includes('noindex')) {
-      fail(`${label}: Iceland page is not marked noindex.`);
-    }
-
-    await page.locator('#sync-status').getByText(/Shared board live/).waitFor();
-    await page.locator('#count-options').waitFor();
-    const optionCount = Number(await page.locator('#count-options').textContent());
-    if (!Number.isFinite(optionCount) || optionCount < 32) {
-      fail(`${label}: route-wide option count is incomplete (${optionCount}).`);
-    }
-    await page.locator('.option-card').first().waitFor();
-
-    const geometry = await page.evaluate(() => ({
-      scrollWidth: document.documentElement.scrollWidth,
-      clientWidth: document.documentElement.clientWidth,
-      optionHeadings: document.querySelectorAll('.option-card h3').length,
-      sourceTargets: [...document.querySelectorAll('.source-links a')].every((link) => (
-        link.target === '_blank' && link.rel.includes('noopener')
-      )),
-      visibleText: document.body.innerText,
-    }));
-    if (geometry.scrollWidth > geometry.clientWidth + 2) {
-      fail(`${label}: page has horizontal overflow (${geometry.scrollWidth}/${geometry.clientWidth}).`);
-    }
-    if (geometry.optionHeadings < 5) fail(`${label}: first route chapter is missing options.`);
-    if (!geometry.sourceTargets) fail(`${label}: source links are not safely opened.`);
-    if (/\b\d{3}-\d{3}-\d{5}-\d{6}\b/.test(geometry.visibleText)) {
-      fail(`${label}: public UI leaks a campsite reservation identifier.`);
-    }
-    const voteAccessibility = await page.locator('.vote-avatar').evaluateAll((avatars) => (
-      avatars.every((avatar) => (
-        avatar.getAttribute('role') === 'listitem' && Boolean(avatar.getAttribute('aria-label'))
-      ))
-    ));
-    if (!voteAccessibility) fail(`${label}: individual vote states lack accessible labels.`);
-
-    const firstTab = page.locator('[role="tab"]').first();
-    await firstTab.focus();
-    await page.keyboard.press('ArrowRight');
-    const secondTab = page.locator('[role="tab"]').nth(1);
-    if (await secondTab.getAttribute('aria-selected') !== 'true'
-        || await secondTab.getAttribute('tabindex') !== '0'
-        || await page.locator('#route-panel').getAttribute('aria-labelledby')
-          !== await secondTab.getAttribute('id')) {
-      fail(`${label}: route tabs do not provide roving keyboard/tabpanel semantics.`);
-    }
-    await page.keyboard.press('ArrowLeft');
-    await secondTab.click();
-    if (await page.evaluate(() => document.activeElement?.dataset.legId) !== 'north') {
-      fail(`${label}: clicking a route tab lost keyboard focus after the route rerender.`);
-    }
-    await firstTab.click();
-    if (await page.evaluate(() => document.activeElement?.dataset.legId) !== 'westfjords') {
-      fail(`${label}: returning to a route tab lost keyboard focus after the route rerender.`);
-    }
-
-    await page.screenshot({
-      path: `output/playwright/iceland26/${label}-hero.png`,
-      fullPage: false,
-    });
+    await login(page, context, label);
+    await assertBoardStructure(page, label);
+    await exerciseTimeline(page, label, label === 'desktop');
+    await exerciseMapControls(page, label);
+    await assertReynisfjaraTruth(page, label);
 
     if (mutate) {
-      await page.locator('#participant-select').selectOption('mary');
-      const dynjandi = page.locator('.option-card', { hasText: 'Dynjandi' });
-      let releaseStalePoll;
-      let markStalePollCaptured;
-      let markStalePollFinished;
-      const stalePollCaptured = new Promise((resolve) => {
-        markStalePollCaptured = resolve;
-      });
-      const stalePollRelease = new Promise((resolve) => {
-        releaseStalePoll = resolve;
-      });
-      const stalePollFinished = new Promise((resolve) => {
-        markStalePollFinished = resolve;
-      });
-      const stalePollHandler = async (route) => {
-        const requestUrl = new URL(route.request().url());
-        if (route.request().method() !== 'GET' || requestUrl.pathname !== '/api/iceland26') {
-          await route.continue();
-          return;
-        }
-        const upstream = await route.fetch();
-        const body = await upstream.body();
-        markStalePollCaptured();
-        try {
-          await stalePollRelease;
-          await route.fulfill({ response: upstream, body });
-        } finally {
-          markStalePollFinished();
-        }
-      };
-      await page.route('**/api/iceland26', stalePollHandler);
-      try {
-        await page.evaluate(() => {
-          window.__iceland26StaleRefreshProcessed = new Promise((resolve) => {
-            document.addEventListener('iceland26:state-refresh-complete', resolve, { once: true });
-          });
-        });
-        await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
-        await stalePollCaptured;
-        await dynjandi.getByRole('button', { name: /Love it/ }).click();
-        await page.locator('#sync-status').getByText(/revision 1/).waitFor();
-        releaseStalePoll();
-        await stalePollFinished;
-        await page.evaluate(async () => {
-          await window.__iceland26StaleRefreshProcessed;
-          delete window.__iceland26StaleRefreshProcessed;
-        });
-        if (!await page.locator('#sync-status').getByText(/revision 1/).count()
-            || await dynjandi.getByRole('button', { name: /Love it/ }).getAttribute('aria-pressed')
-              !== 'true') {
-          fail('desktop: an older polling response regressed newer mutation state.');
-        }
-        const focusedPreference = await page.evaluate(() => ({
-          action: document.activeElement?.dataset.action,
-          optionId: document.activeElement?.dataset.optionId,
-          preference: document.activeElement?.dataset.preference,
-        }));
-        if (focusedPreference.action !== 'preference'
-            || focusedPreference.optionId !== 'dynjandi'
-            || focusedPreference.preference !== 'love') {
-          fail('desktop: a successful preference save lost keyboard focus.');
-        }
-      } finally {
-        releaseStalePoll();
-        await page.evaluate(() => {
-          delete window.__iceland26StaleRefreshProcessed;
-        });
-        await page.unroute('**/api/iceland26', stalePollHandler);
-      }
-
-      await dynjandi.getByRole('button', { name: /Open discussion/ }).click();
-      const dynjandiComment = dynjandi.getByLabel(/Comment on Dynjandi/);
-      await dynjandiComment.fill('This feels like the Westfjords anchor.');
-      await page.evaluate(async () => {
-        const response = await fetch('/api/iceland26/preference', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            participant: 'ben',
-            optionId: 'eclipse-patreksfjordur',
-            preference: 'interested',
-          }),
-        });
-        if (!response.ok) throw new Error(`Background preference failed: ${response.status}`);
-      });
-      await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
-      await page.locator('#sync-status').getByText(/revision 2/).waitFor();
-      if (await dynjandiComment.inputValue() !== 'This feels like the Westfjords anchor.') {
-        fail('desktop: a background group refresh erased the in-progress comment draft.');
-      }
-      await dynjandi.getByRole('button', { name: 'Post' }).click();
-      await dynjandi.getByText('This feels like the Westfjords anchor.').waitFor();
-
-      await page.getByRole('button', { name: '★ Standouts' }).click();
-      await page.locator('#open-idea-dialog').click();
-      await page.locator('#idea-form [name="title"]').fill('A bakery morning');
-      await page.locator('#idea-form [name="location"]').fill('Reykjavík');
-      await page.locator('#idea-form [name="details"]').fill('Leave room for a slow local breakfast before the flight.');
-      await page.locator('#idea-form').getByRole('button', { name: 'Add to the board' }).click();
-      await page.getByRole('tab', { name: /Ideas from the group/ }).waitFor();
-      await page.getByRole('heading', { name: 'A bakery morning' }).waitFor();
-      if (await page.getByRole('button', { name: 'All', exact: true }).getAttribute('aria-pressed')
-          !== 'true') {
-        fail('desktop: adding an idea under a restrictive filter hid the new shared idea.');
-      }
-
-      const state = await page.evaluate(async () => (await fetch('/api/iceland26')).json());
-      if (state.revision !== 4
-          || state.preferences?.dynjandi?.mary !== 'love'
-          || state.preferences?.['eclipse-patreksfjordur']?.ben !== 'interested'
-          || state.comments?.[0]?.text !== 'This feels like the Westfjords anchor.'
-          || state.suggestions?.[0]?.title !== 'A bakery morning') {
-        fail(`desktop: live UI mutations were not persisted exactly: ${JSON.stringify({
-          revision: state.revision,
-          dynjandi: state.preferences?.dynjandi,
-          comments: state.comments,
-          suggestions: state.suggestions,
-        })}`);
-      }
-
-      await page.getByRole('heading', { name: 'A bakery morning' }).scrollIntoViewIfNeeded();
-      await page.screenshot({
-        path: 'output/playwright/iceland26/desktop-shared-idea.png',
-        fullPage: false,
-      });
-
-      await page.evaluate(async () => {
-        const votes = [
-          ['ben', 'love'],
-          ['mary', 'love'],
-          ['laura', 'interested'],
-          ['brad', 'pass'],
-        ];
-        const responses = await Promise.all(votes.map(([participant, preference]) => (
-          fetch('/api/iceland26/preference', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              participant,
-              optionId: 'latrabjarg-raudasandur',
-              preference,
-            }),
-          })
-        )));
-        if (responses.some((response) => !response.ok)) {
-          throw new Error('Split-consensus background preferences failed.');
-        }
-      });
-      await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
-      await page.locator('#sync-status').getByText(/revision 8/).waitFor();
-      await page.locator('[role="tab"][data-leg-id="westfjords"]').click();
-      const latrabjarg = page.locator('.option-card', { hasText: 'Látrabjarg' });
-      await latrabjarg.getByText('Worth a conversation · preferences differ').waitFor();
-      if (await latrabjarg.getByText('Promising · one voice left').count()) {
-        fail('desktop: three positive votes plus one pass was mislabeled as one undecided voice.');
-      }
+      await assertCenteredPlaceDetail(page, label);
+      await mutateDesktop(page);
     } else {
-      const standoutFilter = page.getByRole('button', { name: '★ Standouts' });
-      await standoutFilter.click();
-      if (await standoutFilter.getAttribute('aria-pressed') !== 'true'
-          || await page.getByRole('button', { name: 'All', exact: true }).getAttribute('aria-pressed')
-            !== 'false') {
-        fail('mobile: selected experience filter is not exposed to assistive technology.');
-      }
-      const visibleCards = page.locator('.option-card');
-      const count = await visibleCards.count();
-      for (let index = 0; index < count; index += 1) {
-        if (!await visibleCards.nth(index).getByText('★ Research standout').count()) {
-          fail(`${label}: standout filter left a non-standout card visible.`);
-        }
-      }
-      await visibleCards.first().scrollIntoViewIfNeeded();
-      await page.evaluate(() => window.scrollBy(0, -130));
-      await page.screenshot({
-        path: 'output/playwright/iceland26/mobile-route.png',
-        fullPage: false,
-      });
-
-      const lockButton = page.locator('#logout-button');
-      if (!await lockButton.isVisible()) fail('mobile: Lock control is not available.');
-      expectedLogoutFailure = true;
-      await page.route('**/api/iceland26/logout', (route) => route.fulfill({
-        status: 503,
-        contentType: 'application/json',
-        body: '{"error":"simulated failure"}',
-      }));
-      await lockButton.click();
-      await page.locator('#toast').getByText(/still signed in/).waitFor();
-      if (page.url().includes('/access.html')) {
-        fail('mobile: failed logout presented a false locked state.');
-      }
-      await page.unroute('**/api/iceland26/logout');
-      expectedLogoutFailure = false;
-      await lockButton.click();
-      await page.waitForURL(/\/iceland26\/access\.html$/);
-      if (await page.evaluate(() => localStorage.getItem('iceland26-participant')) !== null) {
-        fail('mobile: successful logout retained the remembered participant identity.');
-      }
+      await assertMobileLayout(page);
+      await exerciseLogout(page, label, (expected) => { expectedLogoutFailure = expected; });
     }
 
     if (errors.length) fail(`${label}: browser errors: ${errors.join(' | ')}`);
   } finally {
-    await page.close();
+    try {
+      await page.close({ runBeforeUnload: false });
+    } finally {
+      ownedPages.delete(page);
+    }
+    try {
+      await context.close();
+    } finally {
+      ownedContexts.delete(context);
+    }
   }
 }
 
@@ -496,6 +1088,7 @@ try {
   });
   browserServer = await browserLaunchPromise;
   browserLaunchPromise = null;
+  recordProcess(browserServer.process(), 'Iceland interaction browser');
   if (requestedSignalCode !== null) await exitAfterCleanup(requestedSignalCode);
   browser = await chromium.connect(browserServer.wsEndpoint());
   await runViewport({ width: 1440, height: 900 }, 'desktop', true);
@@ -506,7 +1099,10 @@ try {
   try {
     await cleanupResources();
   } catch (error) {
-    fail(error.message);
+    const details = error instanceof AggregateError
+      ? error.errors.map((entry) => entry.message).join(' | ')
+      : error.message;
+    fail(`Cleanup verification failed: ${details}`);
   }
 }
 
@@ -515,4 +1111,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Iceland coordination UI passed desktop/mobile rendering, source, privacy, sync, discussion, suggestion, and persistence checks.');
+console.log('Iceland map-first coordination UI passed protected access, route/map truth, desktop/mobile accessibility, timeline/camper animation, ranking, sticky-note, suggestion, consensus, logout, persistence, error, and verified teardown checks.');

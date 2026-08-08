@@ -72,13 +72,25 @@ return, and console errors. Screenshots are written to ignored
 `/iceland26/` is a full-stack, same-origin planning surface for Ben, Mary,
 Laura, and Brad. The editorial route is sourced from the shared planning
 document, while preferences, notes, and new group suggestions are persisted by
-the Node service.
+the Node service. The August 2026 redesign is pinned to the revised document
+SHA and keeps authored sequence separate from geographic road order. The full
+evidence, drive-time, privacy, and update contract is documented in
+[`docs/iceland26-route-methodology.md`](docs/iceland26-route-methodology.md).
 
 The board:
 
 - separates booked/fixed anchors from open and conditional experiences;
+- exposes all 17 dated days through a timeline scrubber and moves two camper
+  markers over a local, attributed road-geometry snapshot;
+- draws locked travel, the current working route, and mutually exclusive
+  branches differently so unresolved logistics never look booked;
+- flags source-order/geography conflicts rather than silently rearranging the
+  source document;
 - highlights research-backed standouts with direct official, review, and travel
   post links;
+- shows motorhome planning time separately from the raw routing baseline;
+- keeps family fit, amenities, booking contacts, experience positives,
+  drawbacks, and freshness-sensitive safety gates on each mapped stop;
 - records `Love`, `Interested`, and `Not for me` independently for each of the
   four adult planners;
 - calls something a group yes only when all four planners are positive;
@@ -116,15 +128,29 @@ Verification is split intentionally:
 ```sh
 npm test
 npm run interaction:iceland26
+node scripts/build-iceland26-itinerary.mjs
+node scripts/build-iceland26-map-data.mjs --validate-only
 ```
 
-The first command covers the existing portal, static contract, access/session
+The first command covers the existing portal, static contract, exact itinerary
+regeneration/idempotence, access/session
 gate, schema validation, cross-site rejection, concurrent granular updates,
-atomic persistence, restart recovery, and logout. The interaction run opens a
-task-owned local server and headless Chrome, exercises access, preferences,
-discussion, and suggestions at desktop/mobile sizes, records screenshots, and
-tears down its browser, listener, temporary state, and child process through
-signal-aware `finally` paths with force-stop fallbacks.
+production-shaped revision continuity, atomic persistence, restart recovery,
+and logout. The interaction run opens a
+task-owned local server and headless Chrome, exercises access, timeline and map
+navigation, accessibility-tree markers, reduced motion, keyboard place selection,
+preference focus, sticky-note drafts (including edits during a save), live-to-read-only
+transitions, discussion, suggestions, persistence and responsive layouts, records
+screenshots, and tears down its browser, listener, temporary state, and child
+process through signal-aware `finally` paths with force-stop fallbacks.
+The itinerary builder is deterministic against either the original committed
+catalog or its own v2 output; the route-data test requires byte-exact idempotence.
+The last command checks the committed coastline, route states, day bindings,
+coordinates, branches and measured arrival distance without making a network
+request. Running the map builder without `--validate-only` refreshes OSRM road
+geometry while reusing the committed Natural Earth coastline; pass a new
+Natural Earth GeoJSON file with `--boundary` only when intentionally updating
+the coastline source.
 
 ## Torus construction
 

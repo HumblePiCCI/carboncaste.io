@@ -3,24 +3,25 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#102a2b">
+  <meta name="theme-color" content="#123733">
   <meta name="robots" content="noindex, nofollow">
-  <title>Iceland 2026 — Our shared route</title>
+  <title>Iceland 2026 — Route room</title>
   <link rel="icon" href="/favicon.ico">
-  <link rel="stylesheet" href="/iceland26/styles.css?v=20260726">
-  <script type="module" src="/iceland26/app.js?v=20260726"></script>
+  <link rel="stylesheet" href="/iceland26/styles.css?v=20260808">
+  <script type="module" src="/iceland26/app.js?v=20260808"></script>
 </head>
 <body>
-  <a class="skip-link" href="#main">Skip to the trip</a>
+  <a class="skip-link" href="#main">Skip to the route room</a>
+
   <header class="trip-header">
-    <a class="trip-mark" href="/iceland26/" aria-label="Iceland 2026 home">
+    <a class="trip-mark" href="/iceland26/" aria-label="Iceland 2026 route room home">
       <span class="trip-mark__glyph" aria-hidden="true">↗</span>
-      <span><strong>IS / 26</strong><small>shared field notes</small></span>
+      <span><strong>IS / 26</strong><small>route room</small></span>
     </a>
     <nav class="trip-nav" aria-label="Trip sections">
-      <a href="#route">Route</a>
-      <a href="#consensus">Group pulse</a>
-      <a href="#field-notes">Field notes</a>
+      <a href="#route-map">Map</a>
+      <a href="#decisions">Decisions</a>
+      <a href="#trip-ops">Trip ops</a>
     </nav>
     <div class="identity-wrap">
       <label class="identity">
@@ -33,119 +34,182 @@
           <option value="brad">Brad</option>
         </select>
       </label>
-      <button class="lock-button" id="logout-button" type="button" title="Lock this trip board">Lock</button>
+      <button class="lock-button" id="logout-button" type="button" title="Lock this private trip board">Lock</button>
     </div>
   </header>
 
   <main id="main">
-    <section class="hero" aria-labelledby="trip-title">
-      <div class="hero__sky" aria-hidden="true">
-        <span class="hero__sun"></span>
-        <span class="hero__ridge hero__ridge--far"></span>
-        <span class="hero__ridge hero__ridge--near"></span>
-        <span class="hero__road"></span>
+    <section class="route-intro" aria-labelledby="trip-title">
+      <div class="route-intro__copy">
+        <p class="kicker" id="trip-date">August 8–24, 2026 · clockwise circuit</p>
+        <h1 id="trip-title">One route.<br><em>Four voices.</em></h1>
+        <p class="route-intro__lede">Mary’s planning, made geographic: every booked anchor, realistic drive, strong experience and open call in the order it appears on the road.</p>
       </div>
-      <div class="hero__copy">
-        <p class="kicker" id="trip-date">August 8–24, 2026 · 17 days · clockwise</p>
-        <h1 id="trip-title">Iceland,<br><em>decided together.</em></h1>
-        <p class="hero__lede">The booked bones of the trip, the experiences worth crossing the island for, and one live place for Ben, Mary, Laura and Brad to find the yes.</p>
-        <div class="hero__actions">
-          <a class="button button--primary" href="#route">Explore the route <span aria-hidden="true">↓</span></a>
-          <button class="button button--quiet" id="open-idea-dialog" type="button">+ Add an idea</button>
-        </div>
+      <div class="truth-key" aria-label="Planning status key">
+        <div><span class="status-dot status-dot--locked"></span><strong>Locked</strong><small>booked or fixed</small></div>
+        <div><span class="status-dot status-dot--working"></span><strong>Working</strong><small>best current route</small></div>
+        <div><span class="status-dot status-dot--open"></span><strong>Open</strong><small>needs a group call</small></div>
       </div>
-      <aside class="hero__status" aria-label="Current planning baseline">
-        <p class="status-label">Already in place</p>
-        <ol id="baseline-list">
-          <li><span>01</span> Flights booked</li>
-          <li><span>02</span> Two motorhomes booked</li>
-          <li><span>03</span> First Westfjords base booked</li>
-          <li><span>04</span> Clockwise Ring Road route</li>
-        </ol>
+      <div class="arrival-card">
+        <p class="arrival-card__label">The fixed bones</p>
+        <ol id="baseline-list" aria-label="Booked and fixed trip anchors"></ol>
         <p class="sync-line"><span class="sync-dot" id="sync-dot"></span><span id="sync-status">Connecting to the shared board…</span></p>
-      </aside>
+      </div>
     </section>
 
     <section class="decision-strip" aria-label="Trip planning summary">
-      <div><strong id="count-legs">—</strong><span>route chapters</span></div>
-      <div><strong id="count-options">—</strong><span>curated experiences</span></div>
-      <div><strong id="count-standouts">—</strong><span>research standouts</span></div>
+      <div><strong id="count-days">17</strong><span>dated days</span></div>
+      <div><strong id="count-options">—</strong><span>mapped places</span></div>
+      <div><strong id="count-open">—</strong><span>open calls</span></div>
       <div><strong id="count-agreements">0</strong><span>group yeses</span></div>
     </section>
 
-    <section class="route-section" id="route" aria-labelledby="route-title">
-      <div class="section-heading">
+    <section class="timeline-section" aria-labelledby="timeline-title">
+      <div class="timeline-heading">
         <div>
-          <p class="kicker">Route board</p>
-          <h2 id="route-title">Follow the road.<br>Mark what calls.</h2>
+          <p class="kicker">Dated route</p>
+          <h2 id="timeline-title">Scrub the road</h2>
         </div>
-        <p>The route reflects the planning document as it stands. “Booked” and “fixed” items are anchors; everything else stays open until the four planners align.</p>
+        <p id="timeline-live" class="timeline-live" aria-live="polite">Choose a date to move the campers and reveal that day’s route.</p>
+      </div>
+      <div class="scrubber-wrap">
+        <label class="sr-only" for="day-scrubber">Trip day</label>
+        <input id="day-scrubber" class="day-scrubber" type="range" min="0" max="16" step="1" value="1">
+        <ol class="date-track" id="date-track" aria-label="Trip dates"></ol>
+      </div>
+    </section>
+
+    <section class="map-section" id="route-map" aria-labelledby="map-title">
+      <div class="map-section__heading">
+        <div>
+          <p class="kicker">Route truth</p>
+          <h2 id="map-title">The island, in road order.</h2>
+        </div>
+        <p>Solid lines are committed travel. Dashed lines are the current working sequence. Faint branches are genuine alternatives—not hidden decisions.</p>
       </div>
 
-      <div class="route-controls">
-        <div class="leg-picker" id="leg-picker" role="tablist" aria-label="Route chapters"></div>
-        <div class="filter-picker" aria-label="Filter experiences">
-          <button class="filter is-active" type="button" data-filter="all" aria-pressed="true">All</button>
-          <button class="filter" type="button" data-filter="standout" aria-pressed="false">★ Standouts</button>
-          <button class="filter" type="button" data-filter="family" aria-pressed="false">Family fit</button>
-          <button class="filter" type="button" data-filter="book-ahead" aria-pressed="false">Book ahead</button>
-          <button class="filter" type="button" data-filter="weather-flex" aria-pressed="false">Weather-flex</button>
-        </div>
-      </div>
-
-      <div class="route-layout">
-        <div class="route-stage" id="route-panel" role="tabpanel" tabindex="0">
-          <header class="leg-header" id="leg-header"></header>
-          <div class="option-list" id="option-list" aria-live="polite"></div>
-        </div>
-        <aside class="decision-rail" id="consensus" aria-labelledby="pulse-title">
-          <div class="decision-rail__sticky">
-            <p class="kicker">Live group pulse</p>
-            <h2 id="pulse-title">Where the signal is strongest</h2>
-            <div id="pulse-summary" class="pulse-summary"></div>
-            <div id="top-alignment" class="alignment-list"></div>
-            <p class="rail-note">A <strong>group yes</strong> appears only when all four planners choose Love or Interested. Undecided stays undecided.</p>
+      <div class="planner-shell">
+        <aside class="day-rail" aria-labelledby="day-rail-title">
+          <div class="day-rail__heading">
+            <p class="eyebrow" id="selected-day-date">Sun · Aug 9</p>
+            <h3 id="day-rail-title">Arrival to the Westfjords</h3>
+            <span class="state-pill" id="selected-day-state">Working day</span>
           </div>
+          <p id="selected-day-summary" class="day-summary"></p>
+          <dl class="drive-readout" id="drive-readout"></dl>
+          <div id="order-check" class="order-check" hidden>
+            <strong>Order check</strong>
+            <p></p>
+          </div>
+          <h4>Road order + branches</h4>
+          <ol class="day-stop-list" id="day-stop-list"></ol>
+        </aside>
+
+        <div class="map-frame" id="map-frame">
+          <div class="map-toolbar" aria-label="Map controls">
+            <div class="map-filter" id="map-filter">
+              <button class="map-filter__button is-active" type="button" data-map-filter="all" aria-pressed="true">All</button>
+              <button class="map-filter__button" type="button" data-map-filter="locked" aria-pressed="false">Locked</button>
+              <button class="map-filter__button" type="button" data-map-filter="standout" aria-pressed="false">★ Best</button>
+              <button class="map-filter__button" type="button" data-map-filter="open" aria-pressed="false">Open</button>
+            </div>
+            <div class="map-zoom">
+              <button type="button" id="zoom-out" aria-label="Zoom map out">−</button>
+              <button type="button" id="zoom-reset" aria-label="Reset map view">Reset</button>
+              <button type="button" id="zoom-in" aria-label="Zoom map in">+</button>
+            </div>
+          </div>
+
+          <svg id="route-map-svg" class="route-map" viewBox="0 0 1000 700" role="group" aria-labelledby="route-map-title route-map-desc">
+            <title id="route-map-title">Interactive map of the Iceland 2026 route</title>
+            <desc id="route-map-desc">A clockwise route around Iceland. Select a dated stop to read its logistics, research, family fit and group notes.</desc>
+            <g id="map-viewport"></g>
+          </svg>
+
+          <div class="camper-key" aria-label="Two booked motorhomes">
+            <span class="camper-key__icon camper-key__icon--one" aria-hidden="true"></span>
+            <span class="camper-key__icon camper-key__icon--two" aria-hidden="true"></span>
+            two campers · one route
+          </div>
+
+          <article class="place-panel" id="place-panel" aria-labelledby="place-title" tabindex="-1">
+            <button class="place-panel__close" id="close-place-panel" type="button" aria-label="Close place details">×</button>
+            <div id="place-panel-content"></div>
+          </article>
+
+          <div class="map-attribution">
+            Route snapshot: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a> · coastline: <a href="https://www.naturalearthdata.com/" target="_blank" rel="noreferrer">Natural Earth</a>
+          </div>
+        </div>
+
+        <aside class="group-rail" id="decisions" aria-labelledby="group-title">
+          <div class="group-rail__heading">
+            <p class="eyebrow">Live group signal</p>
+            <h3 id="group-title">Decide without a meeting</h3>
+            <p>Select a place, rank it, then leave a sticky note with the reason.</p>
+          </div>
+          <div id="selected-place-voting"></div>
+          <div id="selected-place-comments"></div>
+          <details class="alignment-drawer">
+            <summary><span>Strongest alignment</span><strong id="alignment-count">0</strong></summary>
+            <div id="top-alignment" class="alignment-list"></div>
+          </details>
+          <button class="button button--secondary button--full" id="open-idea-dialog" type="button">+ Put another idea on the table</button>
         </aside>
       </div>
     </section>
 
-    <section class="field-notes" id="field-notes" aria-labelledby="notes-title">
+    <section class="decision-board" aria-labelledby="decision-title">
+      <div class="section-heading">
+        <div>
+          <p class="kicker">Decision queue</p>
+          <h2 id="decision-title">Resolve these in order.</h2>
+        </div>
+        <p>Upstream choices change the route below them. Start with tonight’s sleep, then book only what survives the drive-time pass.</p>
+      </div>
+      <div class="decision-cards" id="decision-cards"></div>
+    </section>
+
+    <section class="trip-ops" id="trip-ops" aria-labelledby="ops-title">
       <div class="section-heading section-heading--light">
         <div>
-          <p class="kicker">Field notes</p>
-          <h2 id="notes-title">The practical layer.</h2>
+          <p class="kicker">Trip ops</p>
+          <h2 id="ops-title">The practical layer.</h2>
         </div>
-        <p>What is fixed, what still needs a call, and the conditions that should shape a safe, unhurried route.</p>
+        <p>Arrival flow, campsite reality, safety checks and shared kit—kept separate from private confirmations and personal packing details.</p>
       </div>
-      <div class="notes-grid" id="notes-grid"></div>
+      <div class="ops-grid" id="ops-grid"></div>
     </section>
 
     <section class="method-section" aria-labelledby="method-title">
       <div>
-        <p class="kicker">How recommendations were chosen</p>
-        <h2 id="method-title">Signal over hype.</h2>
+        <p class="kicker">How to read this plan</p>
+        <h2 id="method-title">Precise where known.<br>Honest where open.</h2>
       </div>
       <div class="method-copy">
-        <p>Standouts draw on strong independent reviews, trip reports or travel writing. We separately checked route-level logistics against official or local sources where safety, access or timing called for it. Research-based cards link the evidence used for their experience signal; planning-only buffer and departure decisions explain their context directly.</p>
-        <p>Weather, road conditions, eclipse traffic controls and operator availability can change. This board helps the group decide; official conditions still make the final call on the day.</p>
+        <p>Mary’s document is the planning baseline. Geographic order, road distance, operator details and safety-sensitive facts are checked against current route data and official sources. Independent travel writing and reviews supply the experience signal—not the safety call.</p>
+        <p>Drive figures are routing baselines plus a visible motorhome planning allowance; they exclude stops unless stated. Weather, road controls, ferry availability and operator messages always win on the day.</p>
+        <details>
+          <summary>Sources, freshness and map method</summary>
+          <div id="method-details"></div>
+        </details>
       </div>
     </section>
   </main>
 
-  <dialog class="idea-dialog" id="idea-dialog">
+  <dialog class="idea-dialog" id="idea-dialog" aria-labelledby="idea-dialog-title">
     <form method="dialog" id="idea-form">
       <div class="dialog-heading">
         <div>
           <p class="kicker">Shared idea</p>
-          <h2>Add something to the road</h2>
+          <h2 id="idea-dialog-title">Add something to the road</h2>
         </div>
         <button class="dialog-close" type="button" id="close-idea-dialog" aria-label="Close">×</button>
       </div>
       <label>Title<input name="title" maxlength="90" required placeholder="A place, hike, swim or detour"></label>
-      <label>Where<input name="location" maxlength="70" required placeholder="Route chapter or nearby town"></label>
-      <label>Why it might belong<textarea name="details" maxlength="500" required rows="5" placeholder="What makes this worth considering?"></textarea></label>
-      <p class="form-hint">Your idea will be added to the shared board and marked “Interested” for you.</p>
+      <label>Route stage<select name="location" id="idea-location" required></select></label>
+      <label>Why it might belong<textarea name="details" maxlength="500" required rows="5" placeholder="What makes this worth considering? What would it replace?"></textarea></label>
+      <p class="form-hint">It will appear in the shared decision queue and start as “Interested” for you.</p>
       <div class="dialog-actions">
         <button class="button button--quiet" type="button" id="cancel-idea-dialog">Cancel</button>
         <button class="button button--primary" type="submit">Add to the board</button>
@@ -154,11 +218,11 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <noscript><p class="noscript">This shared board needs JavaScript to load preferences and discussion.</p></noscript>
+  <noscript><p class="noscript">This shared board needs JavaScript to load the map, preferences and discussion.</p></noscript>
 
   <footer class="trip-footer">
-    <p><strong>ICELAND / 2026</strong><span>Built for Ben · Mary · Laura · Brad</span></p>
-    <p><a href="/">carboncaste.io</a><span>Last planning refresh: July 26, 2026</span></p>
+    <p><strong>ICELAND / 2026</strong><span>Ben · Mary · Laura · Brad</span></p>
+    <p><a href="/">carboncaste.io</a><span>Planning refresh: August 8, 2026</span></p>
   </footer>
 </body>
 </html>

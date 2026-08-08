@@ -15,10 +15,15 @@ const requiredFiles = [
   'iceland26/styles.css',
   'iceland26/app.js',
   'iceland26/itinerary.json',
+  'iceland26/map-data.json',
   'iceland26/access.html',
   'iceland26/access.css',
   'iceland26/access.js',
   'server/iceland26-store.mjs',
+  'docs/iceland26-route-methodology.md',
+  'scripts/build-iceland26-itinerary.mjs',
+  'scripts/build-iceland26-map-data.mjs',
+  'scripts/iceland26-route-data-test.mjs',
   'scripts/a6-owned-cleanup.mjs',
   'scripts/a6-owned-cleanup-test.mjs',
   'scripts/a6-locked-run.mjs',
@@ -95,14 +100,17 @@ for (const file of ['privacy.html', 'terms.html', 'contact.html']) {
 
 const icelandIndex = await readFile('iceland26/index.html', 'utf8');
 for (const value of [
-  'Iceland 2026 — Our shared route',
+  'Iceland 2026 — Route room',
   'id="participant-select"',
-  'id="leg-picker"',
-  'id="option-list"',
-  'id="consensus"',
+  'id="day-scrubber"',
+  'id="date-track"',
+  'id="route-map-svg"',
+  'id="place-panel"',
+  'id="decisions"',
+  'id="trip-ops"',
   'id="idea-dialog"',
-  '/iceland26/styles.css?v=20260726',
-  '/iceland26/app.js?v=20260726',
+  '/iceland26/styles.css?v=20260808',
+  '/iceland26/app.js?v=20260808',
   'noindex, nofollow',
 ]) {
   if (!icelandIndex.includes(value)) failures.push(`iceland26/index.html is missing ${value}`);
@@ -130,7 +138,21 @@ try {
 if (itinerary) {
   const options = itinerary.legs?.flatMap((leg) => leg.options || []) || [];
   const ids = options.map((option) => option.id);
-  if (itinerary.schemaVersion !== 1) failures.push('Iceland itinerary schemaVersion must be 1');
+  if (itinerary.schemaVersion !== 2) failures.push('Iceland itinerary schemaVersion must be 2');
+  if (itinerary.days?.length !== 17) failures.push('Iceland itinerary must expose all 17 dated trip days');
+  const expectedDates = Array.from({ length: 17 }, (_, index) => (
+    `2026-08-${String(index + 8).padStart(2, '0')}`
+  ));
+  if (itinerary.days?.some((day, index) => day.date !== expectedDates[index])) {
+    failures.push('Iceland itinerary days must run in exact date order from August 8 through 24');
+  }
+  if (itinerary.days?.some((day, index, days) => (
+    !day.id || !day.title || !day.state || !Array.isArray(day.stopIds)
+      || !Number.isFinite(day.progress) || !day.route
+      || (index > 0 && day.progress < days[index - 1].progress)
+  ))) {
+    failures.push('Iceland itinerary dated route records are incomplete or non-monotonic');
+  }
   if (itinerary.legs?.length < 7) failures.push('Iceland itinerary must cover all seven route chapters');
   if (options.length < 28) failures.push('Iceland itinerary must retain a full route-wide option set');
   if (options.filter((option) => option.standout).length < 8) {
@@ -138,7 +160,11 @@ if (itinerary) {
   }
   if (new Set(ids).size !== ids.length) failures.push('Iceland itinerary option IDs must be unique');
   for (const option of options) {
-    if (!option.id || !option.title || !option.hook || !Array.isArray(option.sources)) {
+    if (!option.id || !option.title || !option.hook || !option.status
+        || !Array.isArray(option.sources) || option.sources.length === 0
+        || !Array.isArray(option.dayIds)
+        || !option.visit || !option.family || !Array.isArray(option.pros)
+        || !Array.isArray(option.drawbacks)) {
       failures.push(`Iceland itinerary option is incomplete: ${option.id || '(missing id)'}`);
     }
     for (const source of option.sources || []) {
@@ -155,6 +181,65 @@ if (itinerary) {
       failures.push(`Research standout lacks independent experience evidence: ${option.id}`);
     }
   }
+  for (const preservedId of [
+    'arrival-bjarkalundur',
+    'dynjandi',
+    'eclipse-patreksfjordur',
+    'studlagil',
+    'jokulsarlon-boat',
+    'heimaey-puffin-volcano',
+    'departure',
+  ]) {
+    if (!ids.includes(preservedId)) failures.push(`Iceland itinerary lost stable option ID: ${preservedId}`);
+  }
+  if (!Array.isArray(itinerary.decisions) || itinerary.decisions.length < 6) {
+    failures.push('Iceland itinerary must expose the ordered logistics decision queue');
+  }
+  if (!Array.isArray(itinerary.operations) || itinerary.operations.length < 5) {
+    failures.push('Iceland itinerary must preserve practical trip operations');
+  }
+  if (itinerary.methodology?.sourceDocumentSha256
+      !== '523d988f965ef24cbfef2141d284f460c8361f4d137e4f0be1fbdf73d1f116aa') {
+    failures.push('Iceland itinerary is not pinned to the revised source document');
+  }
+}
+
+const mapDataText = await readFile('iceland26/map-data.json', 'utf8');
+let mapData;
+try {
+  mapData = JSON.parse(mapDataText);
+} catch (error) {
+  failures.push(`iceland26/map-data.json is invalid JSON: ${error.message}`);
+}
+if (mapData) {
+  if (mapData.schemaVersion !== 1) failures.push('Iceland map data schemaVersion must be 1');
+  if (mapData.sourceDocumentSha256
+      !== '523d988f965ef24cbfef2141d284f460c8361f4d137e4f0be1fbdf73d1f116aa') {
+    failures.push('Iceland map data is not pinned to the revised source document');
+  }
+  if (!Array.isArray(mapData.boundary) || !mapData.boundary.length) {
+    failures.push('Iceland map data must include a local coastline');
+  }
+  if (!Array.isArray(mapData.routes) || mapData.routes.length < 12) {
+    failures.push('Iceland map data must include route-wide daily geometry');
+  }
+  for (const route of mapData.routes || []) {
+    if (!route.id || !['locked', 'working', 'branch'].includes(route.state)
+        || !Array.isArray(route.dayIds) || !Array.isArray(route.points)
+        || route.points.length < 2) {
+      failures.push(`Iceland map route is incomplete: ${route.id || '(missing id)'}`);
+      continue;
+    }
+    for (const point of route.points) {
+      if (!Array.isArray(point) || point.length !== 2
+          || !Number.isFinite(point[0]) || !Number.isFinite(point[1])
+          || point[0] < -25.5 || point[0] > -12.5
+          || point[1] < 63 || point[1] > 67.5) {
+        failures.push(`Iceland map route has an invalid coordinate: ${route.id}`);
+        break;
+      }
+    }
+  }
 }
 
 const icelandClient = await readFile('iceland26/app.js', 'utf8');
@@ -162,10 +247,15 @@ for (const value of [
   "'/api/iceland26/preference'",
   "'/api/iceland26/comment'",
   "'/api/iceland26/suggestion'",
+  "'/iceland26/map-data.json'",
   'textContent',
   'localStorage',
-  'positivePreferences',
   'all four are in',
+  'createElementNS',
+  'requestAnimationFrame',
+  'prefers-reduced-motion',
+  'commentDrafts',
+  'noreferrer noopener',
 ]) {
   if (!icelandClient.includes(value)) failures.push(`iceland26/app.js is missing ${value}`);
 }
@@ -190,9 +280,10 @@ for (const value of [
   if (!icelandServer.includes(value)) failures.push(`Iceland server access gate is missing ${value}`);
 }
 
-const icelandPublicText = `${icelandIndex}\n${itineraryText}\n${icelandClient}`;
+const icelandPublicText = `${icelandIndex}\n${itineraryText}\n${mapDataText}\n${icelandClient}`;
 for (const [label, pattern] of [
   ['campsite-style reservation identifier', /\b\d{3}-\d{3}-\d{5}-\d{6}\b/],
+  ['named reservation or confirmation identifier', /\b(?:reservation|confirmation)\s+(?:id\b|number\b|#)\s*[:#]?\s*[A-Z0-9][A-Z0-9-]{5,}\b/i],
   ['private Google Drive URL', /https?:\/\/(?:drive|docs)\.google\.com\//i],
   ['motorhome terms document', /Motorhome Iceland Terms & Conditions/i],
 ]) {

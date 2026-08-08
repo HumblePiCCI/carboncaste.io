@@ -82,6 +82,7 @@ const publicIcelandFiles = new Set([
   '/iceland26/styles.css',
   '/iceland26/app.js',
   '/iceland26/itinerary.json',
+  '/iceland26/map-data.json',
   '/iceland26/access.html',
   '/iceland26/access.css',
   '/iceland26/access.js',

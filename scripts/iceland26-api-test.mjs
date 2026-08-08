@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdtempSync } from 'node:fs';
-import { readFile, rm } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -51,7 +51,7 @@ async function startServer() {
       ICELAND26_DATA_PATH: statePath,
       ICELAND26_ACCESS_HASH: testAccessHash,
       ICELAND26_SESSION_SECRET: 'test-session-secret-that-is-longer-than-thirty-two-characters',
-      ICELAND26_COOKIE_SECURE: 'false',
+      ICELAND26_COOKIE_SECURE: 'true',
       ICELAND26_INSTANCE_NONCE: testInstanceNonce,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -140,6 +140,16 @@ async function jsonRequest(path, { method = 'GET', body, headers = {} } = {}) {
 try {
   temporaryDirectory = mkdtempSync(join(tmpdir(), 'carboncaste-iceland26-test-'));
   statePath = join(temporaryDirectory, 'state', 'iceland26.json');
+  await mkdir(join(temporaryDirectory, 'state'), { recursive: true });
+  await writeFile(statePath, `${JSON.stringify({
+    schemaVersion: 1,
+    revision: 1,
+    updatedAt: '2026-08-08T00:00:00.000Z',
+    preferences: { 'arrival-bjarkalundur': { ben: 'love' } },
+    comments: [],
+    suggestions: [],
+    activity: [],
+  }, null, 2)}\n`, 'utf8');
   await startServer();
 
   const health = await jsonRequest('/api/iceland26/health');
@@ -170,13 +180,17 @@ try {
       || !login.body.authenticated
       || !sessionCookie.startsWith('iceland26_session=')
       || !setCookie.includes('HttpOnly')
+      || !setCookie.includes('Secure')
       || !setCookie.includes('SameSite=Strict')) {
     fail('A valid trip code did not establish a hardened session cookie.');
   }
 
   const initial = await jsonRequest('/api/iceland26');
-  if (initial.response.status !== 200 || !initial.body.available || initial.body.revision !== 0) {
-    fail('Initial API state was not available at revision 0.');
+  if (initial.response.status !== 200
+      || !initial.body.available
+      || initial.body.revision !== 1
+      || initial.body.preferences?.['arrival-bjarkalundur']?.ben !== 'love') {
+    fail('Existing production-shaped revision 1 state was not preserved at startup.');
   }
 
   const noIndex = initial.response.headers.get('x-robots-tag') || '';
@@ -195,6 +209,23 @@ try {
       || privateAsset.headers.get('cache-control') !== 'private, no-store'
       || !privateAsset.headers.get('vary')?.toLowerCase().includes('cookie')) {
     fail('Authenticated trip assets must be private, uncached, and cookie-varying.');
+  }
+
+  const privateMapAsset = await fetch(`${baseUrl}/iceland26/map-data.json`, {
+    headers: { Cookie: sessionCookie },
+  });
+  if (privateMapAsset.status !== 200
+      || privateMapAsset.headers.get('cache-control') !== 'private, no-store'
+      || !privateMapAsset.headers.get('vary')?.toLowerCase().includes('cookie')) {
+    fail('Authenticated route geometry must be private, uncached, and cookie-varying.');
+  }
+
+  const lockedMapAsset = await fetch(`${baseUrl}/iceland26/map-data.json`, {
+    redirect: 'manual',
+  });
+  if (lockedMapAsset.status !== 302
+      || !lockedMapAsset.headers.get('location')?.startsWith('/iceland26/access.html')) {
+    fail('Route geometry bypassed the private Iceland route gate.');
   }
 
   const privateTraversal = await fetch(`${baseUrl}/dist/..%2ficeland26/itinerary.json`, {
@@ -291,13 +322,14 @@ try {
 
   const stored = JSON.parse(await readFile(statePath, 'utf8'));
   const previous = JSON.parse(await readFile(`${statePath}.previous`, 'utf8'));
-  if (stored.revision !== 7
+  if (stored.revision !== 8
       || stored.comments.length !== 1
       || stored.suggestions.length !== 1
-      || Object.keys(stored.preferences.dynjandi || {}).length !== 4) {
-    fail('Atomic state file does not contain all seven serialized mutations.');
+      || Object.keys(stored.preferences.dynjandi || {}).length !== 4
+      || stored.preferences?.['arrival-bjarkalundur']?.ben !== 'love') {
+    fail('Atomic state file does not preserve the production-shaped preference plus all seven serialized mutations.');
   }
-  if (previous.revision !== 6
+  if (previous.revision !== 7
       || Object.keys(previous.preferences.dynjandi || {}).length !== 3) {
     fail('Previous-state checkpoint does not contain the last valid revision.');
   }
@@ -306,8 +338,9 @@ try {
   child = null;
   await startServer();
   const restored = await jsonRequest('/api/iceland26');
-  if (restored.body.revision !== 7
+  if (restored.body.revision !== 8
       || restored.body.preferences?.[suggestionId]?.brad !== 'love'
+      || restored.body.preferences?.['arrival-bjarkalundur']?.ben !== 'love'
       || restored.body.suggestions?.[0]?.title !== 'A quiet local pool'
       || Object.keys(restored.body.preferences?.dynjandi || {}).length !== 4) {
     fail('Coordination state did not survive a server restart.');
