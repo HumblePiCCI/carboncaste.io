@@ -59,6 +59,12 @@ function sameSnapshot(left, right) {
     && left.size === right.size;
 }
 
+function sameDirectoryIdentity(left, right) {
+  return left.dev === right.dev
+    && left.ino === right.ino
+    && left.mode === right.mode;
+}
+
 function expectGnuCollision(root, label) {
   let rejected = false;
   try {
@@ -184,7 +190,11 @@ try {
     writeFileSync(join(existingDirectory, 'sentinel'), sentinel);
     const directoryBefore = snapshot(existingDirectory);
     extract(realDirectoryRoot);
-    if (!sameSnapshot(directoryBefore, snapshot(existingDirectory))
+    // Extracting a tracked child directory legitimately changes the parent's
+    // link count (and may change its allocated directory size). Preserve the
+    // existing directory object and mode; the exact-tree verifier below still
+    // rejects the sentinel and any other untracked entry.
+    if (!sameDirectoryIdentity(directoryBefore, snapshot(existingDirectory))
         || !readFileSync(join(existingDirectory, 'sentinel')).equals(sentinel)
         || !readFileSync(join(existingDirectory, 'index.html')).length) {
       throw new Error('GNU tar changed an existing real directory or its sentinel.');
