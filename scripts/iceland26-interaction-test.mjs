@@ -482,7 +482,10 @@ async function assertBonusLayer(page, label) {
 
   await toggle.click();
   if (await toggle.getAttribute('aria-pressed') !== 'false'
-      || await page.locator('.map-marker--bonus[aria-hidden="true"][tabindex="-1"]').count() !== 30) {
+      || await page.locator('.map-marker--bonus[aria-hidden="true"][tabindex="-1"]').count() !== 30
+      || !await stores.evaluateAll((markers) => markers.every((marker) => (
+        getComputedStyle(marker).display === 'none' && marker.getBoundingClientRect().width === 0
+      )))) {
     fail(`${label}: the Bónus layer toggle did not remove every store from interaction.`);
   }
   await toggle.click();
@@ -506,6 +509,14 @@ async function assertBonusLayer(page, label) {
       || !await page.locator('#selected-place-voting').getByText(/never write to shared trip state/i).count()) {
     fail(`${label}: a grocery reference exposed traveler-owned voting or comment writes.`);
   }
+
+  await toggle.click();
+  if (await panel.getByRole('heading', { name: 'Bónus Digranesgata' }).count()
+      || await page.locator('.map-marker--bonus:visible').count()) {
+    fail(`${label}: disabling the Bónus layer left its selected store or markers visible.`);
+  }
+  await toggle.click();
+  await activateMarker(page, 'bonus-digranesgata');
 
   const first = page.locator('.map-marker[data-option-id="bonus-kauptun"] .map-marker__store');
   const second = page.locator('.map-marker[data-option-id="bonus-midhraun"] .map-marker__store');

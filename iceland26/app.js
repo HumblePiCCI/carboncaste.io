@@ -948,7 +948,7 @@ function renderMap(animateCampers = false) {
         option.standout ? 'map-marker--standout' : '',
         optionDayIds(option).includes(selectedDay()?.id) ? 'is-current-day' : '',
         option.id === selectedOptionId ? 'is-active' : '',
-        visible ? '' : 'is-muted',
+        visible ? '' : (grocery ? 'is-layer-hidden' : 'is-muted'),
       ].filter(Boolean).join(' '),
       transform: `translate(${point.x.toFixed(2)} ${point.y.toFixed(2)})`,
       role: 'button',
@@ -2115,7 +2115,15 @@ elements.bonusLayer.addEventListener('click', () => {
   bonusLayerEnabled = !bonusLayerEnabled;
   elements.bonusLayer.classList.toggle('is-active', bonusLayerEnabled);
   elements.bonusLayer.setAttribute('aria-pressed', String(bonusLayerEnabled));
-  renderMap(false);
+  if (!bonusLayerEnabled && isBonusStore(selectedOption())) {
+    const dayChoice = asArray(selectedDay()?.stopIds).find((id) => optionById(id));
+    selectedOptionId = dayChoice || allOptions()[0]?.id || null;
+    panelOpen = true;
+    storyOpen = true;
+    renderPage({ animateCampers: false, preserveFocus: false });
+  } else {
+    renderMap(false);
+  }
   elements.bonusLayer.focus({ preventScroll: true });
 });
 

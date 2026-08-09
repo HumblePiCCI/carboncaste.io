@@ -1038,6 +1038,7 @@ summary:focus-visible,
 .map-marker:focus .map-marker__halo { stroke: var(--sun); stroke-width: 6; }
 .map-marker.is-muted { opacity: 0.16; pointer-events: none; }
 .map-marker.is-muted .map-marker__touch { pointer-events: none; }
+.map-marker.is-layer-hidden { display: none; }
 
 .map-marker__label {
   fill: var(--ink-deep);
