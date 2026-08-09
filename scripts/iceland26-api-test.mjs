@@ -228,6 +228,23 @@ try {
     fail('Route geometry bypassed the private Iceland route gate.');
   }
 
+  const privateBonusAsset = await fetch(`${baseUrl}/iceland26/bonus-stores.json`, {
+    headers: { Cookie: sessionCookie },
+  });
+  if (privateBonusAsset.status !== 200
+      || privateBonusAsset.headers.get('cache-control') !== 'private, no-store'
+      || !privateBonusAsset.headers.get('vary')?.toLowerCase().includes('cookie')) {
+    fail('Authenticated Bónus census must be private, uncached, and cookie-varying.');
+  }
+
+  const lockedBonusAsset = await fetch(`${baseUrl}/iceland26/bonus-stores.json`, {
+    redirect: 'manual',
+  });
+  if (lockedBonusAsset.status !== 302
+      || !lockedBonusAsset.headers.get('location')?.startsWith('/iceland26/access.html')) {
+    fail('Bónus census bypassed the private Iceland route gate.');
+  }
+
   const lockedMediaAsset = await fetch(`${baseUrl}/iceland26/media/dynjandi.webp`, {
     redirect: 'manual',
   });

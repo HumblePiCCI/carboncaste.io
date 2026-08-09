@@ -353,6 +353,7 @@ async function login(page, context, label) {
   }
   await assertLockedAsset(context, '/iceland26/itinerary.json', `${label} itinerary gate`);
   await assertLockedAsset(context, '/iceland26/map-data.json', `${label} map gate`);
+  await assertLockedAsset(context, '/iceland26/bonus-stores.json', `${label} Bónus census gate`);
 
   const codeInput = page.locator('#trip-code');
   await page.screenshot({ path: join(screenshotDirectory, `${label}-access.png`) });
@@ -387,11 +388,20 @@ async function login(page, context, label) {
     true,
   );
   const mapText = await assertPrivateAsset(context, '/iceland26/map-data.json', `${label} map`);
+  const bonusText = await assertPrivateAsset(
+    context,
+    '/iceland26/bonus-stores.json',
+    `${label} Bónus census`,
+  );
   try {
     const itinerary = JSON.parse(itineraryText);
     const map = JSON.parse(mapText);
+    const bonus = JSON.parse(bonusText);
     if (itinerary.days?.length !== 17) fail(`${label}: private itinerary does not contain exactly 17 dated days.`);
     if ((map.routes?.length || 0) < 12) fail(`${label}: private route snapshot contains fewer than 12 route paths.`);
+    if (bonus.stores?.length !== 33 || bonus.stores.filter((store) => store.included).length !== 30) {
+      fail(`${label}: private Bónus census is incomplete.`);
+    }
   } catch (error) {
     fail(`${label}: private trip assets are not valid JSON (${error.message}).`);
   }
@@ -456,6 +466,74 @@ async function assertBoardStructure(page, label) {
   assertNoPrivateLeak(structure.visibleText, `${label} visible UI`);
   await assertNoHorizontalOverflow(page, label);
   await assertExternalLinkSafety(page, label);
+}
+
+async function assertBonusLayer(page, label) {
+  const toggle = page.locator('#bonus-layer-toggle');
+  const stores = page.locator('.map-marker--bonus');
+  if (await toggle.getAttribute('aria-pressed') !== 'true'
+      || await stores.count() !== 30
+      || await page.locator('.map-marker--bonus[aria-hidden="false"][tabindex="0"]').count() !== 30) {
+    fail(`${label}: the default-enabled Bónus layer does not expose exactly 30 accessible stores.`);
+  }
+  if (label === 'mobile' && (await toggle.boundingBox())?.height < 44) {
+    fail('mobile: the Bónus layer toggle is smaller than the 44px touch-target floor.');
+  }
+
+  await toggle.click();
+  if (await toggle.getAttribute('aria-pressed') !== 'false'
+      || await page.locator('.map-marker--bonus[aria-hidden="true"][tabindex="-1"]').count() !== 30) {
+    fail(`${label}: the Bónus layer toggle did not remove every store from interaction.`);
+  }
+  await toggle.click();
+
+  await activateMarker(page, 'bonus-digranesgata');
+  const panel = page.locator('#place-panel');
+  const text = await panel.innerText();
+  const detailChecks = {
+    name: text.includes('Bónus Digranesgata'),
+    address: text.toLocaleLowerCase().includes('digranesgata, 310 borgarnesi'),
+    coordinates: text.includes('64.541141, -21.909299'),
+    segment: text.includes('Aug 9 · explicit Borgarnes provisioning town'),
+    official: Boolean(await panel.getByRole('link', { name: /Official Bónus locator/i }).count()),
+    directions: Boolean(await panel.getByRole('link', { name: /Directions to Bónus Digranesgata/i }).count()),
+  };
+  if (Object.values(detailChecks).some((value) => !value)) {
+    fail(`${label}: Bónus details omit identity, address, coordinates, route fit, or source links (${JSON.stringify(detailChecks)}; ${JSON.stringify(text)}).`);
+  }
+  if (await page.locator('#selected-place-voting button[data-action="preference"]').count()
+      || await page.locator('#selected-place-comments form').count()
+      || !await page.locator('#selected-place-voting').getByText(/never write to shared trip state/i).count()) {
+    fail(`${label}: a grocery reference exposed traveler-owned voting or comment writes.`);
+  }
+
+  const first = page.locator('.map-marker[data-option-id="bonus-kauptun"] .map-marker__store');
+  const second = page.locator('.map-marker[data-option-id="bonus-midhraun"] .map-marker__store');
+  await first.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(120);
+  const [firstBox, secondBox] = await Promise.all([first.boundingBox(), second.boundingBox()]);
+  if (!firstBox || !secondBox) {
+    fail(`${label}: overlapping Garðabær grocery markers are not rendered.`);
+  } else {
+    const x = ((firstBox.x + (firstBox.width / 2)) + (secondBox.x + (secondBox.width / 2))) / 2;
+    const y = ((firstBox.y + (firstBox.height / 2)) + (secondBox.y + (secondBox.height / 2))) / 2;
+    if (label === 'mobile') await page.touchscreen.tap(x, y);
+    else await page.mouse.click(x, y);
+    const chooser = page.locator('.map-choice-menu');
+    await chooser.waitFor();
+    if (!await chooser.getByRole('button', { name: /Bónus Kauptún/i }).count()
+        || !await chooser.getByRole('button', { name: /Bónus Miðhraun/i }).count()) {
+      fail(`${label}: overlapping metro stores are not independently reachable in the chooser.`);
+    }
+    await page.keyboard.press('Escape');
+  }
+
+  await activateMarker(page, 'bonus-midhraun');
+  if (!await panel.getByRole('heading', { name: 'Bónus Miðhraun' }).count()) {
+    fail(`${label}: keyboard selection cannot independently reach a clustered Bónus store.`);
+  }
+  await assertNoHorizontalOverflow(page, `${label} Bónus details`);
+  await assertExternalLinkSafety(page, `${label} Bónus details`);
 }
 
 async function assertAllCamperDayEndpoints(page, label, scrubber) {
@@ -1677,6 +1755,7 @@ async function runViewport(viewport, label, mutate = false) {
   try {
     await login(page, context, label);
     await assertBoardStructure(page, label);
+    await assertBonusLayer(page, label);
     await exerciseTimeline(page, label, label === 'desktop');
     await exerciseMapControls(page, label);
     await exercisePointerMarkerCollisions(page, label);

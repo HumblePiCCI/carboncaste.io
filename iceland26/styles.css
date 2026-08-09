@@ -856,6 +856,7 @@ summary:focus-visible,
 }
 
 .map-filter,
+.map-layer-toggle,
 .map-zoom {
   display: flex;
   padding: 0.24rem;
@@ -865,6 +866,36 @@ summary:focus-visible,
   box-shadow: var(--shadow-small);
   backdrop-filter: blur(10px);
   pointer-events: auto;
+}
+
+.map-layer-toggle {
+  min-height: 38px;
+  align-items: center;
+  gap: 0.42rem;
+  padding: 0.44rem 0.7rem;
+  color: var(--ink);
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.map-layer-toggle:not(.is-active) {
+  color: var(--ink-soft);
+  background: rgba(255, 253, 246, 0.74);
+}
+
+.map-layer-toggle__swatch {
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--ink-deep);
+  border-radius: 3px;
+  background: #ffdf00;
+}
+
+.map-layer-toggle:not(.is-active) .map-layer-toggle__swatch {
+  background: transparent;
 }
 
 .map-filter button,
@@ -981,6 +1012,19 @@ summary:focus-visible,
   stroke: var(--paper-bright);
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
+}
+
+.map-marker__store {
+  fill: #ffdf00;
+  stroke: var(--ink-deep);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.map-marker--bonus.is-active .map-marker__store,
+.map-marker--bonus:focus .map-marker__store {
+  stroke: var(--lava-dark);
+  stroke-width: 4;
 }
 
 .map-marker--booked .map-marker__dot,
@@ -1301,6 +1345,34 @@ summary:focus-visible,
 .place-head {
   padding: 1.5rem 1.5rem 1.25rem;
   border-bottom: 1px solid var(--line);
+}
+
+.place-head--bonus {
+  background: linear-gradient(145deg, rgba(255, 223, 0, 0.22), transparent 72%);
+}
+
+.badge--bonus {
+  color: var(--ink-deep);
+  background: #ffdf00;
+}
+
+.badge--on-route {
+  color: var(--paper-bright);
+  background: var(--moss-dark);
+}
+
+.badge--short-detour {
+  color: var(--ink-deep);
+  background: var(--ice);
+}
+
+.metric-grid--store strong {
+  overflow-wrap: anywhere;
+  font-size: 0.76rem;
+}
+
+.grocery-reference-note {
+  border-left: 4px solid #ffdf00;
 }
 
 .place-head__meta {
@@ -2082,6 +2154,8 @@ summary:focus-visible,
   .planner-shell { display: flex; height: auto; min-height: 0; flex-direction: column; border-width: 1px 0; }
   .day-rail { max-height: 420px; border-right: 0; border-bottom: 1px solid var(--line); }
   .map-frame { min-height: 720px; }
+  .map-toolbar { flex-wrap: wrap; }
+  .map-layer-toggle { order: 3; }
   .place-panel { max-height: none; overflow: visible; border-right: 0; border-bottom: 1px solid var(--line); }
   .place-panel.is-closed { display: none; }
   .group-rail { grid-template-columns: 1fr 1fr; }
@@ -2151,6 +2225,7 @@ summary:focus-visible,
   .identity select,
   .date-track button,
   .map-filter button,
+  .map-layer-toggle,
   .map-zoom button,
   .place-panel__close,
   .map-story-card__close,

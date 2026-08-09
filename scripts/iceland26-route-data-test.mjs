@@ -15,6 +15,16 @@ function distanceSquared([lng, lat], target) {
   return ((lng - target[0]) ** 2) + ((lat - target[1]) ** 2);
 }
 
+function haversineKm([lngA, latA], [lngB, latB]) {
+  const radians = (value) => (value * Math.PI) / 180;
+  const latitudeDelta = radians(latB - latA);
+  const longitudeDelta = radians(lngB - lngA);
+  const value = (Math.sin(latitudeDelta / 2) ** 2)
+    + (Math.cos(radians(latA)) * Math.cos(radians(latB))
+      * (Math.sin(longitudeDelta / 2) ** 2));
+  return 2 * 6371 * Math.asin(Math.sqrt(value));
+}
+
 function routePointsFor(mapData, dayId) {
   return mapData.routes
     .filter((route) => route.state !== 'branch' && route.dayIds.includes(dayId))
@@ -120,8 +130,10 @@ function projectedDayProgress(mapSnapshot, orderedDays) {
 
 const itineraryText = await readFile('iceland26/itinerary.json', 'utf8');
 const mapText = await readFile('iceland26/map-data.json', 'utf8');
+const bonusText = await readFile('iceland26/bonus-stores.json', 'utf8');
 const itinerary = JSON.parse(itineraryText);
 const mapData = JSON.parse(mapText);
+const bonusData = JSON.parse(bonusText);
 
 const regenerationDirectory = mkdtempSync(join(tmpdir(), 'iceland26-itinerary-regeneration-'));
 try {
@@ -150,10 +162,92 @@ try {
 
 if (itinerary.schemaVersion !== 2) fail('Expected itinerary schemaVersion 2.');
 if (mapData.schemaVersion !== 1) fail('Expected map-data schemaVersion 1.');
+if (bonusData.schemaVersion !== 1) fail('Expected bonus-stores schemaVersion 1.');
+
+const expectedBonusStoreIds = [
+  'bonus-bjarkarholt',
+  'bonus-fiskislod',
+  'bonus-gardatorg',
+  'bonus-helluhraun',
+  'bonus-holtagardar',
+  'bonus-hraunbaer',
+  'bonus-kauptun',
+  'bonus-kjorgardur',
+  'bonus-kringlan',
+  'bonus-louholar',
+  'bonus-midhraun',
+  'bonus-nordlingabraut',
+  'bonus-nybylavegur',
+  'bonus-ogurhvarf',
+  'bonus-skeifan',
+  'bonus-skipholt',
+  'bonus-skutuvogur',
+  'bonus-smartorg',
+  'bonus-spongin',
+  'bonus-tjarnarvellir',
+  'bonus-digranesgata',
+  'bonus-fitjar',
+  'bonus-langholt-akureyri',
+  'bonus-larsenstraeti',
+  'bonus-midstraeti-vestmannaeyjar',
+  'bonus-midvangur-egilsstadir',
+  'bonus-naustahverfi-akureyri',
+  'bonus-nordurtorg-akureyri',
+  'bonus-sunnumork',
+  'bonus-tungata-reykjanesbaer',
+].sort();
+const includedBonusStores = bonusData.stores.filter((store) => store.included);
+const excludedBonusStores = bonusData.stores.filter((store) => !store.included);
+if (bonusData.officialInventory?.declaredStoreCount !== 33 || bonusData.stores.length !== 33) {
+  fail('Bónus census must evaluate all 33 official locations.');
+}
+if (new Set(bonusData.stores.map((store) => store.id)).size !== bonusData.stores.length) {
+  fail('Bónus census IDs must be unique.');
+}
+if (JSON.stringify(includedBonusStores.map((store) => store.id).sort())
+    !== JSON.stringify(expectedBonusStoreIds)) {
+  fail('The exact included Bónus store set changed without an audited census update.');
+}
+if (includedBonusStores.filter((store) => store.routeFit === 'on-route').length !== 14
+    || includedBonusStores.filter((store) => store.routeFit === 'short-detour').length !== 16) {
+  fail('Bónus inclusion classifications must remain 14 on-route and 16 short-detour.');
+}
+if (JSON.stringify(excludedBonusStores.map((store) => store.id).sort()) !== JSON.stringify([
+  'bonus-borgarbraut-stykkisholmur',
+  'bonus-skeidi-isafjordur',
+  'bonus-smidjuvellir-akranes',
+])) {
+  fail('The three audited Bónus exclusions changed.');
+}
+for (const store of bonusData.stores) {
+  if (!store.id?.startsWith('bonus-') || !store.name?.startsWith('Bónus ') || !store.address
+      || !Number.isFinite(store.map?.lat) || !Number.isFinite(store.map?.lng)
+      || !Number.isFinite(store.minimumRouteOffsetKm) || !store.routeRelation
+      || !store.nearestDayId) {
+    fail(`${store.id || 'Bónus store'} has incomplete census data.`);
+  }
+  if (!['on-route', 'short-detour', 'excluded'].includes(store.routeFit)) {
+    fail(`${store.id} has an invalid route-fit classification.`);
+  }
+  if (!store.included && !/^Excluded:/.test(store.routeRelation)) {
+    fail(`${store.id} is excluded without a concrete exclusion rationale.`);
+  }
+  const coordinate = [store.map.lng, store.map.lat];
+  const recomputedOffset = Math.min(...mapData.routes
+    .flatMap((route) => route.points)
+    .map((point) => haversineKm(coordinate, point)));
+  if (Math.abs(recomputedOffset - store.minimumRouteOffsetKm) >= 0.005) {
+    fail(`${store.id} route offset is not the reproducible rounded Haversine vertex minimum.`);
+  }
+}
 
 const options = itinerary.legs.flatMap((leg) => leg.options);
 const optionIds = new Set(options.map((option) => option.id));
 const dayIds = new Set(itinerary.days.map((day) => day.id));
+
+for (const store of bonusData.stores) {
+  if (!dayIds.has(store.nearestDayId)) fail(`${store.id} names unknown day ${store.nearestDayId}.`);
+}
 
 for (const day of itinerary.days) {
   for (const stopId of day.stopIds) {

@@ -16,6 +16,7 @@ const requiredFiles = [
   'iceland26/app.js',
   'iceland26/itinerary.json',
   'iceland26/map-data.json',
+  'iceland26/bonus-stores.json',
   'iceland26/access.html',
   'iceland26/access.css',
   'iceland26/access.js',
@@ -35,6 +36,7 @@ const requiredFiles = [
   'iceland26/media/skogafoss.webp',
   'server/iceland26-store.mjs',
   'docs/iceland26-route-methodology.md',
+  'docs/iceland26-bonus-store-census.md',
   'scripts/build-iceland26-itinerary.mjs',
   'scripts/build-iceland26-map-data.mjs',
   'scripts/iceland26-route-data-test.mjs',
@@ -125,8 +127,9 @@ for (const value of [
   'id="decisions"',
   'id="trip-ops"',
   'id="idea-dialog"',
-  '/iceland26/styles.css?v=20260808-clear-map',
-  '/iceland26/app.js?v=20260808-clear-map',
+  '/iceland26/styles.css?v=20260809-bonus-stores',
+  '/iceland26/app.js?v=20260809-bonus-stores',
+  'id="bonus-layer-toggle"',
   'noindex, nofollow',
 ]) {
   if (!icelandIndex.includes(value)) failures.push(`iceland26/index.html is missing ${value}`);
@@ -288,6 +291,7 @@ for (const value of [
   "'/api/iceland26/comment'",
   "'/api/iceland26/suggestion'",
   "'/iceland26/map-data.json'",
+  "'/iceland26/bonus-stores.json'",
   'textContent',
   'localStorage',
   'all four are in',
@@ -323,6 +327,7 @@ for (const value of [
   'isPublicStaticPath',
   'publicRootFiles',
   'publicIcelandFiles',
+  "'/iceland26/bonus-stores.json'",
   "['.webp', 'image/webp']",
   "path.startsWith('/iceland26/media/') && path.endsWith('.webp')",
 ]) {

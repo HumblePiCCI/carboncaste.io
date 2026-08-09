@@ -116,6 +116,7 @@ const elements = {
   mapViewport: requiredElement('#map-viewport'),
   mapAttribution: requiredElement('.map-attribution'),
   mapFilter: requiredElement('#map-filter'),
+  bonusLayer: requiredElement('#bonus-layer-toggle'),
   zoomOut: requiredElement('#zoom-out'),
   zoomReset: requiredElement('#zoom-reset'),
   zoomIn: requiredElement('#zoom-in'),
@@ -143,6 +144,7 @@ const elements = {
 
 let itinerary = null;
 let mapData = null;
+let bonusData = null;
 let sharedState = {
   available: false,
   revision: 0,
@@ -154,6 +156,7 @@ let sharedState = {
 let selectedDayIndex = Math.max(0, Number(elements.scrubber.value) || 0);
 let selectedOptionId = null;
 let activeMapFilter = 'all';
+let bonusLayerEnabled = true;
 let mapZoom = 1;
 let panelOpen = true;
 let refreshTimer = null;
@@ -357,6 +360,29 @@ function allOptions() {
   return [...researched, ...communityOptions()];
 }
 
+function includedBonusStores() {
+  return asArray(bonusData?.stores)
+    .filter((store) => store.included)
+    .map((store) => ({
+      ...store,
+      category: 'bonus-grocery',
+      status: store.routeFit,
+      dayIds: store.nearestDayId ? [store.nearestDayId] : [],
+    }));
+}
+
+function isBonusStore(place) {
+  return place?.category === 'bonus-grocery';
+}
+
+function allMapPlaces() {
+  return [...allOptions(), ...includedBonusStores()];
+}
+
+function placeById(placeId) {
+  return allMapPlaces().find((place) => place.id === placeId) || null;
+}
+
 function optionById(optionId) {
   return allOptions().find((option) => option.id === optionId) || null;
 }
@@ -369,7 +395,7 @@ function selectedDay() {
 }
 
 function selectedOption() {
-  return optionById(selectedOptionId);
+  return placeById(selectedOptionId);
 }
 
 function optionDayIds(option) {
@@ -453,7 +479,7 @@ function renderCounts() {
   const optionOpen = options.filter((option) => openStatuses.has(option.status)).length;
   const agreements = options.filter((option) => consensusFor(option.id).agreement).length;
   elements.countDays.textContent = String(asArray(itinerary?.days).length);
-  elements.countOptions.textContent = String(options.filter((option) => mapCoordinate(option)).length);
+  elements.countOptions.textContent = String(allMapPlaces().filter((option) => mapCoordinate(option)).length);
   elements.countOpen.textContent = String(decisions.length ? explicitOpen : optionOpen);
   elements.countAgreements.textContent = String(agreements);
 }
@@ -664,7 +690,7 @@ function resolvedBounds() {
   const coordinates = [
     ...coordinateRings(mapData?.boundary).flat(),
     ...asArray(mapData?.routes).flatMap((route) => asArray(route.points)),
-    ...allOptions().map(mapCoordinate).filter(Boolean),
+    ...allMapPlaces().map(mapCoordinate).filter(Boolean),
   ].filter(isCoordinate);
   if (!coordinates.length) return { minLng: -25, maxLng: -13, minLat: 63, maxLat: 67 };
   const lngs = coordinates.map((point) => Number(point[0]));
@@ -708,6 +734,7 @@ function renderGeometry(parent, geometry, className) {
 }
 
 function markerMatchesFilter(option) {
+  if (isBonusStore(option)) return bonusLayerEnabled;
   if (activeMapFilter === 'all') return true;
   if (activeMapFilter === 'locked') return lockedStatuses.has(option.status);
   if (activeMapFilter === 'standout') return Boolean(option.standout);
@@ -908,13 +935,15 @@ function renderMap(animateCampers = false) {
 
   const markerLayer = createSvgElement('g');
   const markerTouchRadius = requiredMarkerTouchRadius();
-  allOptions().filter((option) => mapCoordinate(option)).forEach((option) => {
+  allMapPlaces().filter((option) => mapCoordinate(option)).forEach((option) => {
     const point = projectCoordinate(mapCoordinate(option));
     const visible = markerMatchesFilter(option);
     const status = String(option.status || 'working').toLowerCase().replace(/[^a-z0-9-]/g, '');
+    const grocery = isBonusStore(option);
     const marker = createSvgElement('g', {
       class: [
         'map-marker',
+        grocery ? 'map-marker--bonus' : '',
         status ? `map-marker--${status}` : '',
         option.standout ? 'map-marker--standout' : '',
         optionDayIds(option).includes(selectedDay()?.id) ? 'is-current-day' : '',
@@ -924,7 +953,9 @@ function renderMap(animateCampers = false) {
       transform: `translate(${point.x.toFixed(2)} ${point.y.toFixed(2)})`,
       role: 'button',
       tabindex: visible ? '0' : '-1',
-      'aria-label': `${option.title}. ${statusLabel(option.status)}${option.standout ? '. Best-of-area research signal' : ''}.`,
+      'aria-label': grocery
+        ? `${option.name}. Bónus grocery, ${option.routeFit === 'on-route' ? 'on route' : 'short provisioning detour'}. ${option.address}.`
+        : `${option.title}. ${statusLabel(option.status)}${option.standout ? '. Best-of-area research signal' : ''}.`,
       'aria-pressed': String(option.id === selectedOptionId),
       'aria-hidden': visible ? 'false' : 'true',
       'data-option-id': option.id,
@@ -938,7 +969,9 @@ function renderMap(animateCampers = false) {
         'aria-hidden': 'true',
       }),
       createSvgElement('circle', { class: 'map-marker__halo', r: 15 }),
-      createSvgElement('circle', { class: 'map-marker__dot', r: 6 }),
+      grocery
+        ? createSvgElement('rect', { class: 'map-marker__store', x: -7, y: -7, width: 14, height: 14, rx: 3 })
+        : createSvgElement('circle', { class: 'map-marker__dot', r: 6 }),
     );
     const offsets = option.map?.labelOffset;
     const offsetX = Array.isArray(offsets) ? offsets[0] : offsets?.x;
@@ -1005,7 +1038,7 @@ function pointerChoices(event, fallbackMarker) {
       return (deltaX ** 2) + (deltaY ** 2) <= 1.01;
     });
   if (!matches.includes(fallbackMarker)) matches.push(fallbackMarker);
-  const order = new Map(allOptions().map((option, index) => [option.id, index]));
+  const order = new Map(allMapPlaces().map((option, index) => [option.id, index]));
   return [...new Map(matches.map((marker) => [marker.dataset.optionId, marker])).values()]
     .sort((left, right) => (
       (order.get(left.dataset.optionId) ?? Number.MAX_SAFE_INTEGER)
@@ -1034,14 +1067,16 @@ function openMapChoiceMenu(markers, returnFocus) {
   );
   const choices = createElement('div', 'map-choice-menu__choices');
   markers.forEach((marker) => {
-    const option = optionById(marker.dataset.optionId);
+    const option = placeById(marker.dataset.optionId);
     if (!option) return;
     const button = createElement('button', 'map-choice-menu__option');
     button.type = 'button';
     button.dataset.optionId = option.id;
     button.append(
-      createElement('strong', null, firstText(option.shortTitle, option.title)),
-      createElement('span', null, statusLabel(option.status)),
+      createElement('strong', null, firstText(option.shortTitle, option.title, option.name)),
+      createElement('span', null, isBonusStore(option)
+        ? `Bónus · ${option.routeFit === 'on-route' ? 'on route' : 'short detour'}`
+        : statusLabel(option.status)),
     );
     button.addEventListener('click', () => {
       closeMapChoiceMenu({ restoreFocus: false });
@@ -1072,6 +1107,70 @@ function appendDetailList(parent, values, emptyText = '') {
   parent.append(list);
 }
 
+function renderBonusStorePanel(store) {
+  const head = createElement('header', 'place-head place-head--bonus');
+  const meta = createElement('div', 'place-head__meta');
+  appendBadge(meta, 'Bónus grocery', 'badge--bonus');
+  appendBadge(
+    meta,
+    store.routeFit === 'on-route' ? 'On route' : 'Short detour',
+    `badge--${store.routeFit}`,
+  );
+  const title = createElement('h3', null, store.name);
+  title.id = 'place-title';
+  head.append(
+    meta,
+    title,
+    createElement('p', 'place-location', store.address),
+    createElement('p', 'place-hook', store.routeRelation),
+  );
+  elements.placeContent.append(head);
+
+  const metrics = createElement('div', 'metric-grid metric-grid--store');
+  [
+    ['Route fit', store.routeFit === 'on-route' ? 'On route' : 'Short detour'],
+    ['Nearest segment', store.nearestSegment],
+    ['Coordinates', `${Number(store.map.lat).toFixed(6)}, ${Number(store.map.lng).toFixed(6)}`],
+  ].forEach(([label, value]) => {
+    const metric = createElement('div');
+    metric.append(createElement('span', null, label), createElement('strong', null, value));
+    metrics.append(metric);
+  });
+  elements.placeContent.append(metrics);
+
+  const sourceSection = createElement('section', 'detail-section');
+  sourceSection.append(
+    createElement('h4', null, 'Store source and directions'),
+    createElement(
+      'p',
+      null,
+      `Bónus official locator checked ${bonusData.sourceAccessed}. Store hours and availability can change; verify them at the current source.`,
+    ),
+  );
+  const links = createElement('div', 'contact-links');
+  appendSafeLink(links, {
+    url: bonusData.officialInventory.url,
+    label: 'Official Bónus locator ↗',
+  });
+  appendSafeLink(links, {
+    url: `https://www.google.com/maps/dir/?api=1&destination=${store.map.lat},${store.map.lng}`,
+    label: `Directions to ${store.name} ↗`,
+  });
+  sourceSection.append(links);
+  elements.placeContent.append(sourceSection);
+
+  const custody = createElement('section', 'detail-section');
+  custody.append(
+    createElement('h4', null, 'Data custody'),
+    createElement(
+      'p',
+      null,
+      `Official locator coordinate; ${store.minimumRouteOffsetKm.toFixed(2)} km minimum line proximity to the stored route geometry. This is an audit metric, not a claimed driving distance.`,
+    ),
+  );
+  elements.placeContent.append(custody);
+}
+
 function renderPlacePanel() {
   const previousOptionId = renderedPanelOptionId;
   elements.placeContent.replaceChildren();
@@ -1086,6 +1185,11 @@ function renderPlacePanel() {
   }
   renderedPanelOptionId = option.id;
   if (previousOptionId !== option.id) elements.placePanel.scrollTop = 0;
+
+  if (isBonusStore(option)) {
+    renderBonusStorePanel(option);
+    return;
+  }
 
   const head = createElement('header', 'place-head');
   const meta = createElement('div', 'place-head__meta');
@@ -1289,6 +1393,14 @@ function renderVoting() {
     elements.selectedVoting.append(createElement('p', 'empty-note', 'Choose a mapped place to weigh in.'));
     return;
   }
+  if (isBonusStore(option)) {
+    elements.selectedVoting.append(createElement(
+      'p',
+      'empty-note grocery-reference-note',
+      'Provisioning reference only. Grocery markers do not accept votes and never write to shared trip state.',
+    ));
+    return;
+  }
   const panel = createElement('section', 'vote-panel');
   const title = createElement('p', 'vote-panel__title');
   title.id = `preference-title-${option.id}`;
@@ -1361,6 +1473,7 @@ function renderComments() {
   elements.selectedComments.replaceChildren();
   const option = selectedOption();
   if (!option) return;
+  if (isBonusStore(option)) return;
   const panel = createElement('section', 'comment-panel');
   panel.append(createElement('h4', null, 'Sticky notes'));
   const form = createElement('form', 'sticky-form');
@@ -1754,7 +1867,7 @@ function scrollIntoViewImmediately(element, options) {
 }
 
 function chooseOption(optionId, { focusPanel = false, syncDay = true } = {}) {
-  const option = optionById(optionId);
+  const option = placeById(optionId);
   if (!option) return;
   selectedOptionId = option.id;
   if (syncDay) {
@@ -1873,9 +1986,10 @@ async function load() {
   const rememberedParticipant = readStorage('iceland26-participant');
   if (participantIds.includes(rememberedParticipant)) elements.participant.value = rememberedParticipant;
 
-  const [tripResult, mapResult, stateResult] = await Promise.allSettled([
+  const [tripResult, mapResult, bonusResult, stateResult] = await Promise.allSettled([
     fetchJson('/iceland26/itinerary.json'),
     fetchJson('/iceland26/map-data.json'),
+    fetchJson('/iceland26/bonus-stores.json'),
     fetchJson('/api/iceland26'),
   ]);
 
@@ -1887,6 +2001,11 @@ async function load() {
 
   itinerary = tripResult.value;
   mapData = mapResult.status === 'fulfilled' ? mapResult.value : fallbackMapData(itinerary);
+  bonusData = bonusResult.status === 'fulfilled' ? bonusResult.value : {
+    sourceAccessed: '',
+    officialInventory: {},
+    stores: [],
+  };
   if (stateResult.status === 'fulfilled') sharedState = stateResult.value;
   selectedDayIndex = Math.min(
     Math.max(0, Number(elements.scrubber.value) || 0),
@@ -1905,6 +2024,9 @@ async function load() {
   }
   if (mapResult.status === 'rejected') {
     showToast('The route geometry could not load; mapped stops are shown with a simplified fallback.', true);
+  }
+  if (bonusResult.status === 'rejected') {
+    showToast('The Bónus provisioning layer could not load; the route board remains available.', true);
   }
 
   refreshTimer = setInterval(() => {
@@ -1987,6 +2109,14 @@ elements.mapFilter.addEventListener('click', (event) => {
   });
   renderMap(false);
   button.focus({ preventScroll: true });
+});
+
+elements.bonusLayer.addEventListener('click', () => {
+  bonusLayerEnabled = !bonusLayerEnabled;
+  elements.bonusLayer.classList.toggle('is-active', bonusLayerEnabled);
+  elements.bonusLayer.setAttribute('aria-pressed', String(bonusLayerEnabled));
+  renderMap(false);
+  elements.bonusLayer.focus({ preventScroll: true });
 });
 
 function changeZoom(next) {
