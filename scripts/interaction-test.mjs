@@ -1,7 +1,11 @@
 import { existsSync, mkdirSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 
-const baseUrl = (process.env.BASE_URL || 'http://127.0.0.1:8126/?manual=1').replace(/\/$/, '');
+const configuredUrl = new URL(process.env.BASE_URL || 'http://127.0.0.1:8126/');
+const manualUrl = new URL(configuredUrl);
+manualUrl.searchParams.set('manual', '1');
+const automaticUrl = new URL(configuredUrl);
+automaticUrl.searchParams.delete('manual');
 const chromePaths = [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   '/Applications/Chromium.app/Contents/MacOS/Chromium',
@@ -29,7 +33,7 @@ async function run(viewport, label) {
   });
   page.on('pageerror', (error) => consoleErrors.push(error.message));
 
-  await page.goto(baseUrl, { waitUntil: 'networkidle' });
+  await page.goto(manualUrl.href, { waitUntil: 'networkidle' });
   await expect(page, () => document.documentElement.classList.contains('ascii-ready'), `${label}: ASCII scene did not become ready`);
   await expect(page, () => window.__carbonPortal?.snapshot().mode === 'intro', `${label}: portal did not begin in intro mode`);
   await expect(page, () => window.__carbonPortal?.snapshot().signalSettled, `${label}: viewport signal did not settle into alignment`, 3000);
@@ -48,18 +52,32 @@ async function run(viewport, label) {
       colors: new Set(spans.map((node) => node.className)).size,
       coverageWidth: (bounds.right - bounds.left) / window.innerWidth,
       coverageHeight: (bounds.bottom - bounds.top) / window.innerHeight,
-      surfaceHidden: document.querySelector('#surface-site').hidden,
+      surfaceOpacity: Number(getComputedStyle(document.querySelector('#surface-site')).opacity),
+      stageOpacity: Number(getComputedStyle(document.querySelector('#ascii-stage')).opacity),
+      surfaceZIndex: Number(getComputedStyle(document.querySelector('#surface-site')).zIndex),
+      stageZIndex: Number(getComputedStyle(document.querySelector('#ascii-stage')).zIndex),
+      siteClassApplied: document.body.classList.contains('is-surface-site'),
       hasReplacementMatte: Boolean(document.querySelector('#ascii-matte')),
       visibleChrome: [...document.body.children].filter((node) => {
         if (['SCRIPT', 'NOSCRIPT', 'MAIN'].includes(node.tagName) || node.classList.contains('sr-only')) return false;
         const style = getComputedStyle(node);
-        return style.display !== 'none' && style.visibility !== 'hidden';
+        const rect = node.getBoundingClientRect();
+        return style.display !== 'none'
+          && style.visibility !== 'hidden'
+          && Number(style.opacity) > 0
+          && rect.width > 0
+          && rect.height > 0;
       }).length,
     };
   });
   if (introVisual.spans < 20) failures.push(`${label}: ASCII scene has too few colored runs (${introVisual.spans})`);
   if (introVisual.colors < 5) failures.push(`${label}: ASCII scene has too little color variation (${introVisual.colors})`);
-  if (!introVisual.surfaceHidden) failures.push(`${label}: corporate surface leaks into first load`);
+  if (introVisual.surfaceOpacity !== 0
+      || introVisual.stageOpacity !== 1
+      || introVisual.siteClassApplied
+      || introVisual.stageZIndex <= introVisual.surfaceZIndex) {
+    failures.push(`${label}: corporate surface paints before the manual intro dive completes`);
+  }
   if (introVisual.hasReplacementMatte) failures.push(`${label}: obsolete replacement matte remains in the document`);
   if (introVisual.visibleChrome !== 0) failures.push(`${label}: first load exposes non-scene interface chrome`);
 
@@ -268,10 +286,53 @@ async function run(viewport, label) {
   await page.close();
 }
 
+async function assertAutomaticEntry(viewport, label) {
+  const page = await browser.newPage({ viewport, hasTouch: label === 'mobile' });
+  const consoleErrors = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') consoleErrors.push(message.text());
+  });
+  page.on('pageerror', (error) => consoleErrors.push(error.message));
+  await page.goto(automaticUrl.href, { waitUntil: 'networkidle' });
+  await expect(page, () => (
+    window.__carbonPortal?.snapshot().mode === 'site'
+      && document.body.classList.contains('is-surface-site')
+      && Number(getComputedStyle(document.querySelector('#surface-site')).opacity) === 1
+  ), `${label}: default first load did not enter the corporate surface automatically`, 8000);
+  const automatic = await page.evaluate(() => {
+    const surface = document.querySelector('#surface-site');
+    const stage = document.querySelector('#ascii-stage');
+    return {
+      mode: window.__carbonPortal.snapshot().mode,
+      surfaceOpacity: Number(getComputedStyle(surface).opacity),
+      stageOpacity: Number(getComputedStyle(stage).opacity),
+      siteClassApplied: document.body.classList.contains('is-surface-site'),
+      surfaceHidden: surface.hidden,
+      surfaceAria: surface.getAttribute('aria-hidden'),
+    };
+  });
+  if (automatic.mode !== 'site'
+      || automatic.surfaceOpacity !== 1
+      || automatic.stageOpacity !== 1
+      || !automatic.siteClassApplied
+      || automatic.surfaceHidden
+      || automatic.surfaceAria !== 'false') {
+    failures.push(`${label}: automatic first load did not settle on the visible surface (${JSON.stringify(automatic)})`);
+  }
+  if (consoleErrors.length) failures.push(`${label}: automatic-entry console errors: ${consoleErrors.join(' | ')}`);
+  await page.screenshot({ path: `output/playwright/${label}-automatic-surface.png` });
+  await page.close();
+}
+
 try {
   browser = await chromium.launch({ headless: true, executablePath });
-  await run({ width: 1440, height: 900 }, 'desktop');
-  await run({ width: 390, height: 844 }, 'mobile');
+  for (const [viewport, label] of [
+    [{ width: 1440, height: 900 }, 'desktop'],
+    [{ width: 390, height: 844 }, 'mobile'],
+  ]) {
+    await assertAutomaticEntry(viewport, label);
+    await run(viewport, label);
+  }
 } finally {
   await browser?.close();
 }
@@ -281,4 +342,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`Frozen-surface continuity smoke passed at desktop and mobile viewports for ${baseUrl}.`);
+console.log(`Automatic-entry and frozen-surface continuity passed at desktop and mobile viewports for ${configuredUrl.origin}.`);

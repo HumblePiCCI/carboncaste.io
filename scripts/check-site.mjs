@@ -37,6 +37,7 @@ const requiredFiles = [
   'server/iceland26-store.mjs',
   'docs/iceland26-route-methodology.md',
   'docs/iceland26-bonus-store-census.md',
+  'docs/root-interaction-gate-diagnosis-2026-08-09.md',
   'scripts/build-iceland26-itinerary.mjs',
   'scripts/build-iceland26-map-data.mjs',
   'scripts/iceland26-route-data-test.mjs',

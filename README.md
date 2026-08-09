@@ -60,7 +60,8 @@ npm audit
 ```
 
 `npm run interaction` launches system Chrome at 1440x900 and 390x844. It
-checks first-load isolation, 110% centered geometry, authored-axis-only motion,
+checks automatic no-click entry, deterministic manual-intro painted-state isolation,
+110% centered geometry, authored-axis-only motion,
 single-mesh ASCII link lock, chromatic ASCII output, intro controls, gradual curved
 surface flight, exact frozen-frame continuity, sampled theme persistence,
 complete corporate information architecture, scrolling, section navigation,
