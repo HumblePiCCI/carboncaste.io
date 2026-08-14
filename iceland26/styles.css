@@ -13,6 +13,8 @@
   --lava: #e9664e;
   --lava-dark: #b94432;
   --sun: #efc35a;
+  --camp: #087f78;
+  --camp-bright: #5ad2c5;
   --open: #a9758d;
   --line: rgba(18, 55, 51, 0.2);
   --line-light: rgba(255, 253, 246, 0.22);
@@ -287,6 +289,31 @@ summary:focus-visible,
   line-height: 1.5;
 }
 
+.current-trip-banner {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+  width: fit-content;
+  margin: 1.2rem 0 0;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid rgba(90, 210, 197, 0.55);
+  border-radius: 999px;
+  color: var(--paper-bright);
+  background: rgba(8, 127, 120, 0.34);
+  font-size: 0.72rem;
+  line-height: 1.3;
+  backdrop-filter: blur(10px);
+}
+
+.current-trip-banner__pulse {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--camp-bright);
+  box-shadow: 0 0 0 5px rgba(90, 210, 197, 0.15);
+}
+
 .truth-key {
   display: grid;
   gap: 1.05rem;
@@ -520,6 +547,32 @@ summary:focus-visible,
 .date-track button[data-state="open"]::before { background: #bc86a0; box-shadow: 0 0 0 1px #8e5b74; }
 .date-track button.is-active { color: var(--ink); font-weight: 900; }
 .date-track button.is-active::before { width: 14px; height: 14px; top: -2px; background: var(--lava); box-shadow: 0 0 0 4px rgba(233, 102, 78, 0.17); }
+.date-track button.is-earlier-trip-day { opacity: 0.58; }
+.date-track button.is-earlier-trip-day.is-latest-confirmed-day { opacity: 0.9; }
+.date-track button.is-latest-confirmed-day::before { box-shadow: 0 0 0 3px rgba(8, 127, 120, 0.28); }
+.date-track button.is-active.is-latest-confirmed-day::before {
+  background: var(--lava);
+  box-shadow: 0 0 0 4px rgba(8, 127, 120, 0.24);
+}
+.date-track button.is-current-trip-day::before {
+  width: 14px;
+  height: 14px;
+  top: -2px;
+  background: var(--camp-bright);
+  box-shadow: 0 0 0 4px rgba(8, 127, 120, 0.2);
+}
+.date-track button.is-current-trip-day::after {
+  position: absolute;
+  top: -23px;
+  left: 50%;
+  color: var(--camp);
+  content: "NOW";
+  font-size: 0.42rem;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  transform: translateX(-50%);
+}
+.date-track button.is-active.is-current-trip-day::before { background: var(--lava); }
 
 .date-track strong,
 .date-track small {
@@ -849,7 +902,7 @@ summary:focus-visible,
   left: 0.85rem;
   z-index: 8;
   display: flex;
-  gap: 1rem;
+  gap: 0.55rem;
   align-items: center;
   justify-content: space-between;
   pointer-events: none;
@@ -857,6 +910,7 @@ summary:focus-visible,
 
 .map-filter,
 .map-layer-toggle,
+.map-reference-layers,
 .map-zoom {
   display: flex;
   padding: 0.24rem;
@@ -866,6 +920,21 @@ summary:focus-visible,
   box-shadow: var(--shadow-small);
   backdrop-filter: blur(10px);
   pointer-events: auto;
+}
+
+.map-reference-layers {
+  display: flex;
+  gap: 0.28rem;
+  align-items: center;
+  padding: 0.24rem;
+}
+
+.map-reference-layers .map-layer-toggle {
+  min-height: 34px;
+  padding: 0.36rem 0.55rem;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
 .map-layer-toggle {
@@ -891,12 +960,38 @@ summary:focus-visible,
   height: 13px;
   border: 2px solid var(--ink-deep);
   border-radius: 3px;
-  background: #ffdf00;
+}
+
+.map-layer-toggle__swatch--bonus { background: #ffdf00; }
+
+.map-layer-toggle__swatch--camping-card {
+  border-color: #035e59;
+  border-radius: 1px;
+  background: var(--camp-bright);
+  transform: rotate(45deg) scale(0.78);
 }
 
 .map-layer-toggle:not(.is-active) .map-layer-toggle__swatch {
   background: transparent;
 }
+
+.camping-card-scope select {
+  min-height: 34px;
+  max-width: 145px;
+  padding: 0.35rem 1.55rem 0.35rem 0.55rem;
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0 999px 999px 0;
+  color: var(--ink);
+  background: transparent;
+  font-size: 0.56rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.camping-card-scope select:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .map-filter button,
 .map-zoom button {
@@ -960,6 +1055,18 @@ summary:focus-visible,
   stroke-dasharray: 9 8;
 }
 
+.route-path--conditional {
+  stroke: rgba(29, 104, 110, 0.66);
+  stroke-width: 4;
+  stroke-dasharray: 6 9;
+}
+
+.route-path--historical {
+  stroke: rgba(77, 92, 89, 0.42);
+  stroke-width: 3;
+  stroke-dasharray: 3 8;
+}
+
 .route-path--locked {
   stroke: var(--lava-dark);
   stroke-width: 5;
@@ -983,6 +1090,16 @@ summary:focus-visible,
 
 .route-day-highlight--locked { stroke-dasharray: none; }
 .route-day-highlight--working { stroke-dasharray: 10 7; }
+.route-day-highlight--conditional {
+  stroke: #4f9699;
+  stroke-dasharray: 6 9;
+}
+.route-day-highlight--historical {
+  stroke: #7e8b89;
+  stroke-width: 6;
+  stroke-dasharray: 3 8;
+  opacity: 0.66;
+}
 .route-day-highlight--branch {
   stroke: #bc86a0;
   stroke-width: 6;
@@ -1021,6 +1138,22 @@ summary:focus-visible,
   vector-effect: non-scaling-stroke;
 }
 
+.map-marker__camp {
+  fill: var(--camp-bright);
+  stroke: #035e59;
+  stroke-width: 2.4;
+  vector-effect: non-scaling-stroke;
+}
+
+.map-marker--camping-card.map-marker--behind-current-route .map-marker__camp { opacity: 0.48; }
+
+.map-marker--camping-card.is-active .map-marker__camp,
+.map-marker--camping-card:focus .map-marker__camp {
+  fill: var(--paper-bright);
+  stroke: var(--camp);
+  stroke-width: 4;
+}
+
 .map-marker--bonus.is-active .map-marker__store,
 .map-marker--bonus:focus .map-marker__store {
   stroke: var(--lava-dark);
@@ -1035,6 +1168,16 @@ summary:focus-visible,
 .map-marker--backup .map-marker__dot { fill: var(--open); }
 .map-marker--standout .map-marker__dot { stroke: var(--lava); stroke-width: 4; }
 .map-marker.is-active .map-marker__halo { fill: var(--sun); stroke: var(--lava-dark); stroke-width: 2; }
+.map-marker.is-current-trip-place .map-marker__halo {
+  fill: var(--camp-bright);
+  stroke: #035e59;
+  stroke-width: 3;
+}
+.map-marker.is-current-trip-place .map-marker__dot {
+  fill: var(--paper-bright);
+  stroke: #035e59;
+  stroke-width: 3;
+}
 .map-marker:focus .map-marker__halo { stroke: var(--sun); stroke-width: 6; }
 .map-marker.is-muted { opacity: 0.16; pointer-events: none; }
 .map-marker.is-muted .map-marker__touch { pointer-events: none; }
@@ -1053,7 +1196,7 @@ summary:focus-visible,
   transition: opacity 140ms ease;
 }
 
-.map-marker.is-current-day .map-marker__label,
+.map-marker.is-current-trip-place .map-marker__label,
 .map-marker.is-active .map-marker__label,
 .map-marker:hover .map-marker__label,
 .map-marker:focus .map-marker__label { opacity: 1; }
@@ -1352,9 +1495,45 @@ summary:focus-visible,
   background: linear-gradient(145deg, rgba(255, 223, 0, 0.22), transparent 72%);
 }
 
+.place-head--camping-card {
+  background: linear-gradient(145deg, rgba(90, 210, 197, 0.25), transparent 72%);
+}
+
 .badge--bonus {
   color: var(--ink-deep);
   background: #ffdf00;
+}
+
+.badge--camping-card {
+  color: var(--paper-bright);
+  background: var(--camp);
+}
+
+.badge--current-trip {
+  color: var(--paper-bright);
+  background: var(--camp);
+}
+
+.badge--outside-pass {
+  color: var(--lava-dark);
+  background: #fff0e8;
+}
+
+.current-stay-note { border-left: 4px solid var(--lava); }
+
+.badge--camping-direct {
+  color: var(--paper-bright);
+  background: var(--moss-dark);
+}
+
+.badge--camping-conditional {
+  color: var(--ink-deep);
+  background: var(--ice);
+}
+
+.badge--camping-behind-current-route {
+  color: var(--ink-soft);
+  background: var(--paper-deep);
 }
 
 .badge--on-route {
@@ -1375,6 +1554,19 @@ summary:focus-visible,
 .grocery-reference-note {
   border-left: 4px solid #ffdf00;
 }
+
+.camping-card-reference-note,
+.camping-card-coverage {
+  border-left: 4px solid var(--camp);
+}
+
+.coverage-caveat {
+  padding: 0.7rem;
+  background: rgba(239, 195, 90, 0.18);
+  font-weight: 700;
+}
+
+.detail-footnote { color: var(--ink-soft); font-size: 0.68rem; }
 
 .place-head__meta {
   display: flex;
@@ -2114,6 +2306,8 @@ summary:focus-visible,
 @media (max-width: 1320px) {
   .planner-shell { grid-template-columns: minmax(310px, 0.9fr) minmax(510px, 2fr) minmax(230px, 0.72fr); }
   .day-rail, .group-rail { padding: 1.1rem; }
+  .map-toolbar { align-content: flex-start; flex-wrap: wrap; }
+  .map-reference-layers { order: 3; margin-inline: auto; }
 }
 
 @media (max-width: 1120px) {
@@ -2133,6 +2327,8 @@ summary:focus-visible,
   .group-rail { grid-column: 1 / -1; grid-row: 3; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.2rem; border-top: 1px solid var(--line); border-left: 0; }
   .group-rail__heading { border-bottom: 0; }
   .decision-cards { grid-template-columns: repeat(2, 1fr); }
+  .map-toolbar { align-content: flex-start; flex-wrap: wrap; }
+  .map-reference-layers { order: 3; margin-inline: auto; }
 }
 
 @media (max-width: 820px) {
@@ -2156,7 +2352,12 @@ summary:focus-visible,
   .day-rail { max-height: 420px; border-right: 0; border-bottom: 1px solid var(--line); }
   .map-frame { min-height: 720px; }
   .map-toolbar { flex-wrap: wrap; }
-  .map-layer-toggle { order: 3; }
+  .map-reference-layers { width: 100%; justify-content: center; }
+  .map-filter button,
+  .map-layer-toggle,
+  .camping-card-scope select,
+  .map-zoom button { min-height: 44px; }
+  .map-reference-layers .map-layer-toggle { min-height: 44px; }
   .place-panel { max-height: none; overflow: visible; border-right: 0; border-bottom: 1px solid var(--line); }
   .place-panel.is-closed { display: none; }
   .group-rail { grid-template-columns: 1fr 1fr; }
@@ -2202,9 +2403,12 @@ summary:focus-visible,
   .map-story-card__review { font-size: 0.58rem; -webkit-line-clamp: 3; }
   .map-story-card__source { margin-top: 0.2rem; font-size: 0.5rem; }
   .map-filter button { padding: 0.42rem 0.48rem; font-size: 0.52rem; }
+  .map-reference-layers { gap: 0.1rem; padding: 0.18rem; }
+  .map-reference-layers .map-layer-toggle { padding: 0.32rem 0.42rem; font-size: 0.5rem; }
+  .camping-card-scope select { max-width: 126px; padding-left: 0.42rem; font-size: 0.49rem; }
   .map-zoom #zoom-reset { display: none; }
   .map-marker__label { display: none; }
-  .map-marker.is-current-day .map-marker__label,
+  .map-marker.is-current-trip-place .map-marker__label,
   .map-marker.is-active .map-marker__label,
   .map-marker:focus .map-marker__label { display: block; }
   .camper-key {
@@ -2227,6 +2431,7 @@ summary:focus-visible,
   .date-track button,
   .map-filter button,
   .map-layer-toggle,
+  .camping-card-scope select,
   .map-zoom button,
   .place-panel__close,
   .map-story-card__close,

@@ -95,8 +95,16 @@ The board:
 - keeps the complete operational record in a dedicated left information rail,
   leaving the route visible and clickable; a compact translucent map card holds
   only the selected stop's planning-document image and/or traveller-review signal;
-- labels every map image as carried forward from the revised planning document;
+- labels every map image as a planning-document image;
   images are orientation aids, never evidence for current access or safety;
+- opens on the traveller-confirmed August 13 check-in at Hamrar and distinguishes
+  completed dates from optional stops whose completion was never asserted;
+- maps the complete current 30-site Útilegukortið roster as a distinct,
+  independently switchable prepaid Camping Card layer, with remaining-route and
+  all-site scopes plus explicit tax, amenity-fee, capacity, and seasonal caveats;
+- keeps Camping Card campsites and Bónus groceries read-only and outside the
+  preference/comment catalog, while leaving every reference marker keyboard and
+  touch selectable;
 - preserves directly struck-through source ideas in a read-only ruled-out
   archive without returning them to the route or decision system;
 - highlights research-backed standouts with direct official, review, and travel

@@ -24,7 +24,9 @@ const icelandDataPath = resolve(
   process.env.ICELAND26_DATA_PATH || join(root, '.data', 'iceland26-state.json'),
 );
 const itinerary = JSON.parse(readFileSync(join(root, 'iceland26', 'itinerary.json'), 'utf8'));
-const catalogOptionIds = itinerary.legs.flatMap((leg) => leg.options.map((option) => option.id));
+const catalogOptionIds = itinerary.legs.flatMap((leg) => (
+  leg.options.filter((option) => option.active !== false).map((option) => option.id)
+));
 const icelandStore = await createIceland26Store({ dataPath: icelandDataPath, catalogOptionIds });
 const icelandAccessHash = String(process.env.ICELAND26_ACCESS_HASH || '').toLowerCase();
 const icelandSessionSecret = String(process.env.ICELAND26_SESSION_SECRET || '');
@@ -85,6 +87,7 @@ const publicIcelandFiles = new Set([
   '/iceland26/itinerary.json',
   '/iceland26/map-data.json',
   '/iceland26/bonus-stores.json',
+  '/iceland26/camping-card-sites.json',
   '/iceland26/access.html',
   '/iceland26/access.css',
   '/iceland26/access.js',

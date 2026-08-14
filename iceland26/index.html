@@ -7,8 +7,8 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Iceland 2026 — Route room</title>
   <link rel="icon" href="/favicon.ico">
-  <link rel="stylesheet" href="/iceland26/styles.css?v=20260809-bonus-stores">
-  <script type="module" src="/iceland26/app.js?v=20260809-bonus-stores"></script>
+  <link rel="stylesheet" href="/iceland26/styles.css?v=20260814-camping-card-current-trip">
+  <script type="module" src="/iceland26/app.js?v=20260814-camping-card-current-trip"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to the route room</a>
@@ -44,6 +44,7 @@
         <p class="kicker" id="trip-date">August 8–24, 2026 · clockwise circuit</p>
         <h1 id="trip-title">One route.<br><em>Four voices.</em></h1>
         <p class="route-intro__lede">Mary’s planning, made geographic: every booked anchor, realistic drive, strong experience and open call in the order it appears on the road.</p>
+        <p class="current-trip-banner" id="current-trip-state" hidden></p>
       </div>
       <div class="truth-key" aria-label="Planning status key">
         <div><span class="status-dot status-dot--locked"></span><strong>Locked</strong><small>booked or fixed</small></div>
@@ -74,7 +75,7 @@
       </div>
       <div class="scrubber-wrap">
         <label class="sr-only" for="day-scrubber">Trip day</label>
-        <input id="day-scrubber" class="day-scrubber" type="range" min="0" max="16" step="1" value="1">
+        <input id="day-scrubber" class="day-scrubber" type="range" min="0" max="16" step="1" value="5">
         <ol class="date-track" id="date-track" aria-label="Trip dates"></ol>
       </div>
     </section>
@@ -113,9 +114,22 @@
               <button class="map-filter__button" type="button" data-map-filter="standout" aria-pressed="false">★ Best</button>
               <button class="map-filter__button" type="button" data-map-filter="open" aria-pressed="false">Open</button>
             </div>
-            <button class="map-layer-toggle is-active" id="bonus-layer-toggle" type="button" aria-pressed="true">
-              <span class="map-layer-toggle__swatch" aria-hidden="true"></span>Bónus groceries
-            </button>
+            <div class="map-reference-layers" role="group" aria-label="Reference layers">
+              <button class="map-layer-toggle is-active" id="bonus-layer-toggle" type="button" aria-pressed="true">
+                <span class="map-layer-toggle__swatch map-layer-toggle__swatch--bonus" aria-hidden="true"></span>Bónus
+              </button>
+              <button class="map-layer-toggle map-layer-toggle--camping-card is-active" id="camping-card-layer-toggle" type="button" aria-pressed="true">
+                <span class="map-layer-toggle__swatch map-layer-toggle__swatch--camping-card" aria-hidden="true"></span>Camping Card
+              </button>
+              <label class="camping-card-scope" for="camping-card-scope">
+                <span class="sr-only">Camping Card sites shown</span>
+                <select id="camping-card-scope" aria-label="Camping Card sites shown">
+                  <option value="direct">Direct fits</option>
+                  <option value="remaining" selected>Remaining route</option>
+                  <option value="all">All 30</option>
+                </select>
+              </label>
+            </div>
             <div class="map-zoom">
               <button type="button" id="zoom-out" aria-label="Zoom map out">−</button>
               <button type="button" id="zoom-reset" aria-label="Reset map view">Reset</button>
@@ -125,7 +139,7 @@
 
           <svg id="route-map-svg" class="route-map" viewBox="0 0 1000 700" role="group" aria-labelledby="route-map-title route-map-desc">
             <title id="route-map-title">Interactive map of the Iceland 2026 route</title>
-            <desc id="route-map-desc">A clockwise route around Iceland with a default-enabled Bónus grocery layer. Select a dated stop or grocery to update the practical details in the left information rail.</desc>
+            <desc id="route-map-desc">A clockwise route around Iceland with independently switchable Bónus grocery and prepaid Camping Card campsite layers. Select a dated stop, campsite or grocery to update the practical details in the left information rail.</desc>
             <g id="map-viewport"></g>
           </svg>
 
@@ -173,7 +187,7 @@
           <p class="kicker">Decision queue</p>
           <h2 id="decision-title">Resolve these in order.</h2>
         </div>
-        <p>Upstream choices change the route below them. Start with tonight’s sleep, then book only what survives the drive-time pass.</p>
+        <p>Upstream choices change the route below them. Start with the next unresolved overnight, then book only what survives the drive-time pass.</p>
       </div>
       <div class="decision-cards" id="decision-cards"></div>
     </section>
@@ -230,7 +244,7 @@
 
   <footer class="trip-footer">
     <p><strong>ICELAND / 2026</strong><span>Ben · Mary · Laura · Brad</span></p>
-    <p><a href="/">carboncaste.io</a><span>Planning refresh: August 8, 2026</span></p>
+    <p><a href="/">carboncaste.io</a><span>Source plan: August 13 · route and campsite refresh: August 14, 2026</span></p>
   </footer>
 </body>
 </html>

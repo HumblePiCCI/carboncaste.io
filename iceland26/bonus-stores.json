@@ -37,9 +37,9 @@
       "map": { "lat": 64.1535841, "lng": -21.9515956, "label": "Bónus Fiskislóð" },
       "included": true,
       "routeFit": "short-detour",
-      "nearestDayId": "day-2026-08-22",
-      "nearestSegment": "Aug 21–23 · Reykjavík stay",
-      "routeRelation": "Practical west-side Reykjavík provisioning stop during the multi-day city stay.",
+      "nearestDayId": "day-2026-08-23",
+      "nearestSegment": "Aug 23 · Reykjavík stay",
+      "routeRelation": "Practical west-side Reykjavík provisioning stop after the planned city arrival.",
       "minimumRouteOffsetKm": 2.96
     },
     {
@@ -73,8 +73,8 @@
       "map": { "lat": 64.14143764121444, "lng": -21.847241084655707, "label": "Bónus Holtagarðar" },
       "included": true,
       "routeFit": "on-route",
-      "nearestDayId": "day-2026-08-21",
-      "nearestSegment": "Aug 21 · Reykjavík arrival",
+      "nearestDayId": "day-2026-08-23",
+      "nearestSegment": "Aug 23 · Reykjavík arrival",
       "routeRelation": "On the east-side Reykjavík arrival and city circulation path.",
       "minimumRouteOffsetKm": 0.27
     },
@@ -85,8 +85,8 @@
       "map": { "lat": 64.1180044, "lng": -21.795716, "label": "Bónus Hraunbær" },
       "included": true,
       "routeFit": "short-detour",
-      "nearestDayId": "day-2026-08-21",
-      "nearestSegment": "Aug 21 · Reykjavík arrival and stay",
+      "nearestDayId": "day-2026-08-23",
+      "nearestSegment": "Aug 23 · Reykjavík arrival and stay",
       "routeRelation": "Short east-Reykjavík provisioning detour from the arrival corridor.",
       "minimumRouteOffsetKm": 0.78
     },
@@ -133,8 +133,8 @@
       "map": { "lat": 64.108897, "lng": -21.8166374, "label": "Bónus Lóuhólar" },
       "included": true,
       "routeFit": "short-detour",
-      "nearestDayId": "day-2026-08-21",
-      "nearestSegment": "Aug 21–23 · Reykjavík arrival and stay",
+      "nearestDayId": "day-2026-08-23",
+      "nearestSegment": "Aug 23 · Reykjavík arrival and stay",
       "routeRelation": "Short south-east Reykjavík provisioning detour during the city stay.",
       "minimumRouteOffsetKm": 1.44
     },
@@ -157,8 +157,8 @@
       "map": { "lat": 64.101060860603, "lng": -21.777729709509, "label": "Bónus Norðlingabraut" },
       "included": true,
       "routeFit": "on-route",
-      "nearestDayId": "day-2026-08-21",
-      "nearestSegment": "Aug 21 · Hveragerði to Reykjavík",
+      "nearestDayId": "day-2026-08-23",
+      "nearestSegment": "Aug 23 · Hveragerði to Reykjavík",
       "routeRelation": "Directly on the eastern Reykjavík arrival corridor.",
       "minimumRouteOffsetKm": 0.45
     },
@@ -169,9 +169,9 @@
       "map": { "lat": 64.114322, "lng": -21.8982156, "label": "Bónus Nýbýlavegur" },
       "included": true,
       "routeFit": "on-route",
-      "nearestDayId": "day-2026-08-24",
-      "nearestSegment": "Aug 24 · departure / optional Sky Lagoon branch",
-      "routeRelation": "On the departure-side metro route and beside the optional Sky Lagoon branch.",
+      "nearestDayId": "day-2026-08-23",
+      "nearestSegment": "Aug 23 · Reykjavík arrival / optional Sky Lagoon branch",
+      "routeRelation": "On the Reykjavík metro route and beside the optional Sky Lagoon branch.",
       "minimumRouteOffsetKm": 0.05
     },
     {
@@ -181,8 +181,8 @@
       "map": { "lat": 64.0963192844695, "lng": -21.80263167459111, "label": "Bónus Ögurhvarf" },
       "included": true,
       "routeFit": "short-detour",
-      "nearestDayId": "day-2026-08-21",
-      "nearestSegment": "Aug 21 · Reykjavík arrival / metro stay",
+      "nearestDayId": "day-2026-08-23",
+      "nearestSegment": "Aug 23 · Reykjavík arrival / metro stay",
       "routeRelation": "Short Kópavogur provisioning detour from the arrival corridor.",
       "minimumRouteOffsetKm": 1.69
     },
@@ -193,8 +193,8 @@
       "map": { "lat": 64.13135997352308, "lng": -21.869365396947728, "label": "Bónus Skeifan" },
       "included": true,
       "routeFit": "short-detour",
-      "nearestDayId": "day-2026-08-22",
-      "nearestSegment": "Aug 21–23 · Reykjavík stay",
+      "nearestDayId": "day-2026-08-23",
+      "nearestSegment": "Aug 23 · Reykjavík stay",
       "routeRelation": "Short central-east Reykjavík provisioning detour during the city stay.",
       "minimumRouteOffsetKm": 1.08
     },
@@ -217,8 +217,8 @@
       "map": { "lat": 64.1351175620713, "lng": -21.846144392590304, "label": "Bónus Skútuvogur" },
       "included": true,
       "routeFit": "short-detour",
-      "nearestDayId": "day-2026-08-22",
-      "nearestSegment": "Aug 21–23 · Reykjavík stay",
+      "nearestDayId": "day-2026-08-23",
+      "nearestSegment": "Aug 23 · Reykjavík stay",
       "routeRelation": "Short east-Reykjavík provisioning detour during the city stay.",
       "minimumRouteOffsetKm": 0.87
     },
@@ -241,8 +241,8 @@
       "map": { "lat": 64.15048085280998, "lng": -21.789538241278024, "label": "Bónus Spöngin" },
       "included": true,
       "routeFit": "short-detour",
-      "nearestDayId": "day-2026-08-22",
-      "nearestSegment": "Aug 21–23 · Reykjavík metro stay",
+      "nearestDayId": "day-2026-08-23",
+      "nearestSegment": "Aug 23 · Reykjavík metro stay",
       "routeRelation": "Practical Grafarvogur provisioning stop during the multi-day metro stay.",
       "minimumRouteOffsetKm": 1.9
     },
@@ -256,7 +256,7 @@
       "nearestDayId": "day-2026-08-24",
       "nearestSegment": "Aug 24 · airport departure corridor",
       "routeRelation": "Short Hafnarfjörður provisioning detour from the airport-return corridor.",
-      "minimumRouteOffsetKm": 1.43
+      "minimumRouteOffsetKm": 1.4
     },
     {
       "id": "bonus-borgarbraut-stykkisholmur",
@@ -304,7 +304,7 @@
       "nearestDayId": "day-2026-08-14",
       "nearestSegment": "Aug 14 · Akureyri resupply",
       "routeRelation": "Short Akureyri provisioning detour from the day's route.",
-      "minimumRouteOffsetKm": 0.54
+      "minimumRouteOffsetKm": 0.34
     },
     {
       "id": "bonus-larsenstraeti",
@@ -313,9 +313,9 @@
       "map": { "lat": 63.9383341, "lng": -20.9733296, "label": "Bónus Selfoss" },
       "included": true,
       "routeFit": "short-detour",
-      "nearestDayId": "day-2026-08-20",
-      "nearestSegment": "Aug 20 · Golden Circle transfer",
-      "routeRelation": "Practical service-town provisioning detour on the South Coast to Golden Circle transfer.",
+      "nearestDayId": "day-2026-08-23",
+      "nearestSegment": "Aug 23 · Reykjadalur to Reykjavík",
+      "routeRelation": "Practical Selfoss provisioning detour on the final transfer toward Reykjavík.",
       "minimumRouteOffsetKm": 2.79
     },
     {
@@ -325,9 +325,9 @@
       "map": { "lat": 63.44188325689199, "lng": -20.270838593132794, "label": "Bónus Heimaey" },
       "included": true,
       "routeFit": "on-route",
-      "nearestDayId": "day-2026-08-19",
-      "nearestSegment": "Aug 19 · Heimaey local branch",
-      "routeRelation": "On the planned Heimaey day branch; the board's default remains foot passengers with campers at Landeyjahöfn.",
+      "nearestDayId": "day-2026-08-21",
+      "nearestSegment": "Aug 21 · Heimaey local branch",
+      "routeRelation": "On the optional Heimaey day branch; the board's default remains foot passengers with campers at Landeyjahöfn.",
       "minimumRouteOffsetKm": 0.18
     },
     {
@@ -337,9 +337,9 @@
       "map": { "lat": 65.26329714857421, "lng": -14.405244369975321, "label": "Bónus Egilsstaðir" },
       "included": true,
       "routeFit": "on-route",
-      "nearestDayId": "day-2026-08-15",
-      "nearestSegment": "Aug 15 arrival / Aug 16 departure",
-      "routeRelation": "On the route through Egilsstaðir.",
+      "nearestDayId": "day-2026-08-17",
+      "nearestSegment": "Aug 17 arrival / Aug 19 departure",
+      "routeRelation": "On the route through Egilsstaðir before and after the Seyðisfjörður stay.",
       "minimumRouteOffsetKm": 0.25
     },
     {
@@ -352,7 +352,7 @@
       "nearestDayId": "day-2026-08-14",
       "nearestSegment": "Aug 14 · Akureyri resupply",
       "routeRelation": "Short Akureyri provisioning detour from the day's route.",
-      "minimumRouteOffsetKm": 1.2
+      "minimumRouteOffsetKm": 0.61
     },
     {
       "id": "bonus-nordurtorg-akureyri",
@@ -362,9 +362,9 @@
       "included": true,
       "routeFit": "short-detour",
       "nearestDayId": "day-2026-08-14",
-      "nearestSegment": "Aug 14 · Akureyri / Hauganes handoff",
-      "routeRelation": "Short provisioning detour beside the optional northbound Hauganes branch.",
-      "minimumRouteOffsetKm": 0.5
+      "nearestSegment": "Aug 14 · Akureyri departure toward Goðafoss",
+      "routeRelation": "Short Akureyri provisioning detour before the clockwise route continues east.",
+      "minimumRouteOffsetKm": 0.71
     },
     {
       "id": "bonus-skeidi-isafjordur",
@@ -375,8 +375,8 @@
       "routeFit": "excluded",
       "nearestDayId": "day-2026-08-11",
       "nearestSegment": "Aug 11 · Dynjandi to Arngerðareyri",
-      "routeRelation": "Excluded: 34.21 km minimum line offset west of the stored Dynjandi–Arngerðareyri route; reaching Ísafjörður is a substantial side trip, not a short provisioning detour.",
-      "minimumRouteOffsetKm": 34.21
+      "routeRelation": "Excluded: 34.17 km minimum line offset west of the stored Dynjandi–Arngerðareyri route; reaching Ísafjörður is a substantial side trip, not a short provisioning detour.",
+      "minimumRouteOffsetKm": 34.17
     },
     {
       "id": "bonus-smidjuvellir-akranes",
@@ -397,8 +397,8 @@
       "map": { "lat": 63.992789, "lng": -21.1820805, "label": "Bónus Hveragerði" },
       "included": true,
       "routeFit": "short-detour",
-      "nearestDayId": "day-2026-08-21",
-      "nearestSegment": "Aug 21 · Reykjadalur / Hveragerði",
+      "nearestDayId": "day-2026-08-23",
+      "nearestSegment": "Aug 23 · Reykjadalur / Hveragerði",
       "routeRelation": "Short town provisioning detour beside the planned Reykjadalur stop.",
       "minimumRouteOffsetKm": 0.57
     },

@@ -30,6 +30,52 @@ const originalText = args.sourcePath
   ? await readFile(args.sourcePath, 'utf8')
   : execFileSync('git', ['show', 'HEAD:iceland26/itinerary.json'], { encoding: 'utf8' });
 const original = JSON.parse(originalText);
+const SOURCE_DOCUMENT_SHA256 = 'f961d86b89d5a546f7d5d988f74c729a67c51139ab6ef151a2a2ce19d5702953';
+const localMap = JSON.parse(await readFile(resolve('iceland26/map-data.json'), 'utf8'));
+if (localMap.sourceDocumentSha256 !== SOURCE_DOCUMENT_SHA256) {
+  throw new Error('Local map snapshot is not pinned to the current planning document.');
+}
+const localOsrmAttribution = (localMap.attribution || [])
+  .find((entry) => entry.name === 'OSRM');
+const localGeofabrikAttribution = (localMap.attribution || [])
+  .find((entry) => /Geofabrik/i.test(entry.name));
+if (!localOsrmAttribution || !localGeofabrikAttribution) {
+  throw new Error('Local map snapshot is missing OSRM/Geofabrik provenance.');
+}
+
+const localCoreRoutesByDay = new Map();
+for (const route of localMap.routes || []) {
+  if (route.state === 'branch') continue;
+  for (const routeDayId of route.dayIds || []) {
+    if (localCoreRoutesByDay.has(routeDayId)) {
+      throw new Error(`Local map has multiple core routes for ${routeDayId}.`);
+    }
+    localCoreRoutesByDay.set(routeDayId, route);
+  }
+}
+
+const conservativeCamperMinutes = (baseMinutes) => (
+  baseMinutes === 0 ? 0 : Math.ceil((baseMinutes * 1.35) / 5) * 5
+);
+
+function localCoreRouteForDate(date) {
+  const routeDayId = `day-${date}`;
+  if (date === '2026-08-08') {
+    return { distanceKm: 0, baseMinutes: 0, camperMinutes: 0, progress: 0 };
+  }
+  const localRoute = localCoreRoutesByDay.get(routeDayId);
+  const progress = localMap.dayProgress?.[routeDayId];
+  if (!localRoute || !Number.isFinite(localRoute.distanceKm)
+      || !Number.isFinite(localRoute.durationMinutes) || !Number.isFinite(progress)) {
+    throw new Error(`Local map is missing a complete core route ledger for ${routeDayId}.`);
+  }
+  return {
+    distanceKm: localRoute.distanceKm,
+    baseMinutes: localRoute.durationMinutes,
+    camperMinutes: conservativeCamperMinutes(localRoute.durationMinutes),
+    progress,
+  };
+}
 
 const dayId = (date) => `day-${date}`;
 const source = (label, url, type = 'official') => ({ label, url, type });
@@ -485,6 +531,160 @@ function enrichOption(option) {
   };
 }
 
+// The August 13 planning revision removed a small set of previously rankable
+// ideas. Keep their stable IDs in the catalog so persisted preferences and
+// sticky notes remain readable, but take them out of every active day and map
+// surface. "Removed" is source history, never a fabricated group rejection.
+const removedFromLatestPlan = new Map([
+  ['latrabjarg-raudasandur', 'Látrabjarg is no longer in the latest dated plan.'],
+  ['raudasandur', 'Rauðasandur is no longer in the latest dated plan.'],
+  ['eclipse-patreksfjordur', 'The latest source records the eclipse at Flókalundur without retaining this earlier site choice.'],
+  ['eclipse-arngerdareyri', 'The latest source records the eclipse at Flókalundur without retaining this earlier site choice.'],
+  ['hvitserkur-skagafjordur', 'The latest northbound transfer uses Kolugljúfur and Hamrar instead of the earlier Hvítserkur/Varmahlíð line.'],
+  ['hauganes-whales', 'The latest north plan no longer contains the Hauganes detour.'],
+  ['husavik-whale-watching', 'The latest source considers only a Húsavík harbourfront or café stop; it does not propose a whale tour.'],
+]);
+
+const currentOptionOverrides = {
+  'outbound-flight': { dayIds: [dayId('2026-08-08')], status: 'historical' },
+  'arrival-bjarkalundur': { dayIds: [dayId('2026-08-09')], status: 'historical' },
+  'borgarfjordur-waterfalls': {
+    dayIds: [dayId('2026-08-09')],
+    status: 'historical',
+    documentStatus: 'Preserved from the August 9 source plan. The current traveller update does not establish whether this optional branch was visited.',
+  },
+  'hellulaug-coast': {
+    dayIds: [dayId('2026-08-10'), dayId('2026-08-12')],
+    status: 'historical',
+    documentStatus: 'Preserved as the Flókalundur/Hellulaug source record for August 10 and the Flókalundur eclipse base on August 12. No optional hot-pool visit is inferred.',
+  },
+  dynjandi: {
+    dayIds: [dayId('2026-08-11')],
+    status: 'historical',
+    documentStatus: 'Preserved from the August 11 source plan. The current traveller update does not establish whether the optional stop was completed.',
+  },
+  godafoss: {
+    dayIds: [dayId('2026-08-14')],
+    status: 'working',
+    documentStatus: 'Retained as the first named Diamond Circle stop on August 14; no attraction booking is required.',
+  },
+  asbyrgi: {
+    dayIds: [dayId('2026-08-14')],
+    status: 'working',
+    documentStatus: 'Retained as the August 14 canyon visit. The separate asbyrgi-campsite card carries the still-open two-electric-pitch decision.',
+    planningContext: 'Ásbyrgi is the last major August 14 destination. Use the short Botnstjörn version as the default, then handle the two-electric-pitch sleep decision on its separate campsite card.',
+    logistics: ['A1 Botnstjörn · about 1 km / 30m', 'Visitor centre', 'Separate campsite decision'],
+  },
+  'dettifoss-selfoss': { dayIds: [dayId('2026-08-15')], status: 'working' },
+  'hverir-hverfjall': { dayIds: [dayId('2026-08-15')], status: 'working' },
+  'earth-lagoon': {
+    dayIds: [dayId('2026-08-15')],
+    status: 'conditional',
+    documentStatus: 'The latest source proposes an optional late Mývatn soak after camp. No reservation or final lagoon choice is recorded.',
+  },
+  hverfjall: { dayIds: [dayId('2026-08-16')], status: 'working' },
+  studlagil: { dayIds: [dayId('2026-08-17')], status: 'working' },
+  'borgarfjordur-eystri': {
+    dayIds: [dayId('2026-08-17'), dayId('2026-08-18')],
+    status: 'conditional',
+    documentStatus: 'A live-puffin-gated branch on August 17. If used, it consumes the separate August 18 transfer back through Egilsstaðir.',
+    planningContext: 'Check the live camera or ask locally in Egilsstaðir. Take this branch only if same-day evidence supports the wildlife goal and the group accepts the required return through Egilsstaðir on August 18.',
+    logistics: ['Live puffin evidence required', 'Separate Egilsstaðir spoke', 'Using it creates the August 18 backtrack'],
+  },
+  seydisfjordur: {
+    dayIds: [dayId('2026-08-17'), dayId('2026-08-18')],
+    status: 'working',
+    documentStatus: 'The direct August 17 destination when the puffin branch is skipped; otherwise reached on August 18 after the necessary backtrack.',
+    planningContext: 'This is the working August 17 destination. If Borgarfjörður Eystri is chosen instead, Seyðisfjörður moves to August 18 and remains a separate Egilsstaðir spoke.',
+    logistics: ['Direct destination when puffin branch is skipped', 'Conditional August 18 arrival otherwise', 'Road 93 weather gate'],
+  },
+  djupivogur: { dayIds: [dayId('2026-08-19')], status: 'working' },
+  'djupivogur-stokksnes': {
+    dayIds: [dayId('2026-08-19')],
+    status: 'working',
+    planningContext: 'The adjacent Djúpivogur–Stokksnes segment is not the whole day. The working transfer begins in Seyðisfjörður, follows coastal Route 1 through the Eastfjords and ends around Stokksnes/Höfn; Öxi/939 is excluded.',
+  },
+  'jokulsarlon-boat': { dayIds: [dayId('2026-08-20')], status: 'open' },
+  'glacier-hike': { dayIds: [dayId('2026-08-20')], status: 'conditional' },
+  'fjadrargljufur-eldhraun': { dayIds: [dayId('2026-08-20')], status: 'working' },
+  reynisfjara: {
+    dayIds: [dayId('2026-08-20'), dayId('2026-08-21')],
+    status: 'conditional',
+    documentStatus: 'Preserved from the overloaded August 19 source list as a conditional South Coast branch; it is not part of the feasible core.',
+  },
+  dyrholaey: {
+    dayIds: [dayId('2026-08-20'), dayId('2026-08-21')],
+    status: 'conditional',
+    documentStatus: 'Preserved from the overloaded August 19 source list as a conditional South Coast branch; it must displace another stop.',
+  },
+  'skogafoss-waterfall-way': {
+    dayIds: [dayId('2026-08-21')],
+    status: 'working',
+    documentStatus: 'Skógafoss is the single South Coast core stop on the August 21 working line; any longer Waterfall Way walk remains an open energy decision.',
+  },
+  'seljalandsfoss-gljufrabui': {
+    dayIds: [dayId('2026-08-21')],
+    status: 'conditional',
+    documentStatus: 'Preserved as an August 21 replacement branch. Adding it to the Golden Circle core would overload the day.',
+    planningContext: 'The latest source includes both waterfalls inside its overloaded South Coast list. They share one stop; the linked Svartifoss page is incorrect. Use this only as part of the replacement branch, not as an add-on to the Golden Circle core.',
+  },
+  'heimaey-puffin-volcano': {
+    dayIds: [dayId('2026-08-21')],
+    status: 'conditional',
+    documentStatus: 'Preserved from the latest source as a replacement branch from the South Coast, not an additive stop; no ferry or tour is recorded as booked.',
+  },
+  'dalfjall-hike': {
+    dayIds: [dayId('2026-08-21')],
+    status: 'conditional',
+    documentStatus: 'Preserved inside the replacement-only Heimaey branch; it is not part of the August 21 Golden Circle core.',
+  },
+  'herjolfsdalur-camping': {
+    dayIds: [dayId('2026-08-21')],
+    status: 'conditional',
+    documentStatus: 'Preserved inside the replacement-only Heimaey branch. An island overnight would consume the protected August 22 buffer and requires a different ferry/sleep plan.',
+  },
+  'beluga-sanctuary': {
+    dayIds: [dayId('2026-08-21')],
+    status: 'conditional',
+    documentStatus: 'Preserved inside the replacement-only Heimaey branch; no ticket is recorded as booked.',
+  },
+  gullfoss: { dayIds: [dayId('2026-08-21')], status: 'working' },
+  'golden-circle-core': { dayIds: [dayId('2026-08-21')], status: 'working' },
+  thingvellir: { dayIds: [dayId('2026-08-21')], status: 'working' },
+  'silfra-split': { dayIds: [dayId('2026-08-21')], status: 'conditional' },
+  'weather-buffer': {
+    dayIds: [dayId('2026-08-22')],
+    status: 'working',
+    location: 'Þingvellir / route-wide',
+    map: map(64.25541, -21.128043, [14, 18]),
+    documentStatus: 'August 22 remains blank in the latest source. The working route protects it at the Þingvellir overnight instead of spending it in advance.',
+  },
+  reykjadalur: { dayIds: [dayId('2026-08-23')], status: 'working' },
+  perlan: { dayIds: [dayId('2026-08-23')], status: 'open' },
+  'sky-lagoon': { dayIds: [dayId('2026-08-23')], status: 'conditional' },
+  'reykjavik-pools': { dayIds: [dayId('2026-08-22'), dayId('2026-08-23')], status: 'open' },
+  departure: { dayIds: [dayId('2026-08-24')], status: 'fixed' },
+};
+
+function finalizeOption(option) {
+  const removalNote = removedFromLatestPlan.get(option.id);
+  if (removalNote) {
+    return {
+      ...option,
+      active: false,
+      status: 'historical',
+      dayIds: [],
+      map: null,
+      documentStatus: `${removalNote} This preserves the earlier option and any shared state without implying that the group rejected or completed it.`,
+    };
+  }
+  return {
+    ...option,
+    active: true,
+    ...(currentOptionOverrides[option.id] || {}),
+  };
+}
+
 const outboundFlight = {
   id: 'outbound-flight', title: 'Overnight flight to Keflavík', shortTitle: 'Fly to Iceland',
   location: 'Toronto → Keflavík', status: 'booked', documentStatus: 'Outbound flight is recorded as booked for 23:10 on August 8; arrival is 08:45 local on August 9.',
@@ -763,6 +963,221 @@ const thingvellir = {
   ],
 };
 
+const activePlace = ({
+  id, title, shortTitle = title, location, status = 'open', documentStatus,
+  hook, planningContext, tags = ['family'], logistics = [], dayIds, map: placeMap,
+  visit, family: familyDetails = COMMON_FAMILY, amenities = [], booking: bookingDetails,
+  pros = [], drawbacks = [], reviewSignal = '', standout = false, sources = [],
+}) => ({
+  id, title, shortTitle, location, status, active: true, documentStatus,
+  standout, reviewSignal, hook, planningContext, tags, logistics, dayIds,
+  map: placeMap, visit, family: familyDetails, amenities,
+  booking: bookingDetails || booking(false, 'No booking is recorded. Recheck live access before relying on this stop.'),
+  pros, drawbacks, sources,
+});
+
+const hamrarCampsite = activePlace({
+  id: 'hamrar-campsite',
+  title: 'Camping Hamrar · Aug 13 last confirmed',
+  shortTitle: 'Camping Hamrar',
+  location: 'Hamrar 1 · Akureyri',
+  status: 'checked-in',
+  documentStatus: 'Traveller-confirmed check-in on August 13. Hamrar is the latest confirmed position; it is not in the official 30-site Camping Card roster.',
+  hook: 'Use the Aug 13 Hamrar check-in as the last confirmed Akureyri anchor for settling the next two sleeps and beginning the Diamond Circle.',
+  planningContext: 'This is the real last-confirmed location, not an inferred completion record for optional stops earlier in the day. The latest source places Hamrar about 5 km from central Akureyri.',
+  tags: ['locked', 'camping', 'services', 'current'],
+  logistics: ['Checked in · traveller update', 'Akureyri service base', 'Camping Card does not cover this site'],
+  dayIds: [dayId('2026-08-13')],
+  map: map(65.648381, -18.103282, [14, 18]),
+  visit: { duration: 'Aug 13 confirmed check-in', walk: 'Camp and Akureyri dependent', difficulty: 'Easy base day' },
+  family: family('A practical full-service reset after the long Westfjords transfer.', 'Camp-dependent', 'Optional', ['Campground vehicle movements', 'Playground supervision'], 'At the Aug 13 check-in, the next logistics tasks were food, groceries and the two-pitch Ásbyrgi decision.'),
+  amenities: ['Toilets and showers', 'Electric hookups', 'Kitchen and laundry services', 'Playground and walking paths', 'Akureyri food, fuel and groceries nearby'],
+  booking: booking(true, 'Checked in according to the traveller update. Use the live reception record for pitch, payment and departure details.', 'https://www.hamrar.is/home', '', 'Camping Hamrar official site ↗'),
+  pros: ['Traveller-confirmed Aug 13 check-in.', 'Strong family and camper service layer.', 'Good place to settle the next nights before adding attractions.'],
+  drawbacks: ['Not a Camping Card site.', 'The next electrical-pitch decision is still open.'],
+  sources: [source('Camping Hamrar official site', 'https://www.hamrar.is/home')],
+});
+
+const kolugljufur = activePlace({
+  id: 'kolugljufur', title: 'Kolugljúfur canyon and waterfall', shortTitle: 'Kolugljúfur',
+  location: 'Víðidalur · northbound transfer', status: 'working',
+  documentStatus: 'Named as the halfway stop on the latest August 13 route. Hamrar arrival is confirmed; a completed canyon visit is not assumed.',
+  hook: 'A compact canyon-and-waterfall break on the otherwise long transfer to Akureyri.',
+  planningContext: 'The route passes the canyon between Flókalundur and Hamrar. Keep it as a time-boxed stop, not evidence that the optional visit happened.',
+  tags: ['family', 'waterfall', 'current-route'], logistics: ['Halfway transfer stop', 'Short viewpoint visit', 'No completion inferred'],
+  dayIds: [dayId('2026-08-13')], map: map(65.335107, -20.572708, [14, -14]),
+  visit: { duration: '30–45m', walk: 'Short uneven viewpoints', difficulty: 'Easy to moderate' },
+  family: family('A useful movement break with close supervision at the canyon.', 'No', 'Helpful', ['Unprotected canyon edges', 'Wet or uneven ground'], 'Use only the safest viewpoint the conditions support.'),
+  amenities: ['Small parking area', 'No full service layer assumed'],
+  pros: ['Breaks the long drive.', 'Large landscape payoff in a short stop.'],
+  drawbacks: ['Edge exposure requires active supervision.', 'No optional visit is marked complete.'],
+  sources: [source('Official North Iceland destination guide', 'https://www.northiceland.is/en/place/kolugljufur')],
+});
+
+const husavikTownStop = activePlace({
+  id: 'husavik-town-stop', title: 'Húsavík harbourfront or café stop', shortTitle: 'Húsavík town stop',
+  location: 'Húsavík · Diamond Circle', status: 'open',
+  documentStatus: 'The latest source asks whether the town is worth a short harbourfront, bite or coffee stop. It does not propose whale watching.',
+  hook: 'A colourful harbour and food reset if the group wants a town pause between Goðafoss and Ásbyrgi.',
+  planningContext: 'This is a short town branch, not a three-hour wildlife tour. It adds road time and must not erode the Ásbyrgi arrival/electrical-pitch plan.',
+  tags: ['food', 'town', 'branch'], logistics: ['Optional Goðafoss → Húsavík → Ásbyrgi branch', '30–60m town stop', 'Live café hours required'],
+  dayIds: [dayId('2026-08-14')], map: map(66.045054, -17.343477, [14, 18]),
+  visit: { duration: '30–60m', walk: 'Short harbourfront stroll', difficulty: 'Easy' },
+  family: family('A low-effort food and harbour break if everyone wants it.', 'Town-dependent', 'Usually unnecessary', ['Harbour edge', 'Traffic'], 'Keep the stop short enough to protect Ásbyrgi.'),
+  amenities: ['Cafés and restaurants', 'Fuel and town services', 'Public facilities vary by live hours'],
+  pros: ['Pleasant service break.', 'Lets the group see Húsavík without committing to a tour.'],
+  drawbacks: ['Adds a detour to an already full day.', 'Café hours and crowding need a live check.'],
+  sources: [source('Official North Iceland · Húsavík', 'https://www.northiceland.is/en/destinations/communities/husavik')],
+});
+
+const asbyrgiCampsite = activePlace({
+  id: 'asbyrgi-campsite', title: 'Ásbyrgi campsite · two electric pitches', shortTitle: 'Ásbyrgi campsite',
+  location: 'Vatnajökull National Park · Ásbyrgi', status: 'open',
+  documentStatus: 'The latest source says to decide whether to sleep here and, if yes, book two electrical sites. No booking is recorded.',
+  hook: 'Sleeping inside the canyon makes Hljóðaklettar and Dettifoss the logical next morning instead of another Akureyri out-and-back.',
+  planningContext: 'This is the highest-priority current logistics choice. Confirm two motorhome electrical pitches together; the day visit remains a separate card.',
+  tags: ['camping', 'book-ahead', 'decision'], logistics: ['Two electrical sites needed', 'Book if staying', 'Natural start for August 15'],
+  dayIds: [dayId('2026-08-14')], map: map(66.02466, -16.49658, [-132, 18]),
+  visit: { duration: 'Overnight decision', walk: 'Campground dependent', difficulty: 'Booking/logistics gate' },
+  family: family('A strong serviced family base that reduces next-day driving.', 'Camp-dependent', 'Optional', ['Campground traffic', 'Canyon terrain away from camp'], 'Do not assume adjacent electrical pitches until confirmed.'),
+  amenities: ['Washrooms and showers', 'Cooking facilities and drinking water', 'Laundry', 'Electrical pitches', 'Visitor centre nearby'],
+  booking: booking(true, 'The park recommends advance booking for electricity. Confirm two suitable motorhome pitches before relying on this sleep.', 'https://www.vatnajokulsthjodgardur.is/en/areas/jokulsargljufur/tjaldsvaedid-i-asbyrgi', '+354 470 7100', 'Official campsite booking ↗'),
+  pros: ['Sets up the August 15 sequence cleanly.', 'Strong service layer.', 'Avoids an Akureyri return.'],
+  drawbacks: ['Two electrical pitches are not yet confirmed.', 'Commits the group to the Diamond Circle pace.'],
+  sources: [source('Official Ásbyrgi campground', 'https://www.vatnajokulsthjodgardur.is/en/areas/jokulsargljufur/tjaldsvaedid-i-asbyrgi')],
+});
+
+const hljodaklettar = activePlace({
+  id: 'hljodaklettar', title: 'Hljóðaklettar · Sound Rocks', shortTitle: 'Hljóðaklettar',
+  location: 'Jökulsárgljúfur · south of Ásbyrgi', status: 'working',
+  documentStatus: 'First named August 15 stop in the latest source.',
+  hook: 'Climb among echoing basalt formations before the much larger Dettifoss landscape.',
+  planningContext: 'Use the roughly 1.2 km Tröllið/Hljóðaklettar version as the default; the 3 km circuit is an energy-dependent extension.',
+  tags: ['family', 'hike', 'volcanic'], logistics: ['About 15m from Ásbyrgi camp', '1.2 km default route', 'Longer 3 km circuit optional'],
+  dayIds: [dayId('2026-08-15')], map: map(65.93898, -16.532606, [14, -14]),
+  visit: { duration: '45–90m', walk: 'About 1.2 km default; 3 km longer circuit', difficulty: 'Uneven lava terrain' },
+  family: family('The short route can be a playful whole-family scramble at the youngest pace.', 'No', 'Helpful on uneven ground', ['Uneven basalt', 'Slips and short scrambles', 'Weather exposure'], 'Choose the short loop unless the group has abundant energy.'),
+  amenities: ['Parking', 'Seasonal toilets/services require live confirmation', 'Ásbyrgi services nearby'],
+  pros: ['Unusual tactile geology.', 'Short version fits the birthday day.', 'Directly on the planned route.'],
+  drawbacks: ['Uneven terrain can take longer than the distance suggests.', 'The longer circuit would compress Dettifoss and Mývatn.'],
+  sources: [source('Vatnajökull National Park · Jökulsárgljúfur', 'https://www.vatnajokulsthjodgardur.is/en/areas/jokulsargljufur')],
+});
+
+const myvatnCamp = activePlace({
+  id: 'myvatn-camp', title: 'Lake Mývatn campsite decision', shortTitle: 'Mývatn camp',
+  location: 'Lake Mývatn area', status: 'open',
+  documentStatus: 'The latest source requires an August 15–16 Mývatn sleep but lists several candidate campgrounds without selecting one.',
+  hook: 'Choose one two-night base so August 16 can stay local instead of becoming another packing-and-driving day.',
+  planningContext: 'Hlíð, Vogar, Grjótagjá and Dimmuborgir are source-listed ideas, not a booking. Confirm two camper pitches, electricity, showers, waste service and late-arrival policy.',
+  tags: ['camping', 'decision', 'two-night-base'], logistics: ['Camp August 15', 'Prefer same base August 16', 'Two campers and services to confirm'],
+  dayIds: [dayId('2026-08-15'), dayId('2026-08-16')], map: map(65.62378, -16.91754, [14, 18]),
+  visit: { duration: 'One or two nights', walk: 'Chosen campsite dependent', difficulty: 'Logistics decision' },
+  family: family('A settled two-night base is the lowest-stress family option.', 'Camp-dependent', 'Optional', ['Midges', 'Campground vehicle movement'], 'Bring nets and choose services before scenery.'),
+  amenities: ['Electricity to verify', 'Showers/toilets to verify', 'Waste and water service to verify', 'Food/fuel available around Reykjahlíð'],
+  booking: booking('Select and confirm', 'No campground is recorded as chosen or booked. Compare the official directory and contact the selected site directly.', 'https://tjalda.is/en/', '', 'Official campground directory ↗'),
+  pros: ['Turns August 16 into a genuine local day.', 'Reduces packing and decision fatigue.'],
+  drawbacks: ['No site is selected yet.', 'Popular services/electricity may fill.'],
+  sources: [source('Official Iceland campground directory', 'https://tjalda.is/en/')],
+});
+
+const dimmuborgir = activePlace({
+  id: 'dimmuborgir', title: 'Dimmuborgir lava formations', shortTitle: 'Dimmuborgir',
+  location: 'Lake Mývatn', status: 'working', documentStatus: 'Named as the second August 16 stop in the latest source.',
+  hook: 'Walk through arches, caves and lava towers on a loop that can shrink with the group’s energy.',
+  planningContext: 'Choose the roughly 30-minute small circle or the approximately 2.4 km Church Circle; do not assume both.',
+  tags: ['family', 'hike', 'volcanic'], logistics: ['30m short loop', 'About 2.4 km / 1h Church Circle', 'Directly after Hverfjall'],
+  dayIds: [dayId('2026-08-16')], map: map(65.591545, -16.9127, [14, 18]),
+  visit: { duration: '30–75m', walk: 'Short loop or 2.4 km Church Circle', difficulty: 'Easy to moderate uneven paths' },
+  family: family('Strong whole-family option because the route length is easy to scale.', 'Limited', 'Helpful', ['Uneven lava', 'Slippery rock'], 'Pick one loop and preserve energy for the rest of Mývatn.'),
+  amenities: ['Parking', 'Seasonal café/toilets nearby; verify live hours'],
+  pros: ['Distinctive formations.', 'Scalable loop lengths.', 'Logical local route.'], drawbacks: ['Can be busy.', 'Uneven ground limits stroller usefulness.'],
+  sources: [source('Official protected-area guidance', 'https://www.ust.is/english/visiting-iceland/protected-areas/north-east/dimmuborgir/')],
+});
+
+const grjotagja = activePlace({
+  id: 'grjotagja', title: 'Grjótagjá lava cave', shortTitle: 'Grjótagjá', location: 'Lake Mývatn', status: 'working',
+  documentStatus: 'Named as a brief August 16 stop in the latest source.',
+  hook: 'A quick look into a geothermal fissure and lava cave between the longer Mývatn walks.',
+  planningContext: 'Treat this as a 20–30 minute geology stop. Bathing is not part of the plan; obey live barriers and private-land rules.',
+  tags: ['geology', 'short-stop'], logistics: ['20–30m', 'Brief cave/fissure view', 'No bathing assumed'],
+  dayIds: [dayId('2026-08-16')], map: map(65.627161, -16.881681, [14, -14]),
+  visit: { duration: '20–30m', walk: 'Very short rough approach', difficulty: 'Uneven, confined cave access' },
+  family: family('A short stop only if the cave entrance and supervision feel comfortable.', 'No', 'Not useful in cave', ['Slippery rock', 'Confined space', 'Hot water', 'Private-land restrictions'], 'View only from permitted areas and never enter the water.'),
+  amenities: ['Small parking area', 'No services assumed'],
+  pros: ['Fast geological contrast.', 'Fits between larger stops.'], drawbacks: ['Confined and slippery.', 'Limited payoff if crowded.'],
+  sources: [source('Official North Iceland destination guide', 'https://www.northiceland.is/en/place/grjotagja')],
+});
+
+const kraflaViti = activePlace({
+  id: 'krafla-viti', title: 'Krafla option · Víti crater', shortTitle: 'Krafla · Víti', location: 'Krafla volcanic area', status: 'open',
+  documentStatus: 'One of two mutually exclusive Krafla options in the latest source.',
+  hook: 'Choose the compact crater-lake version of Krafla when the day needs a shorter volcanic stop.',
+  planningContext: 'This is the approximately 45–60 minute Krafla choice. Rank it against Leirhnjúkur rather than stacking both.',
+  tags: ['branch', 'volcanic', 'weather-flex'], logistics: ['Choose one Krafla option', '45–60m', 'Shorter than Leirhnjúkur'],
+  dayIds: [dayId('2026-08-16')], map: map(65.71766, -16.75655, [14, 18]),
+  visit: { duration: '45–60m', walk: 'Short crater viewpoints/loop dependent on conditions', difficulty: 'Easy to moderate' },
+  family: family('The more manageable Krafla choice for the whole group.', 'No', 'Helpful', ['Exposed wind', 'Crater slopes', 'Geothermal terrain'], 'Stay on marked routes and turn back in poor wind.'),
+  amenities: ['Parking', 'No full service layer assumed'],
+  pros: ['High volcanic payoff for less time.', 'Clear alternative to a longer hike.'], drawbacks: ['Exposed weather.', 'Less immersive than Leirhnjúkur.'],
+  sources: [source('Official North Iceland · Krafla', 'https://www.northiceland.is/en/place/krafla')],
+});
+
+const kraflaLeirhnjukur = activePlace({
+  id: 'krafla-leirhnjukur', title: 'Krafla option · Leirhnjúkur', shortTitle: 'Krafla · Leirhnjúkur', location: 'Krafla volcanic area', status: 'open',
+  documentStatus: 'One of two mutually exclusive Krafla options in the latest source.',
+  hook: 'Take the more substantial route through steaming terrain and young lava when the group still has real hiking energy.',
+  planningContext: 'Official estimates vary with route length; plan one to three hours. Choose this instead of Víti when immersion earns the extra time.',
+  tags: ['branch', 'hike', 'volcanic'], logistics: ['Choose one Krafla option', '1–3h depending on turnaround', 'Geothermal path discipline'],
+  dayIds: [dayId('2026-08-16')], map: map(65.713162, -16.774608, [-130, -14]),
+  visit: { duration: '1–3h', walk: 'Variable marked volcanic trail', difficulty: 'Moderate, exposed and uneven' },
+  family: family('A higher-energy choice whose turnaround must follow the youngest pace.', 'No', 'Helpful', ['Hot ground/steam', 'Uneven lava', 'Wind and exposure'], 'Stay on marked paths; do not chase the longest loop by default.'),
+  amenities: ['Parking', 'No full service layer assumed'],
+  pros: ['Most immersive Krafla option.', 'Steam and recent lava feel genuinely distinct.'], drawbacks: ['Consumes much more of the day.', 'Uneven geothermal terrain raises supervision needs.'],
+  sources: [source('Official North Iceland · Krafla', 'https://www.northiceland.is/en/place/krafla')],
+});
+
+const hofdiKalfastrond = activePlace({
+  id: 'hofdi-kalfastrond', title: 'Quiet lake option · Höfði/Kálfaströnd', shortTitle: 'Höfði/Kálfaströnd', location: 'South Lake Mývatn', status: 'open',
+  documentStatus: 'One of two optional quiet-lake choices in the latest source.',
+  hook: 'Trade another volcanic headline for trees, water and offshore lava pillars.',
+  planningContext: 'Choose this, Skútustaðagígar or neither after the Krafla decision; it is not part of the core local loop.',
+  tags: ['branch', 'quiet', 'family'], logistics: ['Optional quiet-lake branch', 'Choose one or none', 'Flexible short walk'],
+  dayIds: [dayId('2026-08-16')], map: map(65.587745, -16.947768, [14, 18]),
+  visit: { duration: '30–60m', walk: 'Flexible lakeside paths', difficulty: 'Easy to moderate' },
+  family: family('A gentler scenery reset if everyone still wants another stop.', 'Path-dependent', 'Optional', ['Lake edge', 'Midges', 'Uneven paths'], 'Keep it genuinely optional.'),
+  amenities: ['Parking', 'No full service layer assumed'],
+  pros: ['Quiet contrast.', 'Flexible duration.'], drawbacks: ['Lower headline payoff.', 'May be the sensible stop to skip.'],
+  sources: [source('Official North Iceland · Lake Mývatn', 'https://www.northiceland.is/en/destinations/nature/lakes-and-rivers/lake-myvatn')],
+});
+
+const skutustadagigar = activePlace({
+  id: 'skutustadagigar', title: 'Quiet lake option · Skútustaðagígar', shortTitle: 'Skútustaðagígar', location: 'South Lake Mývatn', status: 'open',
+  documentStatus: 'One of two optional quiet-lake choices in the latest source.',
+  hook: 'Finish with easy pseudocrater walking and broad lake views if the day still has margin.',
+  planningContext: 'Choose the roughly 20–30 minute short loop, the approximately one-hour longer route, or skip it. It competes with Höfði/Kálfaströnd.',
+  tags: ['branch', 'family', 'easy-walk'], logistics: ['Optional quiet-lake branch', '20–30m short loop', 'About 1h longer route'],
+  dayIds: [dayId('2026-08-16')], map: map(65.570851, -17.034903, [-126, -14]),
+  visit: { duration: '20–60m', walk: 'Short or longer pseudocrater loop', difficulty: 'Easy' },
+  family: family('The easiest late-day walking choice if the group wants one more stop.', 'Main loop dependent', 'Usually unnecessary', ['Lake edge', 'Midges', 'Wind'], 'Choose the short loop by default.'),
+  amenities: ['Parking', 'Nearby seasonal services; verify live hours'],
+  pros: ['Easy scalable walk.', 'Good broad lake views.'], drawbacks: ['Adds another stop to a full local day.', 'Midges and wind can reduce the payoff.'],
+  sources: [source('Official North Iceland · Skútustaðagígar', 'https://www.northiceland.is/en/place/skutustadagigar')],
+});
+
+const gufufoss = activePlace({
+  id: 'gufufoss', title: 'Gufufoss on the Seyðisfjörður descent', shortTitle: 'Gufufoss', location: 'Fjarðarheiði · above Seyðisfjörður', status: 'working',
+  documentStatus: 'The latest source explicitly adds Gufufoss while descending to Seyðisfjörður.',
+  hook: 'A short waterfall pause on the mountain-pass descent before reaching the fjord town.',
+  planningContext: 'It belongs on either the direct August 17 route or the conditional August 18 backtrack from Borgarfjörður Eystri.',
+  tags: ['waterfall', 'short-stop', 'current-route'], logistics: ['On the Seyðisfjörður descent', 'Short stop', 'Weather/pass gate'],
+  dayIds: [dayId('2026-08-17'), dayId('2026-08-18')], map: map(65.239973, -14.05688, [14, -14]),
+  visit: { duration: '20–30m', walk: 'Short viewpoint approach', difficulty: 'Easy to moderate' },
+  family: family('A compact whole-family stop if wind, visibility and parking are comfortable.', 'No', 'Optional', ['Wet rock', 'Waterfall edge', 'Mountain-pass weather'], 'Skip it if the pass needs everyone’s attention.'),
+  amenities: ['Roadside parking', 'Use Seyðisfjörður for services'],
+  pros: ['Directly on the descent.', 'Large payoff for little time.'], drawbacks: ['Weather and parking can make a short stop unwise.', 'Not worth delaying a late camp arrival.'],
+  sources: [source('Official East Iceland destination guide', 'https://www.east.is/en/place/gufufoss')],
+});
+
 const generatedOptionIds = new Set([
   'outbound-flight',
   'raudasandur',
@@ -776,6 +1191,19 @@ const generatedOptionIds = new Set([
   'herjolfsdalur-camping',
   'gullfoss',
   'thingvellir',
+  'hamrar-campsite',
+  'kolugljufur',
+  'husavik-town-stop',
+  'asbyrgi-campsite',
+  'hljodaklettar',
+  'myvatn-camp',
+  'dimmuborgir',
+  'grjotagja',
+  'krafla-viti',
+  'krafla-leirhnjukur',
+  'hofdi-kalfastrond',
+  'skutustadagigar',
+  'gufufoss',
 ]);
 
 function datesFromOptions(options) {
@@ -799,93 +1227,136 @@ const legs = original.legs.map((leg, index) => {
         const enriched = enrichOption(option);
         if (option.id === 'latrabjarg-raudasandur') return [enriched, raudasandur];
         if (option.id === 'eclipse-patreksfjordur') return [enriched, eclipseArngerdareyri];
-        if (option.id === 'godafoss') return [enriched, husavikWhaleWatching];
+        if (option.id === 'godafoss') {
+          return [kolugljufur, hamrarCampsite, enriched, husavikWhaleWatching, husavikTownStop];
+        }
         if (option.id === 'hverir-hverfjall') return [enriched, hverfjall];
-        if (option.id === 'dettifoss-selfoss') return [asbyrgi, enriched];
-        if (option.id === 'studlagil') return [enriched, seydisfjordur];
+        if (option.id === 'dettifoss-selfoss') {
+          return [asbyrgi, asbyrgiCampsite, hljodaklettar, enriched, myvatnCamp,
+            dimmuborgir, grjotagja, kraflaViti, kraflaLeirhnjukur,
+            hofdiKalfastrond, skutustadagigar];
+        }
+        if (option.id === 'studlagil') return [enriched, gufufoss, seydisfjordur];
         if (option.id === 'djupivogur-stokksnes') return [djupivogur, enriched];
         if (option.id === 'heimaey-puffin-volcano') return [enriched, dalfjallHike, herjolfsdalurCamping];
         if (option.id === 'golden-circle-core') return [gullfoss, enriched, thingvellir];
         return [enriched];
       }),
-  ];
+  ].map(finalizeOption);
 
   return {
     ...leg,
     dates: datesFromOptions(options),
     ...(leg.id === 'westfjords' ? {
-      summary: 'The first drive and campsite dates are source-document assertions; the exact checkout morning remains unresolved. The eclipse date is fixed, while the viewing site and Westfjords pace remain open.',
+      summary: 'Historical August 8–12 source record. Optional stops are not marked completed; removed earlier-plan ideas remain in the read-only archive.',
     } : {}),
-    ...(leg.id === 'east' ? { title: 'Eastfjords & the family birthday' } : {}),
+    ...(leg.id === 'north' ? {
+      title: 'Current position, Diamond Circle & Mývatn',
+      summary: 'Hamrar is the latest confirmed position. The next live gates are two Ásbyrgi electrical pitches, a Mývatn base and the pace of each Diamond Circle day.',
+    } : {}),
+    ...(leg.id === 'east' ? {
+      title: 'East Iceland & the puffin-gated fork',
+      summary: 'Use live puffin evidence at Egilsstaðir to choose the Borgarfjörður Eystri branch or the direct route to Seyðisfjörður; never draw both as one through-road.',
+    } : {}),
     options,
   };
 });
 
 const days = [
-  ['2026-08-08', 'Saturday', 1, 'Overnight flight', 'locked', 'The trip begins with the booked overnight flight. Sleep and a clean handoff matter more than adding activity.', 'In flight', 0, 0, 0, 'high', 'No Iceland road travel.', ['outbound-flight'], null, 0],
-  ['2026-08-09', 'Sunday', 2, 'Arrival to the Westfjords', 'locked', 'Pick up the two campers, provision at Nettó in Borgarnes and follow the direct core to the booked base. The waterfall pair is a separate conditional branch, not part of the locked route.', 'Bjarkalundur · booked assertion', 255.5, 226, 300, 'measured', 'Direct KEF → Borgarnes → Bjarkalundur core only; the conservative camper plan excludes pickup, groceries, visits and the waterfall branch.', ['arrival-bjarkalundur', 'borgarfjordur-waterfalls'], 'The source’s optional chain is too long after an overnight flight. Eiríksstaðir is cut. From the Borgarnes provision stop, the Deildartunguhver → Hraunfossar → Bjarkalundur branch is 218.0 km / 3h10 car baseline and is excluded from the core.', 0.105134621001],
-  ['2026-08-10', 'Monday', 3, 'South to Patreksfjörður', 'open', 'Move from Bjarkalundur through Hellulaug/Flókalundur to Patreksfjörður, then choose at most one remote beach/cliff branch.', 'Patreksfjörður · needs decision', 171.8, 148, 225, 'measured', 'Branch mileage is excluded.', ['hellulaug-coast', 'raudasandur', 'latrabjarg-raudasandur'], 'The source simultaneously says Bjarkalundur is booked and hopes for a new campsite. Rauðasandur and Látrabjarg are separate branches; attempting both plus a Bjarkalundur return is not child-realistic.', 0.176542036112],
-  ['2026-08-11', 'Tuesday', 4, 'Dynjandi and the clockwise handoff', 'open', 'Use Dynjandi as a forward-moving Westfjords anchor, then continue toward the northern corridor.', 'Arngerðareyri corridor · open', 210.5, 196, 300, 'measured', 'Road 60 gravel/wind margin included only in camper plan.', ['dynjandi'], 'The document says “Dynjandi or Látrabjarg.” Returning from Dynjandi to Bjarkalundur is a 141 km backtrack; the map shows it as a branch, not the working route.', 0.263248067892],
-  ['2026-08-12', 'Wednesday', 5, 'Totality day', 'open', 'No site chasing. Choose Patreksfjörður or Arngerðareyri, then stage with food, water, warm layers, full fuel and certified glasses.', 'Selected eclipse site · open', 0, 0, 0, 'site-dependent', 'Partial 16:43–18:45; remain after totality.', ['eclipse-patreksfjordur', 'eclipse-arngerdareyri'], 'The stationary working line is Arngerðareyri; Patreksfjörður is the explicit southbound branch. An immediate post-totality return conflicts with official stay-late guidance.', 0.263393535546],
-  ['2026-08-13', 'Thursday', 6, 'Westfjords to Varmahlíð', 'working', 'A real transfer day: Arngerðareyri corridor to Hvítserkur, then stop at the Varmahlíð service base.', 'Varmahlíð · confirm capacity', 334.3, 301, 435, 'measured', 'Attraction and comfort stops excluded.', ['hvitserkur-skagafjordur'], 'The document’s version reaches toward Akureyri, Goðafoss and Mývatn on the same day. This working day stops at Varmahlíð.', 0.40398461562],
-  ['2026-08-14', 'Friday', 7, 'Akureyri to Mývatn', 'working', 'Resupply in Akureyri, continue to Goðafoss, then choose between the Húsavík whale branch and a Mývatn-scale experience. Hauganes is a separate out-and-back alternative.', 'Mývatn area · open', 181.2, 168, 240, 'measured', 'Hauganes and Húsavík branches, tours and attraction time are excluded.', ['hauganes-whales', 'godafoss', 'husavik-whale-watching', 'hverir-hverfjall', 'hverfjall', 'earth-lagoon'], 'The source lists Seyðisfjörður before Námaskarð, Hauganes and Dettifoss. Actual clockwise order is Akureyri/Hauganes → Goðafoss → optional Húsavík → Mývatn/Hverir/Hverfjall → Dettifoss → East Iceland. The measured Húsavík alternative is 101.8 km / 1h32 before its three-hour tour.', 0.480105808024],
-  ['2026-08-15', 'Saturday', 8, 'Volcanic north to East Iceland', 'working', 'A family birthday transfer through the volcanic north. Keep the direct Hverir → Dettifoss → Stuðlagil line, or substitute the Ásbyrgi branch; then pick zero or one Eastfjords spoke.', 'Egilsstaðir area · open', 257, 257, 360, 'measured', 'Direct working line only; stops and the 114.0 km / 1h38 Ásbyrgi alternative are excluded.', ['hverir-hverfjall', 'asbyrgi', 'dettifoss-selfoss', 'studlagil', 'seydisfjordur', 'borgarfjordur-eystri'], 'On the Ásbyrgi alternative, actual order is Reykjahlíð → Ásbyrgi → Dettifoss. Seyðisfjörður and Borgarfjörður Eystri are separate Egilsstaðir out-and-backs, neither is “on the way” south, and the east Stuðlagil hike cannot share this schedule.', 0.587324326378],
-  ['2026-08-16', 'Sunday', 9, 'Eastfjords to Stokksnes', 'working', 'Stay on coastal Route 1, use Djúpivogur as a separate service/reset stop and end at Stokksnes/Höfn.', 'Stokksnes/Höfn area · open', 243.5, 220, 330, 'measured', 'Geometry is forced through Breiðdalsvík to exclude Öxi.', ['djupivogur', 'djupivogur-stokksnes'], 'The source calls Djúpivogur → Stokksnes four hours. That adjacent leg is about 99 km; today’s real 244 km total begins at Egilsstaðir and must remain on Route 1, not gravel Route 939/Öxi.', 0.687447270131],
-  ['2026-08-17', 'Monday', 10, 'Ice country to Vík', 'open', 'Jökulsárlón is the anchor. Choose a whole-family boat or glacier-view trail, then protect the South Coast transfer.', 'Vík area · open', 277.5, 244, 320, 'measured', 'Activities are excluded; this day needs a hard choice.', ['jokulsarlon-boat', 'glacier-hike', 'fjadrargljufur-eldhraun'], 'Westbound geography is Jökulsárlón → Skaftafell → Fjaðrárgljúfur → Eldhraun → Vík. The document places Eldhraun after Reynisfjara.', 0.800595074608],
-  ['2026-08-18', 'Tuesday', 11, 'South Coast to Landeyjahöfn', 'working', 'Use current-safe viewpoints, take only a short Waterfall Way taster and finish near the ferry.', 'Hvolsvöllur/Landey area · open', 103.5, 111, 150, 'measured', 'Visit time excluded.', ['reynisfjara', 'dyrholaey', 'skogafoss-waterfall-way', 'seljalandsfoss-gljufrabui'], 'Gljúfrabúi is a short walk north from the Seljalandsfoss stop—not across the road. The Skógafoss “3 km” note omits the return and 428 steps.', 0.841714093597],
-  ['2026-08-19', 'Wednesday', 12, 'Heimaey day', 'open', 'Default to an early 35-minute foot-passenger ferry with both campers left at Landeyjahöfn, then use local transport. Dalfjall is its own hike; camping in Herjólfsdalur is a conflicting overnight branch that first requires a different transport and sleep plan.', 'Mainland or Herjólfsdalur · decide with ferry', 25.6, 70, 120, 'scheduled', 'Two 35-minute sailings and mainland driving only; the 3.5 km / 8m Herjólfsdalur island loop requires island transport and is excluded.', ['beluga-sanctuary', 'heimaey-puffin-volcano', 'dalfjall-hike', 'herjolfsdalur-camping'], 'The source says 50 minutes and leaves camper logistics unresolved. Current scheduled sailing is 35 minutes. Herjólfsdalur camping cannot coexist with leaving the campers on the mainland unless separate island accommodation and equipment are booked.', 0.852320987031],
-  ['2026-08-20', 'Thursday', 13, 'Golden Circle in road order', 'working', 'Travel from the Landey/Hella corridor through three independently rankable stops and camp at Þingvellir.', 'Þingvellir · open/bookable', 196.7, 181, 250, 'measured', 'Visits excluded.', ['gullfoss', 'golden-circle-core', 'thingvellir', 'silfra-split'], 'The source interleaves the sites. Correct westbound order is Gullfoss → Geysir/Strokkur → Þingvellir; Silfra is a separate eligibility-gated activity at Þingvellir.', 0.932949974867],
-  ['2026-08-21', 'Friday', 14, 'Hot river to Reykjavík', 'open', 'Make a real 7 km Reykjadalur decision, then move into Reykjavík.', 'Reykjavík Eco · open', 109.1, 110, 145, 'measured', 'Hike/bathing excluded.', ['reykjadalur'], 'The source says “3 km.” Reykjadalur is about 3.5 km each way—roughly 7 km return—and needs 3.5–4 hours with bathing.', 0.977393758777],
-  ['2026-08-22', 'Saturday', 15, 'Protected buffer', 'open', 'Keep the blank source-document day available for weather, fatigue, ferry recovery, laundry or a neighbourhood pool.', 'Reykjavík area · flexible', 0, 0, 0, 'deliberate-buffer', 'No committed road route.', ['weather-buffer', 'reykjavik-pools'], null, 0.977393758777],
-  ['2026-08-23', 'Sunday', 16, 'Reykjavík soft landing', 'open', 'Choose one whole-family city anchor. Sky Lagoon only happens through an explicit adult split.', 'Reykjavík Eco · open', 9.4, 18, 30, 'measured', 'Sky Lagoon branch excluded.', ['perlan', 'sky-lagoon', 'reykjavik-pools'], 'Sky Lagoon is about 45 minutes from KEF and prohibits under-12s; it is not “15 minutes from the airport” or a whole-family stop.', 0.980953866255],
-  ['2026-08-24', 'Monday', 17, 'Camper return and flight home', 'locked', 'No sightseeing. Leave Reykjavík with enough margin to return two campers by 13:00 and reach the terminal around 14:00.', 'Homebound', 46.9, 47, 65, 'measured', 'Return processing and airport transfer excluded.', ['departure'], 'The source contains both 17:05 and 17:10 departure times. Check the live airline itinerary; do not normalize the discrepancy silently.', 1],
-].map(([date, weekday, dayNumber, title, state, summary, overnight, distanceKm, baseMinutes, camperMinutes, confidence, note, stopIds, orderCheck, progress]) => ({
-  id: dayId(date), date, weekday, dayNumber, title, state, summary, overnight,
-  route: { distanceKm, baseMinutes, camperMinutes, confidence, note },
-  stopIds, orderCheck, progress,
-}));
+  ['2026-08-08', 'Saturday', 1, 'Overnight flight', 'locked', 'The trip begins with the booked overnight flight. Sleep and a clean handoff matter more than adding activity.', 'In flight', 'high', 'No Iceland road travel.', ['outbound-flight'], null],
+  ['2026-08-09', 'Sunday', 2, 'Arrival to Bjarkalundur', 'historical', 'Historical source record: camper pickup, Borgarnes provisioning and the booked Bjarkalundur base. Optional waterfalls are preserved without claiming that they happened.', 'Bjarkalundur · source-booked', 'local-snapshot-historical', 'Direct core only; pickup, groceries and optional visits excluded.', ['arrival-bjarkalundur', 'borgarfjordur-waterfalls'], 'The optional waterfall pair was never part of the locked direct road baseline.'],
+  ['2026-08-10', 'Monday', 3, 'Flókalundur and Hellulaug', 'historical', 'Historical source record. Hellulaug and the Flókalundur corridor remain visible; no optional visit is marked complete.', 'Bjarkalundur / Flókalundur · historical source', 'local-snapshot-historical', 'Current traveller state does not establish which optional stop occurred.', ['hellulaug-coast'], null],
+  ['2026-08-11', 'Tuesday', 4, 'Dynjandi day', 'historical', 'Historical source record. Dynjandi remains a source-authored idea; completion is not inferred.', 'Westfjords · historical source', 'local-snapshot-historical', 'Optional-stop completion is intentionally unknown.', ['dynjandi'], null],
+  ['2026-08-12', 'Wednesday', 5, 'Eclipse at Flókalundur', 'historical', 'The latest source places the eclipse day at Flókalundur. Earlier Patreksfjörður and Arngerðareyri choices are archived, not treated as rejected.', 'Flókalundur · source record', 'local-snapshot-stationary-historical', 'No road movement asserted in the current route ledger.', ['hellulaug-coast'], 'Earlier site alternatives were removed from the latest dated plan.'],
+  ['2026-08-13', 'Thursday', 6, 'Flókalundur to Camping Hamrar', 'locked', 'Latest confirmed travel state: the campers reached Camping Hamrar after the northbound transfer. Kolugljúfur remains the source-listed halfway stop; a visit is not marked complete.', 'Camping Hamrar · checked in', 'local-snapshot-traveller-confirmed', 'Route is Flókalundur → Kolugljúfur → Hamrar. Attractions and comfort stops are excluded from drive time.', ['kolugljufur', 'hamrar-campsite'], null],
+  ['2026-08-14', 'Friday', 7, 'Goðafoss to Ásbyrgi', 'working', 'Leave Hamrar around 08:00, stop at Goðafoss, optionally use Húsavík for harbourfront/coffee, then visit and potentially camp at Ásbyrgi.', 'Ásbyrgi · two electrical pitches open', 'local-snapshot', 'The core excludes the optional Húsavík town branch and all visit time.', ['godafoss', 'husavik-town-stop', 'asbyrgi', 'asbyrgi-campsite'], 'Geographic order is Hamrar → Goðafoss → optional Húsavík → Ásbyrgi. The earlier whale-tour/Hauganes ideas are no longer active.'],
+  ['2026-08-15', 'Saturday', 8, 'Sound Rocks, waterfalls and Mývatn', 'working', 'From Ásbyrgi, use the short Hljóðaklettar route, Dettifoss/Selfoss west bank and Hverir before settling at a chosen Lake Mývatn camp. Earth or Forest Lagoon is optional evening recovery.', 'Lake Mývatn campsite · choose and confirm', 'local-snapshot', 'Stops, hikes, meals and lagoon time are excluded.', ['hljodaklettar', 'dettifoss-selfoss', 'hverir-hverfjall', 'myvatn-camp', 'earth-lagoon'], 'This sequence is geographically coherent only from an Ásbyrgi sleep. Name the Mývatn campsite before adding the evening soak.'],
+  ['2026-08-16', 'Sunday', 9, 'Lake Mývatn local day', 'working', 'Stay at the same camp if possible. Use Hverfjall, Dimmuborgir and Grjótagjá as the core, choose one Krafla experience, then choose one quiet-lake stop or none.', 'Same Lake Mývatn campsite · preferred', 'local-snapshot', 'Krafla and quiet-lake options are separate branches; walks and stops are excluded.', ['myvatn-camp', 'hverfjall', 'dimmuborgir', 'grjotagja', 'krafla-viti', 'krafla-leirhnjukur', 'hofdi-kalfastrond', 'skutustadagigar'], 'Do not stack both Krafla options or both quiet-lake choices. Their source order is a decision list, not one required route.'],
+  ['2026-08-17', 'Monday', 10, 'Mývatn to East Iceland', 'working', 'Drive to Stuðlagil, use the serviced west viewpoint by default, then ask in Egilsstaðir whether puffins are still present. Continue direct to Seyðisfjörður unless live evidence earns the Borgarfjörður Eystri branch.', 'Seyðisfjörður direct · Borgarfjörður branch if live puffins', 'local-snapshot', 'Direct core ends in Seyðisfjörður; the Borgarfjörður branch is excluded.', ['studlagil', 'borgarfjordur-eystri', 'gufufoss', 'seydisfjordur'], 'Borgarfjörður Eystri and Seyðisfjörður are separate spokes from Egilsstaðir. Visiting Borgarfjörður necessarily creates the August 18 backtrack.'],
+  ['2026-08-18', 'Tuesday', 11, 'Conditional Eastfjords branch day', 'conditional', 'Skip this separate transfer day when the direct August 17 route is used. If the puffin branch was chosen, return through Egilsstaðir, stop at Gufufoss if conditions allow and descend to Seyðisfjörður.', 'Seyðisfjörður', 'local-snapshot-branch-dependent', 'Zero road distance on the direct plan; the Borgarfjörður → Seyðisfjörður branch remains separate.', ['borgarfjordur-eystri', 'gufufoss', 'seydisfjordur'], 'This day exists only because the two fjords sit on different spokes. It is not additive to the direct August 17 plan.'],
+  ['2026-08-19', 'Wednesday', 12, 'Seyðisfjörður to Stokksnes', 'working', 'Follow Route 1 through the Eastfjords, use Djúpivogur as the service/scenic break and end around Stokksnes or Höfn.', 'Stokksnes / Höfn area · open', 'local-snapshot', 'Route is forced through the coastal road; visits excluded.', ['djupivogur', 'djupivogur-stokksnes'], 'The source compresses Eastfjords, ice country, South Coast and Heimaey into one date. The working route gives this day only to Seyðisfjörður → Djúpivogur → Stokksnes/Höfn and avoids Öxi/939.'],
+  ['2026-08-20', 'Thursday', 13, 'Ice country to Vík', 'working', 'Use Jökulsárlón/Skaftafell as the ice-country anchor, continue to Fjaðrárgljúfur and Eldhraun, then finish in Vík. Reynisfjara and Dyrhólaey remain conditional branches.', 'Vík area · open', 'local-snapshot', 'Activities and South Coast branches excluded.', ['jokulsarlon-boat', 'glacier-hike', 'fjadrargljufur-eldhraun', 'reynisfjara', 'dyrholaey'], 'Westbound order is Jökulsárlón → Skaftafell → Fjaðrárgljúfur → Eldhraun → Vík. The source overload cannot fit in one day.'],
+  ['2026-08-21', 'Friday', 14, 'Skógafoss and Golden Circle', 'working', 'Use Skógafoss as the one South Coast core stop, then continue Gullfoss → Geysir → Þingvellir. The longer South Coast/Heimaey path is a replacement branch, not an add-on.', 'Þingvellir · working sleep', 'local-snapshot', 'Core visits excluded; South Coast and ferry branches remain separate.', ['reynisfjara', 'dyrholaey', 'skogafoss-waterfall-way', 'seljalandsfoss-gljufrabui', 'heimaey-puffin-volcano', 'dalfjall-hike', 'herjolfsdalur-camping', 'beluga-sanctuary', 'gullfoss', 'golden-circle-core', 'thingvellir', 'silfra-split'], 'The feasible core is Vík → Skógafoss → Gullfoss → Geysir → Þingvellir. Reynisfjara/Dyrhólaey/Seljalandsfoss and Heimaey compete with that core and with the August 22 buffer.'],
+  ['2026-08-22', 'Saturday', 15, 'Protected buffer at Þingvellir', 'working', 'Keep this source-blank day for weather, fatigue, laundry or recovery. Do not spend it in advance unless the group explicitly chooses a replacement branch.', 'Þingvellir · flexible', 'local-snapshot-deliberate-buffer', 'No committed road route.', ['weather-buffer', 'reykjavik-pools'], 'An island overnight or delayed South Coast branch consumes this buffer; it is not free extra capacity.'],
+  ['2026-08-23', 'Sunday', 16, 'Reykjadalur to Reykjavík', 'working', 'Move from Þingvellir to the Reykjadalur trail decision, then finish in Reykjavík. Perlan is the whole-family branch; Sky Lagoon requires an adult split.', 'Reykjavík · final night', 'local-snapshot', 'Hike, city branches and bathing excluded.', ['reykjadalur', 'perlan', 'sky-lagoon', 'reykjavik-pools'], 'The source places Sky Lagoon and Perlan on the fixed return day. They move to August 23 because August 24 has no safe sightseeing margin.'],
+  ['2026-08-24', 'Monday', 17, 'Camper return and flight home', 'locked', 'No sightseeing. Finish fuel, waste, cleaning and packing the prior evening; return both campers by 13:00 and protect airport margin.', 'Homebound', 'local-snapshot-fixed-deadline', 'Return processing and airport transfer excluded.', ['departure'], 'The source contains both 17:05 and 17:10 departure times. Check the live airline itinerary; do not normalize the discrepancy silently.'],
+].map(([date, weekday, dayNumber, title, state, summary, overnight, confidence, note, stopIds, orderCheck]) => {
+  const localRoute = localCoreRouteForDate(date);
+  return {
+    id: dayId(date), date, weekday, dayNumber, title, state, summary, overnight,
+    route: {
+      distanceKm: localRoute.distanceKm,
+      baseMinutes: localRoute.baseMinutes,
+      camperMinutes: localRoute.camperMinutes,
+      confidence,
+      note,
+    },
+    stopIds,
+    orderCheck,
+    progress: localRoute.progress,
+  };
+});
 
 const decisions = [
-  { id: 'decision-booked-base', priority: '1 · unblock first', title: 'Confirm the booked-base dates', why: '“August 9–12” and “four nights” do not describe the same checkout morning, and the plates are still missing.', deadline: 'On arrival · Aug 9', status: 'open', dayIds: [dayId('2026-08-09')], optionIds: ['arrival-bjarkalundur'] },
-  { id: 'decision-eclipse-sleep', priority: '2 · safety critical', title: 'Choose eclipse site + sleep together', why: 'Patreksfjörður is the service-rich family default; Arngerðareyri preserves northbound pace but has fewer verified services. Immediate site-hopping is out.', deadline: 'Aug 9–10', status: 'open', dayIds: [dayId('2026-08-12')], optionIds: ['eclipse-patreksfjordur', 'eclipse-arngerdareyri'] },
-  { id: 'decision-westfjords-branch', priority: '3 · route shaping', title: 'Pick the Westfjords branch', why: 'Dynjandi, Rauðasandur and Látrabjarg are not one reasonable camper day. Choose what earns the gravel and what gets dropped.', deadline: 'Before Aug 10 departure', status: 'open', dayIds: [dayId('2026-08-10'), dayId('2026-08-11')], optionIds: ['dynjandi', 'raudasandur', 'latrabjarg-raudasandur'] },
-  { id: 'decision-north-sleeps', priority: '4 · route shaping', title: 'Choose north branches + every sleep', why: 'Varmahlíð, Mývatn/Egilsstaðir and the Eastfjords need real camper stops. Hauganes, Húsavík, Hverfjall and Ásbyrgi are competing time commitments, not a stackable list.', deadline: 'By Aug 11', status: 'open', dayIds: [dayId('2026-08-13'), dayId('2026-08-14'), dayId('2026-08-15')], optionIds: ['hvitserkur-skagafjordur', 'hauganes-whales', 'husavik-whale-watching', 'hverir-hverfjall', 'hverfjall', 'asbyrgi', 'earth-lagoon'] },
-  { id: 'decision-ice-country', priority: '5 · book ahead', title: 'Choose the ice-country anchor', why: 'Book the all-ages Amphibian, accept a Zodiac/adult split, or keep the safe Skaftafell view. The day cannot support every version.', deadline: 'As soon as route survives', status: 'open', dayIds: [dayId('2026-08-17')], optionIds: ['jokulsarlon-boat', 'glacier-hike'] },
-  { id: 'decision-heimaey', priority: '6 · book ahead', title: 'Choose the Heimaey day + sleep model', why: 'Default to foot passengers with campers at Landeyjahöfn. Dalfjall needs local transport; Herjólfsdalur camping conflicts with that default and requires either exact-dimension vehicle space or separately booked island sleeping equipment/lodging.', deadline: 'At least several days ahead', status: 'open', dayIds: [dayId('2026-08-19')], optionIds: ['beluga-sanctuary', 'heimaey-puffin-volcano', 'dalfjall-hike', 'herjolfsdalur-camping'] },
-  { id: 'decision-adult-splits', priority: '7 · group logistics', title: 'Approve or reject adult splits', why: 'Silfra, a guided glacier experience and Sky Lagoon change who is caring for the young travellers. Treat that as logistics, not a footnote.', deadline: 'Before any non-refundable booking', status: 'open', dayIds: [dayId('2026-08-17'), dayId('2026-08-20'), dayId('2026-08-23')], optionIds: ['glacier-hike', 'silfra-split', 'sky-lagoon'] },
-  { id: 'decision-departure-truth', priority: '8 · confirm', title: 'Resolve flight + camper-return truth', why: 'Check 17:05 versus 17:10 against Icelandair and confirm the contract-specific return address, fuel, waste and cleaning rules.', deadline: 'By Aug 20', status: 'open', dayIds: [dayId('2026-08-24')], optionIds: ['departure'] },
+  { id: 'decision-asbyrgi-electric', priority: '1 · decide now', title: 'Book two Ásbyrgi electrical pitches—or choose another sleep', why: 'The August 15 route begins cleanly only from Ásbyrgi, and electricity is the capacity-sensitive part. No booking is recorded.', deadline: 'Before leaving Hamrar · Aug 14', status: 'open', dayIds: [dayId('2026-08-14')], optionIds: ['asbyrgi-campsite'] },
+  { id: 'decision-myvatn-base', priority: '2 · next sleep', title: 'Choose the Lake Mývatn base', why: 'The source names several camps but selects none. A two-night base prevents August 16 from becoming another pack-and-move day.', deadline: 'Before Aug 15 departure', status: 'open', dayIds: [dayId('2026-08-15'), dayId('2026-08-16')], optionIds: ['myvatn-camp'] },
+  { id: 'decision-husavik-town', priority: '3 · Aug 14 route pace', title: 'Húsavík town stop or direct to Ásbyrgi', why: 'A harbourfront/coffee stop is plausible; a whale tour is not in the latest plan. Protect the Ásbyrgi visit and campsite arrival.', deadline: 'At Goðafoss · Aug 14', status: 'open', dayIds: [dayId('2026-08-14')], optionIds: ['husavik-town-stop'] },
+  { id: 'decision-myvatn-shape', priority: '4 · avoid stacking', title: 'Choose one Krafla and one-or-zero quiet-lake stop', why: 'Víti and Leirhnjúkur are alternatives. Höfði/Kálfaströnd and Skútustaðagígar are also alternatives. Ranking them separately prevents an impossible checklist.', deadline: 'Evening Aug 15 or morning Aug 16', status: 'open', dayIds: [dayId('2026-08-16')], optionIds: ['krafla-viti', 'krafla-leirhnjukur', 'hofdi-kalfastrond', 'skutustadagigar'] },
+  { id: 'decision-puffin-fork', priority: '5 · live evidence only', title: 'Borgarfjörður Eystri or direct Seyðisfjörður', why: 'Check the official/live feed or ask locally in Egilsstaðir. The puffin branch creates a real August 18 backtrack; it is not a free add-on.', deadline: 'Egilsstaðir · Aug 17', status: 'open', dayIds: [dayId('2026-08-17'), dayId('2026-08-18')], optionIds: ['borgarfjordur-eystri', 'seydisfjordur', 'gufufoss'] },
+  { id: 'decision-ice-country', priority: '6 · bookable choice', title: 'Choose the ice-country anchor', why: 'Use a whole-family lagoon boat, accept a guided adult/eligibility split, or keep the safe Skaftafell view. August 20 cannot support every version.', deadline: 'As soon as the east branch is settled', status: 'open', dayIds: [dayId('2026-08-20')], optionIds: ['jokulsarlon-boat', 'glacier-hike'] },
+  { id: 'decision-south-versus-heimaey', priority: '7 · replacement decision', title: 'Keep the feasible core or replace it with South Coast/Heimaey', why: 'Reynisfjara, Dyrhólaey, Seljalandsfoss and Heimaey are preserved, but they compete with the Golden Circle and may consume the August 22 buffer.', deadline: 'Before any ferry or island booking', status: 'open', dayIds: [dayId('2026-08-20'), dayId('2026-08-21'), dayId('2026-08-22')], optionIds: ['reynisfjara', 'dyrholaey', 'seljalandsfoss-gljufrabui', 'heimaey-puffin-volcano', 'dalfjall-hike', 'herjolfsdalur-camping', 'beluga-sanctuary'] },
+  { id: 'decision-departure-truth', priority: '8 · confirm', title: 'Resolve flight + camper-return truth', why: 'Check 17:05 versus 17:10 against the live airline itinerary and confirm the contract-specific return address, fuel, waste and cleaning rules.', deadline: 'By Aug 23', status: 'open', dayIds: [dayId('2026-08-24')], optionIds: ['departure'] },
 ];
 
 const operations = [
-  { id: 'ops-arrival', icon: '01', title: 'Airport → campers', body: 'At arrivals, use the green EUROPCAR–HOLDUR desk and the Motorhomes and Campers priority ticket.', items: ['Pickup is recorded for 10:00 on Aug 9.', 'Two child seats are required.', 'Photograph each camper and verify equipment before departure.', 'Confirm the contract road-use charge and return rules without copying private terms here.'], links: [{ label: 'Rental public contact', url: 'https://www.motorhomeiceland.com/contact-us' }] },
-  { id: 'ops-eclipse', icon: '02', title: 'Eclipse protocol', body: 'Partial 16:43–18:45; totality about 17:44–17:46. Use one designated site and one backup.', items: ['ISO 12312-2 glasses for every partial phase.', 'Food, water, medication, warm/waterproof layers and full fuel.', 'No road or shoulder stopping.', 'Roads 612/614 have one-way controls; arrive early and stay late.'], links: [{ label: 'Official Westfjords eclipse plan', url: 'https://www.westfjords.is/en/experiences/solar-eclipse-2026' }] },
-  { id: 'ops-camping', icon: '03', title: 'Sleep before sightseeing', body: 'The first base is recorded as booked; later campsites are not. Name the sleep before adding the attraction.', items: ['Confirm every post-Aug-12 night.', 'Check two-motorhome capacity, electricity, waste and arrival policy.', 'Wild camping is not the plan.', 'Keep the August 22 buffer uncommitted.'], links: [{ label: 'Official campground directory', url: 'https://tjalda.is/en/' }] },
+  { id: 'ops-current', icon: '01', title: 'Latest confirmed position', body: 'Camping Hamrar on August 13 is the last traveller-confirmed state. The interface should call it “last confirmed” after the date rolls, not silently move the campers.', items: ['Hamrar is confirmed checked in.', 'Kolugljúfur remains a route waypoint; an optional visit is not marked complete.', 'Do not advance the current position without a traveller update.', 'Hamrar is not a Camping Card site.'], links: [{ label: 'Camping Hamrar', url: 'https://www.hamrar.is/home' }] },
+  { id: 'ops-camping', icon: '02', title: 'Sleep before sightseeing', body: 'Name the next campsite before adding attractions. The Camping Card layer is a coverage reference, not proof of room or electricity.', items: ['Two campers require two suitable sites.', 'Confirm electricity separately.', 'Check waste, water, shower and arrival policy.', 'Keep August 22 protected.'], links: [{ label: 'Official campground directory', url: 'https://tjalda.is/en/' }] },
+  { id: 'ops-day-pacing', icon: '03', title: 'One core, then branches', body: 'Each dated route distinguishes a feasible core from replacement branches.', items: ['Húsavík is a short town branch, not a whale tour.', 'Choose one Krafla experience.', 'Choose one quiet-lake stop or none.', 'Borgarfjörður and Heimaey consume time elsewhere.'] },
   { id: 'ops-ferry', icon: '04', title: 'Herjólfur day', body: 'The current scheduled Landeyjahöfn crossing is 35 minutes. A cancellation does not automatically move the booking to the next sailing.', items: ['Reserve foot passengers and island transport.', 'Arrive at least 30 minutes early.', 'Check port and sailing the prior evening and morning.', 'Only ferry campers after measuring exact length and height.'], links: [{ label: 'Official schedule', url: 'https://herjolfur.is/en/schedule/' }, { label: 'Official crossing FAQ', url: 'https://herjolfur.is/en/frequently-asked-questions/' }] },
   { id: 'ops-live', icon: '05', title: 'Live-condition gate', body: 'The map is a dated planning snapshot, not permission to drive or enter.', items: ['Road/wind check before every exposed departure.', 'SafeTravel check for Reynisfjara and closures.', 'Weather check the night before and morning of.', 'Call Road Administration traffic service 1777 when uncertain.'], links: [{ label: 'Umferðin road conditions', url: 'https://umferdin.is/en' }, { label: 'SafeTravel', url: 'https://safetravel.is/' }, { label: 'Weather', url: 'https://en.vedur.is/' }] },
   { id: 'ops-shared-kit', icon: '06', title: 'Shared road kit', body: 'Keep the useful shared list without exposing personal packing.', items: ['Eclipse glasses', 'Waterproof layers, warm hats/gloves', 'Swimsuits and wet bags', 'Eye masks and clothes pegs', 'Walkie-talkies, chargers and headlamps', 'Arrival snacks, water and electrolytes'] },
-  { id: 'ops-fuel', icon: '07', title: 'Fuel + services rhythm', body: 'Refuel before remote roads and treat a half tank as the Eastfjords floor.', items: ['Nettó—not Bónus—at Borgarbraut 58–60.', 'Provision before the Westfjords.', 'Use Akureyri/Reykjahlíð and Djúpivogur/Höfn as deliberate service anchors.', 'Do not rely on food, toilets or cell service at remote viewpoints.'] },
+  { id: 'ops-fuel', icon: '07', title: 'Fuel + services rhythm', body: 'Refuel before remote roads and treat a half tank as the Eastfjords floor.', items: ['Use Akureyri before the Diamond Circle.', 'Use Reykjahlíð before the East Iceland transfer.', 'Use Egilsstaðir and Djúpivogur/Höfn as deliberate service anchors.', 'Do not rely on food, toilets or cell service at remote viewpoints.'] },
   { id: 'ops-departure', icon: '08', title: 'Finish the night before', body: 'Pack, empty waste and complete fuel/cleaning work on Aug 23.', items: ['Leave Reykjavík around 10:30–11:00.', 'Return both campers by 13:00.', 'Target terminal entry around 14:00.', 'No sightseeing on Aug 24.', 'Check 17:05 versus 17:10 in the live itinerary.'], links: [{ label: 'KEF traveller guide', url: 'https://www.kefairport.com/news/first-time-in-iceland' }] },
 ];
 
-const archivedSourceDecisions = [{
-  id: 'snaefellsnes-ruled-out',
-  title: 'Snæfellsnes peninsula',
-  status: 'ruled-out',
-  documentStatus: 'Ruled out in the revised source',
-  items: [
-    'Búðir · white beach',
-    'Arnarstapi · coastal-cliff hike and birdlife',
-    'Djúpalónssandur · basalt-pebble beach',
-    'Lýsuhólslaug · thermal pools',
-    'Snæfellsjökull glacier',
-    'Ólafsvík-area camping research',
-    'Source records that an advance-booking inquiry was sent by email',
-  ],
-  sources: [
-    source('Official Snæfellsjökull National Park', 'https://www.ust.is/english/visiting-iceland/snaefellsjokull-national-park/'),
-    source('Source-authored Ólafsvík camping page', 'https://www.snb.is/is/mannlif/ferdathjonusta/tjaldsvaedi#camping-in-olafsvik'),
-  ],
-}];
+const archivedSourceDecisions = [
+  {
+    id: 'snaefellsnes-ruled-out',
+    title: 'Snæfellsnes peninsula',
+    status: 'ruled-out',
+    documentStatus: 'Direct strike-through in the latest source preserves Snæfellsnes as ruled out.',
+    items: [
+      'Búðir · white beach',
+      'Arnarstapi · coastal-cliff hike and birdlife',
+      'Djúpalónssandur · basalt-pebble beach',
+      'Lýsuhólslaug · thermal pools',
+      'Snæfellsjökull glacier',
+      'Ólafsvík-area camping research',
+      'Source records that an advance-booking inquiry was sent by email',
+    ],
+    sources: [
+      source('Official Snæfellsjökull National Park', 'https://www.ust.is/english/visiting-iceland/snaefellsjokull-national-park/'),
+      source('Source-authored Ólafsvík camping page', 'https://www.snb.is/is/mannlif/ferdathjonusta/tjaldsvaedi#camping-in-olafsvik'),
+    ],
+  },
+  ...[...removedFromLatestPlan.entries()].map(([optionId, removalNote]) => {
+    const preserved = legs.flatMap((leg) => leg.options).find((option) => option.id === optionId);
+    if (!preserved) throw new Error(`Removed source option ${optionId} is missing from the stable catalog.`);
+    return {
+      id: `${optionId}-removed-from-latest-plan`,
+      optionId,
+      title: preserved.title,
+      status: 'removed-from-latest-plan',
+      documentStatus: removalNote,
+      items: [
+        'Stable option ID and any existing group state are preserved.',
+        'No current date, map marker, ranking control or sticky-note input is exposed.',
+        'Removal from the latest source is not represented as group rejection, cancellation or completion.',
+      ],
+      sources: preserved.sources,
+    };
+  }),
+];
 
 const itinerary = {
   schemaVersion: 2,
@@ -894,8 +1365,24 @@ const itinerary = {
     title: 'Iceland, Summer 2026 · Route Room',
     dateLabel: 'August 8–24, 2026',
     direction: 'clockwise circuit',
-    summary: 'A dated, geographically reconciled camper circuit for four adult planners and two young travellers.',
-    baseline: ['Flights are recorded as booked', 'Two motorhomes are recorded as booked', 'Bjarkalundur is recorded as booked for August 9–12', 'Clockwise Ring Road direction', 'Home-airport transfer is recorded as confirmed and paid'],
+    summary: 'A current-state, geographically reconciled camper circuit that preserves the planning document while making every remaining sleep and route branch explicit.',
+    baseline: [
+      'Flights are recorded as booked',
+      'Two motorhomes are recorded as booked',
+      'Clockwise Ring Road direction',
+      'Camping Hamrar check-in is traveller-confirmed for August 13',
+      'Two Camping Card passes were ordered; individual site coverage and capacity remain separate checks',
+      'Camper return by 13:00 on August 24 is fixed',
+    ],
+    currentState: {
+      asOf: '2026-08-13',
+      dayId: 'day-2026-08-13',
+      currentPlaceId: 'hamrar-campsite',
+      status: 'checked-in',
+      label: 'Checked in at Camping Hamrar',
+      provenance: 'Traveller update',
+      currentPlaceIsCampingCardSite: false,
+    },
   },
   days,
   legs,
@@ -903,17 +1390,23 @@ const itinerary = {
   operations,
   archivedSourceDecisions,
   methodology: {
-    sourceDocumentSha256: '523d988f965ef24cbfef2141d284f460c8361f4d137e4f0be1fbdf73d1f116aa',
-    sourceDocumentModified: '2026-08-08T00:43:50-04:00',
-    lastResearchRefresh: '2026-08-08',
-    statusModel: 'Locked means explicitly booked/fixed in the source; working is the current geographic proposal; open needs group assent or a live gate; branch is a mutually exclusive alternative.',
-    driveMethod: 'OSRM car baselines over OpenStreetMap are shown separately from motorhome planning time. Neither includes attractions, groceries, fuel, toilets, roadworks, weather, ferry disruption or eclipse traffic unless stated.',
-    mapMethod: 'Self-contained Natural Earth coastline and an attributed OpenStreetMap/OSRM route snapshot; no runtime map tiles, tracking or geolocation.',
-    freshness: 'Roads, weather, ferry, beach access, operator availability, campground capacity and flight/rental contract truth must be rechecked live.',
+    sourceDocument: 'Iceland Summer 2026 (1).docx',
+    sourceDocumentSha256: SOURCE_DOCUMENT_SHA256,
+    sourceDocumentModified: '2026-08-13T20:12:12Z',
+    lastResearchRefresh: '2026-08-14',
+    currentStateProvenance: 'Traveller update received August 13: checked in at Camping Hamrar. This outranks any conflicting proposed route in the planning document.',
+    statusModel: 'Locked means explicitly booked/fixed or traveller-confirmed; working is the current geographic proposal; open needs group assent or a live gate; conditional is a mutually exclusive or capacity-dependent branch; historical preserves earlier source work without implying completion.',
+    routeLedger: 'Committed iceland26/map-data.json, routed by local OSRM over the Geofabrik Iceland OpenStreetMap extract; no public routing request is required to generate this itinerary.',
+    routeSnapshotGeneratedAt: localMap.generatedAt,
+    routeDataSnapshotDate: localGeofabrikAttribution.snapshotDate,
+    driveMethod: 'Static local-OSRM car baselines are shown separately from motorhome planning time. Camper time is the baseline plus 35%, rounded up to five minutes. Neither figure includes attractions, groceries, fuel, toilets, roadworks, weather, ferry disruption or eclipse traffic unless stated.',
+    mapMethod: 'Self-contained Natural Earth coastline and committed local OSRM/Geofabrik route geometry; no runtime map tiles, tracking, geolocation or live-traffic feed.',
+    freshness: 'Camping Hamrar on August 13 is the latest confirmed position. Roads, weather, ferry, beach access, wildlife, operator availability, campground capacity, Camping Card coverage and flight/rental contract truth must be rechecked live.',
     privacy: 'Reservation identifiers, prices, payment splits, private links, exact child details, identity documents and personal packing remain outside client assets.',
     links: [
       { label: 'OpenStreetMap copyright', url: 'https://www.openstreetmap.org/copyright' },
-      { label: 'OSRM API', url: 'https://project-osrm.org/docs/v5.24.0/api/' },
+      { label: 'OSRM project', url: 'https://project-osrm.org/' },
+      { label: 'Geofabrik Iceland extract', url: 'https://download.geofabrik.de/europe/iceland.html' },
       { label: 'Natural Earth terms', url: 'https://www.naturalearthdata.com/about/terms-of-use/' },
     ],
   },
@@ -927,21 +1420,43 @@ for (const day of itinerary.days) {
     if (!ids.includes(stopId)) throw new Error(`${day.id} references unknown stop ${stopId}.`);
   }
 }
+for (const day of itinerary.days) {
+  const localRoute = localCoreRouteForDate(day.date);
+  if (day.route.distanceKm !== localRoute.distanceKm
+      || day.route.baseMinutes !== localRoute.baseMinutes
+      || day.route.camperMinutes !== localRoute.camperMinutes
+      || day.progress !== localRoute.progress) {
+    throw new Error(`${day.id} drifted from the committed local route ledger.`);
+  }
+}
 if (Object.keys(details).some((id) => !ids.includes(id))) {
   throw new Error('An option override no longer maps to the preserved catalog.');
 }
 
-for (const id of [
-  'asbyrgi',
-  'husavik-whale-watching',
-  'dalfjall-hike',
-  'herjolfsdalur-camping',
-  'hverfjall',
-  'djupivogur',
-  'gullfoss',
-  'thingvellir',
-]) {
-  if (!ids.includes(id)) throw new Error(`Generated itinerary is missing independent option ${id}.`);
+const originalStableIds = [
+  'outbound-flight', 'arrival-bjarkalundur', 'borgarfjordur-waterfalls',
+  'hellulaug-coast', 'dynjandi', 'latrabjarg-raudasandur', 'raudasandur',
+  'eclipse-patreksfjordur', 'eclipse-arngerdareyri', 'hvitserkur-skagafjordur',
+  'hauganes-whales', 'godafoss', 'husavik-whale-watching', 'hverir-hverfjall',
+  'hverfjall', 'earth-lagoon', 'asbyrgi', 'dettifoss-selfoss', 'studlagil',
+  'seydisfjordur', 'borgarfjordur-eystri', 'djupivogur', 'djupivogur-stokksnes',
+  'jokulsarlon-boat', 'glacier-hike', 'fjadrargljufur-eldhraun', 'reynisfjara',
+  'dyrholaey', 'skogafoss-waterfall-way', 'seljalandsfoss-gljufrabui',
+  'heimaey-puffin-volcano', 'dalfjall-hike', 'herjolfsdalur-camping',
+  'beluga-sanctuary', 'gullfoss', 'golden-circle-core', 'thingvellir',
+  'silfra-split', 'reykjadalur', 'weather-buffer', 'perlan', 'sky-lagoon',
+  'reykjavik-pools', 'departure',
+];
+const addedCurrentIds = [
+  'hamrar-campsite', 'kolugljufur', 'husavik-town-stop', 'asbyrgi-campsite',
+  'hljodaklettar', 'myvatn-camp', 'dimmuborgir', 'grjotagja', 'krafla-viti',
+  'krafla-leirhnjukur', 'hofdi-kalfastrond', 'skutustadagigar', 'gufufoss',
+];
+for (const id of [...originalStableIds, ...addedCurrentIds]) {
+  if (!ids.includes(id)) throw new Error(`Generated itinerary is missing stable option ${id}.`);
+}
+if (originalStableIds.length !== 44 || addedCurrentIds.length !== 13 || ids.length !== 57) {
+  throw new Error('Itinerary must preserve 44 prior state keys and add exactly 13 current-plan options.');
 }
 
 for (const leg of itinerary.legs) {
@@ -950,16 +1465,61 @@ for (const leg of itinerary.legs) {
 }
 
 for (const [day, requiredIds] of [
-  ['2026-08-14', ['husavik-whale-watching', 'hverir-hverfjall', 'hverfjall']],
-  ['2026-08-15', ['asbyrgi']],
-  ['2026-08-16', ['djupivogur', 'djupivogur-stokksnes']],
-  ['2026-08-19', ['dalfjall-hike', 'herjolfsdalur-camping']],
-  ['2026-08-20', ['gullfoss', 'golden-circle-core', 'thingvellir']],
+  ['2026-08-13', ['kolugljufur', 'hamrar-campsite']],
+  ['2026-08-14', ['godafoss', 'husavik-town-stop', 'asbyrgi', 'asbyrgi-campsite']],
+  ['2026-08-15', ['hljodaklettar', 'dettifoss-selfoss', 'hverir-hverfjall', 'myvatn-camp']],
+  ['2026-08-16', ['myvatn-camp', 'hverfjall', 'dimmuborgir', 'grjotagja', 'krafla-viti', 'krafla-leirhnjukur', 'hofdi-kalfastrond', 'skutustadagigar']],
+  ['2026-08-17', ['studlagil', 'borgarfjordur-eystri', 'gufufoss', 'seydisfjordur']],
+  ['2026-08-19', ['djupivogur', 'djupivogur-stokksnes']],
+  ['2026-08-20', ['jokulsarlon-boat', 'glacier-hike', 'fjadrargljufur-eldhraun']],
+  ['2026-08-21', ['skogafoss-waterfall-way', 'heimaey-puffin-volcano', 'gullfoss', 'golden-circle-core', 'thingvellir']],
+  ['2026-08-23', ['reykjadalur', 'perlan', 'sky-lagoon']],
+  ['2026-08-24', ['departure']],
 ]) {
   const stopIds = itinerary.days.find((candidate) => candidate.id === dayId(day))?.stopIds || [];
   for (const id of requiredIds) {
     if (!stopIds.includes(id)) throw new Error(`${day} must expose independent option ${id}.`);
   }
+}
+
+const currentState = itinerary.trip.currentState;
+if (JSON.stringify(currentState) !== JSON.stringify({
+  asOf: '2026-08-13',
+  dayId: 'day-2026-08-13',
+  currentPlaceId: 'hamrar-campsite',
+  status: 'checked-in',
+  label: 'Checked in at Camping Hamrar',
+  provenance: 'Traveller update',
+  currentPlaceIsCampingCardSite: false,
+})) {
+  throw new Error('The traveller-confirmed Hamrar current state drifted.');
+}
+
+const allOptions = itinerary.legs.flatMap((leg) => leg.options);
+for (const [id, removalNote] of removedFromLatestPlan.entries()) {
+  const option = allOptions.find((candidate) => candidate.id === id);
+  const archived = itinerary.archivedSourceDecisions.find((record) => record.optionId === id);
+  if (!option || option.active !== false || option.status !== 'historical'
+      || option.dayIds.length !== 0 || option.map !== null
+      || itinerary.days.some((day) => day.stopIds.includes(id))
+      || !archived || archived.status !== 'removed-from-latest-plan'
+      || !archived.documentStatus.includes(removalNote)) {
+    throw new Error(`${id} must remain an inactive, read-only earlier-plan record.`);
+  }
+}
+
+for (const id of addedCurrentIds) {
+  const option = allOptions.find((candidate) => candidate.id === id);
+  if (!option || option.active !== true || option.status === 'historical'
+      || !option.map || !option.dayIds.length || !option.sources.length
+      || !itinerary.days.some((day) => day.stopIds.includes(id))) {
+    throw new Error(`${id} must be a sourced, mapped and dated current-plan option.`);
+  }
+}
+
+if (itinerary.methodology.sourceDocumentSha256
+    !== 'f961d86b89d5a546f7d5d988f74c729a67c51139ab6ef151a2a2ce19d5702953') {
+  throw new Error('Itinerary is not pinned to the latest planning document.');
 }
 
 const lagoon = itinerary.legs.flatMap((leg) => leg.options)

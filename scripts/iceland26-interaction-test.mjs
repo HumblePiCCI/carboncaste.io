@@ -354,6 +354,11 @@ async function login(page, context, label) {
   await assertLockedAsset(context, '/iceland26/itinerary.json', `${label} itinerary gate`);
   await assertLockedAsset(context, '/iceland26/map-data.json', `${label} map gate`);
   await assertLockedAsset(context, '/iceland26/bonus-stores.json', `${label} Bónus census gate`);
+  await assertLockedAsset(
+    context,
+    '/iceland26/camping-card-sites.json',
+    `${label} Camping Card census gate`,
+  );
 
   const codeInput = page.locator('#trip-code');
   await page.screenshot({ path: join(screenshotDirectory, `${label}-access.png`) });
@@ -393,14 +398,28 @@ async function login(page, context, label) {
     '/iceland26/bonus-stores.json',
     `${label} Bónus census`,
   );
+  const campingCardText = await assertPrivateAsset(
+    context,
+    '/iceland26/camping-card-sites.json',
+    `${label} Camping Card census`,
+  );
   try {
     const itinerary = JSON.parse(itineraryText);
     const map = JSON.parse(mapText);
     const bonus = JSON.parse(bonusText);
+    const campingCard = JSON.parse(campingCardText);
     if (itinerary.days?.length !== 17) fail(`${label}: private itinerary does not contain exactly 17 dated days.`);
     if ((map.routes?.length || 0) < 12) fail(`${label}: private route snapshot contains fewer than 12 route paths.`);
     if (bonus.stores?.length !== 33 || bonus.stores.filter((store) => store.included).length !== 30) {
       fail(`${label}: private Bónus census is incomplete.`);
+    }
+    if (campingCard.officialInventory?.siteCount !== 30
+        || campingCard.sites?.length !== 30
+        || campingCard.sites.filter((site) => site.routeFit === 'direct').length !== 7
+        || campingCard.sites.filter((site) => site.routeFit === 'conditional').length !== 8
+        || campingCard.sites.filter((site) => site.routeFit === 'behind-current-route').length !== 15
+        || campingCard.sites.some((site) => /hamrar/i.test(site.name))) {
+      fail(`${label}: private Camping Card census is incomplete or incorrectly includes Hamrar.`);
     }
   } catch (error) {
     fail(`${label}: private trip assets are not valid JSON (${error.message}).`);
@@ -409,6 +428,113 @@ async function login(page, context, label) {
   await page.locator('#sync-status').getByText(/Shared board live/).waitFor();
   await page.locator('.map-marker').first().waitFor();
   await page.screenshot({ path: join(screenshotDirectory, `${label}-hero.png`) });
+}
+
+async function sharedStateSnapshot(page) {
+  return page.evaluate(async () => {
+    const response = await fetch('/api/iceland26');
+    const state = await response.json();
+    return {
+      revision: state.revision,
+      preferences: state.preferences,
+      comments: state.comments,
+      suggestions: state.suggestions,
+      activity: state.activity,
+    };
+  });
+}
+
+async function assertCurrentTripDefault(page, label) {
+  const state = await page.evaluate(() => ({
+    selectedIndex: Number(document.querySelector('#day-scrubber')?.value),
+    selectedDateIndex: Number(document.querySelector('#date-track button[aria-pressed="true"]')?.dataset.dayIndex),
+    selectedDateLabel: document.querySelector('#date-track button[aria-pressed="true"]')?.getAttribute('aria-label'),
+    selectedDateClasses: document.querySelector('#date-track button[aria-pressed="true"]')?.className,
+    todayIndex: Number(document.querySelector('#date-track button[aria-current="date"]')?.dataset.dayIndex),
+    todayLabel: document.querySelector('#date-track button[aria-current="date"]')?.getAttribute('aria-label'),
+    selectedPlaceId: document.querySelector('.map-marker[aria-pressed="true"]')?.dataset.optionId,
+    currentMarkerId: document.querySelector('.map-marker.is-current-trip-place')?.dataset.optionId,
+    currentMarkerClasses: document.querySelector('.map-marker.is-current-trip-place')?.getAttribute('class'),
+    banner: document.querySelector('#current-trip-state')?.innerText,
+    bannerDayId: document.querySelector('#current-trip-state')?.dataset.dayId,
+    bannerPlaceId: document.querySelector('#current-trip-state')?.dataset.placeId,
+    panelText: document.querySelector('#place-panel')?.innerText,
+    prepaidBadgeCount: document.querySelectorAll('#place-panel .badge--camping-card').length,
+    currentMarkerLabel: document.querySelector('.map-marker.is-current-trip-place')?.getAttribute('aria-label'),
+  }));
+  const endpoint = await page.evaluate(async () => {
+    const [itineraryResponse, mapResponse] = await Promise.all([
+      fetch('/iceland26/itinerary.json'),
+      fetch('/iceland26/map-data.json'),
+    ]);
+    const [itinerarySnapshot, mapSnapshot] = await Promise.all([
+      itineraryResponse.json(),
+      mapResponse.json(),
+    ]);
+    const hamrar = itinerarySnapshot.legs
+      .flatMap((leg) => leg.options)
+      .find((option) => option.id === 'hamrar-campsite');
+    const currentDayId = itinerarySnapshot.trip?.currentState?.dayId;
+    const currentRoutes = mapSnapshot.routes
+      .filter((route) => route.state !== 'branch' && route.dayIds?.includes(currentDayId));
+    const routeCoordinate = currentRoutes.at(-1)?.points?.at(-1);
+    const project = ([lng, lat]) => ({
+      x: 55 + (((lng - mapSnapshot.bounds.minLng)
+        / (mapSnapshot.bounds.maxLng - mapSnapshot.bounds.minLng)) * 890),
+      y: 45 + (((mapSnapshot.bounds.maxLat - lat)
+        / (mapSnapshot.bounds.maxLat - mapSnapshot.bounds.minLat)) * 610),
+    });
+    const hamrarPoint = hamrar?.map ? project([hamrar.map.lng, hamrar.map.lat]) : null;
+    const routePoint = routeCoordinate ? project(routeCoordinate) : null;
+    const camperPoints = [...document.querySelectorAll('.camper')].map((camper) => {
+      const matrix = camper.transform.baseVal.consolidate()?.matrix;
+      return matrix ? { x: matrix.e, y: matrix.f } : null;
+    });
+    const camperMidpoint = camperPoints.length === 2 && camperPoints.every(Boolean)
+      ? {
+        x: (camperPoints[0].x + camperPoints[1].x) / 2,
+        y: (camperPoints[0].y + camperPoints[1].y) / 2,
+      }
+      : null;
+    const distance = (left, right) => (
+      left && right ? Math.hypot(left.x - right.x, left.y - right.y) : Number.POSITIVE_INFINITY
+    );
+    return {
+      currentState: itinerarySnapshot.trip?.currentState,
+      currentRouteCount: currentRoutes.length,
+      routeToHamrar: distance(routePoint, hamrarPoint),
+      campersToHamrar: distance(camperMidpoint, hamrarPoint),
+    };
+  });
+  if (state.selectedIndex !== 5
+      || state.selectedDateIndex !== 5
+      || !/Aug(?:ust)? 13/i.test(state.selectedDateLabel || '')
+      || !/Latest traveller-confirmed location update/i.test(state.selectedDateLabel || '')
+      || !String(state.selectedDateClasses).includes('is-latest-confirmed-day')
+      || state.todayIndex !== 6
+      || !/Aug(?:ust)? 14/i.test(state.todayLabel || '')
+      || !/Today in Iceland/i.test(state.todayLabel || '')
+      || state.selectedPlaceId !== 'hamrar-campsite'
+      || state.currentMarkerId !== 'hamrar-campsite'
+      || String(state.currentMarkerClasses).includes('map-marker--camping-card')
+      || state.bannerDayId !== 'day-2026-08-13'
+      || state.bannerPlaceId !== 'hamrar-campsite'
+      || !/Last confirmed\s*·\s*Aug 13\s*·\s*Checked in at Camping Hamrar/i.test(state.banner || '')
+      || !/Camping Hamrar/i.test(state.panelText || '')
+      || !/Last confirmed\s*·\s*checked in/i.test(state.panelText || '')
+      || !/Not a Camping Card site/i.test(state.panelText || '')
+      || /Prepaid Camping Card/i.test(state.panelText || '')
+      || state.prepaidBadgeCount !== 0
+      || !/Last confirmed: Checked in at Camping Hamrar/i.test(state.currentMarkerLabel || '')
+      || endpoint.currentState?.asOf !== '2026-08-13'
+      || endpoint.currentState?.dayId !== 'day-2026-08-13'
+      || endpoint.currentState?.currentPlaceId !== 'hamrar-campsite'
+      || endpoint.currentState?.currentPlaceIsCampingCardSite !== false
+      || endpoint.currentRouteCount < 1
+      || endpoint.routeToHamrar > 0.75
+      || endpoint.campersToHamrar > 0.75) {
+    fail(`${label}: planner did not distinguish the Aug 13 confirmed Hamrar endpoint from the Aug 14 current day (${JSON.stringify({ state, endpoint })}).`);
+  }
 }
 
 async function assertBoardStructure(page, label) {
@@ -466,6 +592,299 @@ async function assertBoardStructure(page, label) {
   assertNoPrivateLeak(structure.visibleText, `${label} visible UI`);
   await assertNoHorizontalOverflow(page, label);
   await assertExternalLinkSafety(page, label);
+}
+
+async function campingCardVisibility(page) {
+  return page.evaluate(() => {
+    const markers = [...document.querySelectorAll('.map-marker--camping-card')];
+    const visible = markers.filter((marker) => (
+      marker.getAttribute('aria-hidden') === 'false' && marker.getAttribute('tabindex') === '0'
+    ));
+    const hidden = markers.filter((marker) => (
+      marker.getAttribute('aria-hidden') === 'true' && marker.getAttribute('tabindex') === '-1'
+    ));
+    return {
+      total: markers.length,
+      visible: visible.length,
+      hidden: hidden.length,
+      displayed: markers.filter((marker) => (
+        getComputedStyle(marker).display !== 'none' && marker.getBoundingClientRect().width > 0
+      )).length,
+      hiddenWithoutRemoval: hidden.filter((marker) => (
+        getComputedStyle(marker).display !== 'none'
+        || marker.getBoundingClientRect().width !== 0
+        || marker.getBoundingClientRect().height !== 0
+      )).length,
+      malformedAccessible: visible.filter((marker) => (
+        marker.getAttribute('role') !== 'button' || !marker.getAttribute('aria-label')
+      )).length,
+    };
+  });
+}
+
+async function assertCampingCardVisibility(page, label, expectedVisible) {
+  const visibility = await campingCardVisibility(page);
+  const accessible = await page.locator('#route-map-svg').getByRole('button', {
+    name: /Participating site in the prepaid Camping Card program/i,
+  }).count();
+  if (visibility.total !== 30
+      || visibility.visible !== expectedVisible
+      || visibility.hidden !== 30 - expectedVisible
+      || visibility.displayed !== expectedVisible
+      || visibility.hiddenWithoutRemoval !== 0
+      || visibility.malformedAccessible !== 0
+      || accessible !== expectedVisible) {
+    fail(`${label}: Camping Card visibility contract is wrong for ${expectedVisible} expected accessible sites (${JSON.stringify({ visibility, accessible })}).`);
+  }
+}
+
+async function pointerSelectCampingCardSite(page, label, optionId, title) {
+  if (await page.locator('#place-panel').getAttribute('aria-hidden') === 'false') {
+    await page.locator('#close-place-panel').click();
+    await page.locator('#place-panel.is-closed').waitFor({ state: 'hidden' });
+  }
+  const shape = page.locator(`.map-marker[data-option-id="${optionId}"] .map-marker__camp`);
+  await shape.scrollIntoViewIfNeeded();
+  await shape.evaluate((node) => {
+    const root = document.documentElement;
+    const previousScrollBehavior = root.style.scrollBehavior;
+    root.style.scrollBehavior = 'auto';
+    const box = node.getBoundingClientRect();
+    const stickyBottom = Math.max(
+      0,
+      document.querySelector('.trip-header')?.getBoundingClientRect().bottom || 0,
+      document.querySelector('.timeline-section')?.getBoundingClientRect().bottom || 0,
+    );
+    if (box.top < stickyBottom + 16) {
+      window.scrollBy({ top: box.top - stickyBottom - 16, behavior: 'auto' });
+    } else if (box.bottom > innerHeight - 16) {
+      window.scrollBy({ top: box.bottom - innerHeight + 16, behavior: 'auto' });
+    }
+    root.style.scrollBehavior = previousScrollBehavior;
+  });
+  const box = await shape.boundingBox();
+  if (!box) throw new Error(`${label}: ${optionId} has no pointer target.`);
+  const point = { x: box.x + (box.width / 2), y: box.y + (box.height / 2) };
+  if (label === 'mobile') await page.touchscreen.tap(point.x, point.y);
+  else await page.mouse.click(point.x, point.y);
+  await page.waitForFunction(({ id, expectedTitle }) => (
+    document.querySelector(`.map-choice-menu button[data-option-id="${id}"]`)
+    || (document.querySelector('.map-marker.is-active')?.dataset.optionId === id
+      && document.querySelector('#place-title')?.textContent === expectedTitle)
+  ), { id: optionId, expectedTitle: title });
+  const chooserTarget = page.locator(`.map-choice-menu button[data-option-id="${optionId}"]`);
+  if (await chooserTarget.count()) {
+    if (!/Camping Card/i.test(await chooserTarget.innerText())) {
+      fail(`${label}: collision chooser does not identify ${optionId} as a Camping Card campsite.`);
+    }
+    await chooserTarget.click();
+  }
+  await page.locator('#place-panel').getByRole('heading', { name: title, exact: true }).waitFor();
+  const marker = page.locator(`.map-marker[data-option-id="${optionId}"]`);
+  if (await marker.getAttribute('aria-pressed') !== 'true'
+      || !await marker.evaluate((node) => node.classList.contains('is-active'))) {
+    fail(`${label}: a real pointer action did not select direct Camping Card site ${optionId}.`);
+  }
+}
+
+async function assertCampingCardLayer(page, label) {
+  const toggle = page.locator('#camping-card-layer-toggle');
+  const scope = page.locator('#camping-card-scope');
+  const bonusToggle = page.locator('#bonus-layer-toggle');
+  const stateBefore = await sharedStateSnapshot(page);
+  const postRequests = [];
+  const recordPost = (request) => {
+    const url = new URL(request.url());
+    if (request.method() === 'POST' && url.pathname.startsWith('/api/iceland26')) {
+      postRequests.push(url.pathname);
+    }
+  };
+  page.on('request', recordPost);
+
+  try {
+    const controlState = await page.evaluate(() => ({
+      togglePressed: document.querySelector('#camping-card-layer-toggle')?.getAttribute('aria-pressed'),
+      toggleActive: document.querySelector('#camping-card-layer-toggle')?.classList.contains('is-active'),
+      toggleLabel: document.querySelector('#camping-card-layer-toggle')?.getAttribute('aria-label'),
+      scope: document.querySelector('#camping-card-scope')?.value,
+      scopeDisabled: document.querySelector('#camping-card-scope')?.disabled,
+      optionLabels: [...document.querySelectorAll('#camping-card-scope option')].map((option) => (
+        `${option.value}:${option.textContent.trim()}`
+      )),
+      bonusPressed: document.querySelector('#bonus-layer-toggle')?.getAttribute('aria-pressed'),
+      bonusVisible: document.querySelectorAll(
+        '.map-marker--bonus[aria-hidden="false"][tabindex="0"]',
+      ).length,
+    }));
+    if (controlState.togglePressed !== 'true'
+        || !controlState.toggleActive
+        || controlState.toggleLabel !== 'Camping Card campsite layer, showing Remaining route · 15'
+        || controlState.scope !== 'remaining'
+        || controlState.scopeDisabled
+        || JSON.stringify(controlState.optionLabels) !== JSON.stringify([
+          'direct:Direct fits · 7',
+          'remaining:Remaining route · 15',
+          'all:All sites · 30',
+        ])
+        || controlState.bonusPressed !== 'true'
+        || controlState.bonusVisible !== 30) {
+      fail(`${label}: Camping Card controls did not start in the exact remaining-route state (${JSON.stringify(controlState)}).`);
+    }
+    await assertCampingCardVisibility(page, label, 15);
+
+    const markerSemantics = await page.evaluate(() => {
+      const markers = [...document.querySelectorAll('.map-marker--camping-card')];
+      const samplePath = markers[0]?.querySelector('.map-marker__camp');
+      const sampleStyle = samplePath ? getComputedStyle(samplePath) : null;
+      return {
+        diamondCount: markers.filter((marker) => (
+          marker.querySelector('.map-marker__camp')?.tagName.toLowerCase() === 'path'
+          && marker.querySelector('.map-marker__camp')?.getAttribute('d')
+            === 'M0 -10 L10 0 L0 10 L-10 0 Z'
+        )).length,
+        routeDotCount: markers.filter((marker) => marker.querySelector('.map-marker__dot')).length,
+        grocerySquareCount: markers.filter((marker) => marker.querySelector('.map-marker__store')).length,
+        direct: markers.filter((marker) => marker.classList.contains('map-marker--direct')).length,
+        conditional: markers.filter((marker) => marker.classList.contains('map-marker--conditional')).length,
+        behind: markers.filter((marker) => marker.classList.contains('map-marker--behind-current-route')).length,
+        outlined: sampleStyle?.stroke !== 'none' && Number.parseFloat(sampleStyle?.strokeWidth || '0') >= 2,
+        normalUsesCircle: document.querySelector('.map-marker:not(.map-marker--bonus):not(.map-marker--camping-card) .map-marker__dot')?.tagName.toLowerCase(),
+        bonusUsesRect: document.querySelector('.map-marker--bonus .map-marker__store')?.tagName.toLowerCase(),
+      };
+    });
+    if (markerSemantics.diamondCount !== 30
+        || markerSemantics.routeDotCount !== 0
+        || markerSemantics.grocerySquareCount !== 0
+        || markerSemantics.direct !== 7
+        || markerSemantics.conditional !== 8
+        || markerSemantics.behind !== 15
+        || !markerSemantics.outlined
+        || markerSemantics.normalUsesCircle !== 'circle'
+        || markerSemantics.bonusUsesRect !== 'rect') {
+      fail(`${label}: campsite markers lack a non-colour diamond cue distinct from route circles and Bónus squares (${JSON.stringify(markerSemantics)}).`);
+    }
+
+    const touchSizes = await page.locator(
+      '.map-marker--camping-card[aria-hidden="false"] .map-marker__touch',
+    ).evaluateAll((targets) => targets.map((target) => {
+      const box = target.getBoundingClientRect();
+      return { width: box.width, height: box.height };
+    }));
+    if (touchSizes.length !== 15
+        || touchSizes.some(({ width, height }) => width < 43.5 || height < 43.5)) {
+      fail(`${label}: visible Camping Card diamonds do not expose complete 44px pointer targets (${JSON.stringify(touchSizes)}).`);
+    }
+    if (label === 'mobile') {
+      const controlHeights = await Promise.all([
+        toggle.boundingBox(),
+        scope.boundingBox(),
+        bonusToggle.boundingBox(),
+      ]);
+      if (controlHeights.some((box) => !box || box.height < 43.5)) {
+        fail(`mobile: Camping Card, scope, or independent Bónus control is below the 44px touch floor (${JSON.stringify(controlHeights)}).`);
+      }
+    }
+
+    await activateMarker(page, 'camping-card-husavik', 'Space');
+    const panel = page.locator('#place-panel');
+    const panelText = await panel.innerText();
+    const details = {
+      heading: Boolean(await panel.getByRole('heading', { name: 'Húsavík', exact: true }).count()),
+      prepaid: /Prepaid Camping Card/i.test(panelText),
+      ordered: /Two passes were ordered ahead of time/i.test(panelText),
+      twoCards: /confirm that both cards are valid/i.test(panelText),
+      tax: /400 ISK nightly lodging tax is separate/i.test(panelText),
+      extras: /electricity, showers, laundry or other amenities can still cost extra/i.test(panelText),
+      capacity: /does not guarantee space; call ahead/i.test(panelText),
+      season: /May 15\s*[–-]\s*Sep 30/i.test(panelText),
+      amenities: ['Electricity', 'Toilets', 'Washing machine', 'Playground']
+        .every((amenity) => panelText.includes(amenity)),
+      caveat: /not valid during Mærudagar/i.test(panelText),
+      nearestDay: /Aug 14 · optional Goðafoss to Húsavík to Ásbyrgi branch/i.test(panelText),
+      officialSite: Boolean(await panel.getByRole('link', { name: /Húsavík official Camping Card page/i }).count()),
+      officialInventory: Boolean(await panel.getByRole('link', { name: /Official 2026 Camping Card inventory/i }).count()),
+      officialFaq: Boolean(await panel.getByRole('link', { name: /Official coverage and arrival FAQ/i }).count()),
+      phone: Boolean(await panel.getByRole('link', { name: /Call \+354 792 0160/i }).count()),
+      directions: Boolean(await panel.getByRole('link', { name: /Directions to Húsavík/i }).count()),
+    };
+    if (Object.values(details).some((value) => !value)) {
+      fail(`${label}: Húsavík Camping Card panel omits coverage, tax/extras/capacity caveats, season, amenities, or official contact/source links (${JSON.stringify(details)}; ${JSON.stringify(panelText)}).`);
+    }
+    if (await page.locator('#selected-place-voting button[data-action="preference"]').count()
+        || await page.locator('#selected-place-comments form').count()
+        || !await page.locator('#selected-place-voting').getByText(
+          /Camping Card markers do not accept votes or sticky notes and never write to shared trip state/i,
+        ).count()) {
+      fail(`${label}: Camping Card reference detail exposed a vote or sticky-note write surface.`);
+    }
+    await assertNoHorizontalOverflow(page, `${label} Camping Card details`);
+    await assertExternalLinkSafety(page, `${label} Camping Card details`);
+
+    await toggle.click();
+    await assertCampingCardVisibility(page, label, 0);
+    const hiddenState = await page.evaluate(() => ({
+      togglePressed: document.querySelector('#camping-card-layer-toggle')?.getAttribute('aria-pressed'),
+      toggleLabel: document.querySelector('#camping-card-layer-toggle')?.getAttribute('aria-label'),
+      scopeDisabled: document.querySelector('#camping-card-scope')?.disabled,
+      focusedId: document.activeElement?.id,
+      activeOptionId: document.querySelector('.map-marker.is-active')?.dataset.optionId,
+      activeCampingCount: document.querySelectorAll('.map-marker--camping-card.is-active').length,
+      panelTitle: document.querySelector('#place-title')?.textContent,
+      bonusPressed: document.querySelector('#bonus-layer-toggle')?.getAttribute('aria-pressed'),
+      bonusVisible: document.querySelectorAll(
+        '.map-marker--bonus[aria-hidden="false"][tabindex="0"]',
+      ).length,
+    }));
+    if (hiddenState.togglePressed !== 'false'
+        || hiddenState.toggleLabel !== 'Camping Card campsite layer, hidden; scope set to Remaining route · 15'
+        || !hiddenState.scopeDisabled
+        || hiddenState.focusedId !== 'camping-card-layer-toggle'
+        || !hiddenState.activeOptionId
+        || hiddenState.activeOptionId.startsWith('camping-card-')
+        || hiddenState.activeCampingCount !== 0
+        || hiddenState.panelTitle === 'Húsavík'
+        || hiddenState.bonusPressed !== 'true'
+        || hiddenState.bonusVisible !== 30) {
+      fail(`${label}: hiding a selected campsite failed to remove it from display/ARIA/tab order, choose a route fallback, or preserve Bónus (${JSON.stringify(hiddenState)}).`);
+    }
+
+    await toggle.click();
+    await assertCampingCardVisibility(page, label, 15);
+    if (await scope.isDisabled()) fail(`${label}: re-enabling Camping Card left its scope disabled.`);
+
+    for (const [value, expectedCount, expectedLabel] of [
+      ['direct', 7, 'Camping Card campsite layer, showing Direct fits · 7'],
+      ['all', 30, 'Camping Card campsite layer, showing All sites · 30'],
+      ['remaining', 15, 'Camping Card campsite layer, showing Remaining route · 15'],
+    ]) {
+      await scope.selectOption(value);
+      await assertCampingCardVisibility(page, label, expectedCount);
+      if (await scope.inputValue() !== value || await toggle.getAttribute('aria-label') !== expectedLabel) {
+        fail(`${label}: Camping Card scope ${value} has stale value/count labelling.`);
+      }
+    }
+
+    await pointerSelectCampingCardSite(
+      page,
+      label,
+      'camping-card-studlagil-canyon',
+      'Stuðlagil Canyon',
+    );
+    if (await bonusToggle.getAttribute('aria-pressed') !== 'true'
+        || await page.locator('.map-marker--bonus[aria-hidden="false"][tabindex="0"]').count() !== 30
+        || await scope.inputValue() !== 'remaining') {
+      fail(`${label}: Camping Card selection/toggle/scope interactions changed the independent Bónus layer.`);
+    }
+    await assertNoHorizontalOverflow(page, `${label} Camping Card pointer selection`);
+  } finally {
+    page.off('request', recordPost);
+  }
+
+  const stateAfter = await sharedStateSnapshot(page);
+  if (postRequests.length
+      || JSON.stringify(stateAfter) !== JSON.stringify(stateBefore)) {
+    fail(`${label}: read-only Camping Card interactions emitted POSTs or changed revision/preferences/comments/suggestions/activity (${JSON.stringify({ postRequests, stateBefore, stateAfter })}).`);
+  }
 }
 
 async function assertBonusLayer(page, label) {
@@ -595,7 +1014,7 @@ async function assertAllCamperDayEndpoints(page, label, scrubber) {
     }, day.index);
     await page.waitForFunction((index) => (
       document.querySelector(`#date-track button[data-day-index="${index}"]`)
-        ?.getAttribute('aria-current') === 'date'
+        ?.getAttribute('aria-pressed') === 'true'
     ), day.index);
     const midpoint = await page.locator('.camper').evaluateAll((campers) => {
       const points = campers.map((camper) => {
@@ -625,7 +1044,7 @@ async function exerciseTimeline(page, label, captureMap = false) {
 
   await firstDate.focus();
   await page.keyboard.press('End');
-  if (await lastDate.getAttribute('aria-current') !== 'date'
+  if (await lastDate.getAttribute('aria-pressed') !== 'true'
       || await page.evaluate(() => document.activeElement?.dataset.dayIndex) !== '16') {
     fail(`${label}: End did not move the timeline to/focus Aug 24.`);
   }
@@ -641,12 +1060,12 @@ async function exerciseTimeline(page, label, captureMap = false) {
     fail(`${label}: both campers did not reach the final route endpoint together (${finalCamperSeparation}).`);
   }
   await page.keyboard.press('Home');
-  if (await firstDate.getAttribute('aria-current') !== 'date'
+  if (await firstDate.getAttribute('aria-pressed') !== 'true'
       || await page.evaluate(() => document.activeElement?.dataset.dayIndex) !== '0') {
     fail(`${label}: Home did not move the timeline to/focus Aug 8.`);
   }
   await page.keyboard.press('ArrowRight');
-  if (await secondDate.getAttribute('aria-current') !== 'date'
+  if (await secondDate.getAttribute('aria-pressed') !== 'true'
       || await page.evaluate(() => document.activeElement?.dataset.dayIndex) !== '1') {
     fail(`${label}: ArrowRight did not provide roving date navigation.`);
   }
@@ -662,10 +1081,10 @@ async function exerciseTimeline(page, label, captureMap = false) {
 
   const scrubber = page.locator('#day-scrubber');
   await scrubber.evaluate((input) => {
-    input.value = '11';
+    input.value = '13';
     input.dispatchEvent(new Event('input', { bubbles: true }));
   });
-  await page.locator('#selected-day-date').getByText(/Aug 19/i).waitFor();
+  await page.locator('#selected-day-date').getByText(/Aug 21/i).waitFor();
   const highlightStyles = await page.locator('.route-day-highlight').evaluateAll((paths) => (
     paths.map((path) => ({
       state: path.dataset.routeState,
@@ -681,10 +1100,10 @@ async function exerciseTimeline(page, label, captureMap = false) {
   }
 
   await scrubber.evaluate((input) => {
-    input.value = '12';
+    input.value = '13';
     input.dispatchEvent(new Event('input', { bubbles: true }));
   });
-  await page.locator('#selected-day-date').getByText(/Aug 20/i).waitFor();
+  await page.locator('#selected-day-date').getByText(/Aug 21/i).waitFor();
   await page.locator('#order-check:not([hidden])').waitFor();
   await page.waitForFunction((before) => {
     const current = [...document.querySelectorAll('.camper')]
@@ -704,13 +1123,13 @@ async function exerciseTimeline(page, label, captureMap = false) {
   }));
   const order = timelineState.order || '';
   const geographicOrder = ['Gullfoss', 'Geysir', 'Þingvellir'].map((place) => order.indexOf(place));
-  if (!/Aug 20/i.test(timelineState.date || '')
+  if (!/Aug 21/i.test(timelineState.date || '')
       || !/Golden Circle/i.test(`${timelineState.title} ${order}`)
       || geographicOrder.some((index) => index < 0)
       || !(geographicOrder[0] < geographicOrder[1] && geographicOrder[1] < geographicOrder[2])
-      || timelineState.rangeValue !== '12'
-      || !/Day 13 of 17/i.test(timelineState.rangeText || '')) {
-    fail(`${label}: Aug 20 Golden Circle order check is missing or not in geographic order (${JSON.stringify(timelineState)}).`);
+      || timelineState.rangeValue !== '13'
+      || !/Day 14 of 17/i.test(timelineState.rangeText || '')) {
+    fail(`${label}: Aug 21 Golden Circle order check is missing or not in geographic order (${JSON.stringify(timelineState)}).`);
   }
   if (timelineState.campers.every((value, index) => value === camperBefore[index])) {
     fail(`${label}: moving the date scrubber did not move the two campers.`);
@@ -745,22 +1164,27 @@ async function exerciseTimeline(page, label, captureMap = false) {
 
 async function exerciseMapControls(page, label) {
   const totalMarkers = await page.locator('.map-marker').count();
+  const layerHiddenMarkers = await page.locator('.map-marker.is-layer-hidden').count();
+  const expectedAllVisible = totalMarkers - layerHiddenMarkers;
   for (const filter of ['locked', 'standout', 'open']) {
     const button = page.locator(`[data-map-filter="${filter}"]`);
     await button.click();
     const visible = await page.locator('.map-marker[aria-hidden="false"][tabindex="0"]').count();
     if (await button.getAttribute('aria-pressed') !== 'true'
         || visible < 1
-        || visible >= totalMarkers
+        || visible >= expectedAllVisible
+        || (filter === 'locked' && !await page.locator(
+          '.map-marker[data-option-id="hamrar-campsite"][aria-hidden="false"]',
+        ).count())
         || await page.locator('.map-marker[aria-hidden="true"]:not([tabindex="-1"])').count()) {
-      fail(`${label}: ${filter} map filter does not expose a valid accessible subset (${visible}/${totalMarkers}).`);
+      fail(`${label}: ${filter} map filter does not expose a valid accessible subset (${visible}/${expectedAllVisible} layer-eligible; ${totalMarkers} DOM markers).`);
     }
   }
   const all = page.locator('[data-map-filter="all"]');
   await all.click();
   if (await all.getAttribute('aria-pressed') !== 'true'
-      || await page.locator('.map-marker[aria-hidden="false"][tabindex="0"]').count() !== totalMarkers) {
-    fail(`${label}: All map filter did not restore every marker.`);
+      || await page.locator('.map-marker[aria-hidden="false"][tabindex="0"]').count() !== expectedAllVisible) {
+    fail(`${label}: All map filter did not restore every marker allowed by the independent reference-layer scopes.`);
   }
 
   const viewport = page.locator('#map-viewport');
@@ -1041,7 +1465,7 @@ async function assertRailPlaceDetailAndMapStory(page, label) {
       || mediaState.naturalHeight !== 600
       || mediaState.loading !== 'lazy'
       || mediaState.decoding !== 'async'
-      || mediaState.caption !== 'Image carried forward from the revised planning document · not a live conditions view.') {
+      || mediaState.caption !== 'Planning-document image · not a live conditions view.') {
     fail(`${label}: Dynjandi story does not expose the expected local planning-document image metadata (${JSON.stringify(mediaState)}).`);
   }
   const travellerSource = story.locator('a[data-source-type]');
@@ -1200,7 +1624,8 @@ async function assertRailPlaceDetailAndMapStory(page, label) {
 async function assertSourceChoiceIndependence(page, label) {
   const independentIds = [
     'asbyrgi',
-    'husavik-whale-watching',
+    'asbyrgi-campsite',
+    'husavik-town-stop',
     'dalfjall-hike',
     'herjolfsdalur-camping',
     'hverir-hverfjall',
@@ -1381,7 +1806,7 @@ async function mutateDesktop(page) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         participant: 'ben',
-        optionId: 'eclipse-patreksfjordur',
+        optionId: 'godafoss',
         preference: 'interested',
       }),
     });
@@ -1436,7 +1861,7 @@ async function mutateDesktop(page) {
   if (!stageValue) throw new Error('Aug 20 route-stage option is missing from the shared idea form.');
   await ideaForm.locator('[name="title"]').fill('A bakery morning');
   await ideaForm.locator('#idea-location').selectOption(stageValue);
-  await ideaForm.locator('[name="details"]').fill('Leave room for a slow local breakfast before the flight.');
+  await ideaForm.locator('[name="details"]').fill('Leave room for a slow local breakfast before the ice-country drive.');
   await ideaForm.getByRole('button', { name: 'Add to the board' }).click();
   await page.locator('#sync-status').getByText(/revision 4/).waitFor();
   await page.locator('.decision-card').getByRole('heading', { name: 'A bakery morning' }).waitFor();
@@ -1446,7 +1871,7 @@ async function mutateDesktop(page) {
   const exactState = {
     revision: state.revision,
     dynjandi: state.preferences?.dynjandi,
-    eclipse: state.preferences?.['eclipse-patreksfjordur'],
+    godafoss: state.preferences?.godafoss,
     commentCount: state.comments?.length,
     comment: state.comments?.[0] && {
       participant: state.comments[0].participant,
@@ -1466,14 +1891,14 @@ async function mutateDesktop(page) {
   const expectedState = {
     revision: 4,
     dynjandi: { mary: 'love' },
-    eclipse: { ben: 'interested' },
+    godafoss: { ben: 'interested' },
     commentCount: 1,
     comment: { participant: 'mary', optionId: 'dynjandi', text: noteText },
     suggestionCount: 1,
     suggestion: {
       title: 'A bakery morning',
       location: stageValue,
-      details: 'Leave room for a slow local breakfast before the flight.',
+      details: 'Leave room for a slow local breakfast before the ice-country drive.',
       createdBy: 'mary',
     },
     suggestionPreference: { mary: 'interested' },
@@ -1527,7 +1952,7 @@ async function mutateDesktop(page) {
       fetch('/api/iceland26/preference', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ participant, optionId: 'latrabjarg-raudasandur', preference }),
+        body: JSON.stringify({ participant, optionId: 'earth-lagoon', preference }),
       })
     )));
     if (responses.some((response) => !response.ok)) {
@@ -1536,7 +1961,7 @@ async function mutateDesktop(page) {
   });
   await waitForStateRefresh(page);
   await page.locator('#sync-status').getByText(/revision 8/).waitFor();
-  await activateMarker(page, 'latrabjarg-raudasandur');
+  await activateMarker(page, 'earth-lagoon');
   const signal = page.locator('#selected-place-voting .group-signal');
   await signal.getByText(/Worth a conversation · preferences differ/i).waitFor();
   if (await signal.evaluate((node) => node.classList.contains('group-signal--yes'))
@@ -1753,6 +2178,9 @@ async function runViewport(viewport, label, mutate = false) {
   ownedContexts.add(context);
   const page = await context.newPage();
   ownedPages.add(page);
+  // Keep the current-trip contract deterministic after the live trip dates
+  // have passed: Aug 13 is the last confirmed check-in and Aug 14 is "today".
+  await page.clock.setFixedTime(new Date('2026-08-14T12:00:00Z'));
   const errors = [];
   let expectedLogoutFailure = false;
   page.on('console', (message) => {
@@ -1765,7 +2193,9 @@ async function runViewport(viewport, label, mutate = false) {
 
   try {
     await login(page, context, label);
+    await assertCurrentTripDefault(page, label);
     await assertBoardStructure(page, label);
+    await assertCampingCardLayer(page, label);
     await assertBonusLayer(page, label);
     await exerciseTimeline(page, label, label === 'desktop');
     await exerciseMapControls(page, label);
@@ -1781,6 +2211,87 @@ async function runViewport(viewport, label, mutate = false) {
       await exerciseLogout(page, label, (expected) => { expectedLogoutFailure = expected; });
     }
 
+    if (errors.length) fail(`${label}: browser errors: ${errors.join(' | ')}`);
+  } finally {
+    try {
+      await page.close({ runBeforeUnload: false });
+    } finally {
+      ownedPages.delete(page);
+    }
+    try {
+      await context.close();
+    } finally {
+      ownedContexts.delete(context);
+    }
+  }
+}
+
+async function runResponsiveControlProbe(viewport, label, { touch = false } = {}) {
+  const context = await browser.newContext({ viewport, hasTouch: touch });
+  ownedContexts.add(context);
+  const page = await context.newPage();
+  ownedPages.add(page);
+  const errors = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(`console: ${message.text()}`);
+  });
+  page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
+
+  try {
+    await page.clock.setFixedTime(new Date('2026-08-14T12:00:00Z'));
+    await login(page, context, label);
+    await page.locator('#map-frame').scrollIntoViewIfNeeded();
+    const metrics = await page.evaluate(() => {
+      const rect = (selector) => {
+        const node = document.querySelector(selector);
+        if (!node) return null;
+        const box = node.getBoundingClientRect();
+        return {
+          left: box.left,
+          right: box.right,
+          top: box.top,
+          bottom: box.bottom,
+          width: box.width,
+          height: box.height,
+        };
+      };
+      const frame = rect('#map-frame');
+      const controls = [
+        rect('#map-filter'),
+        rect('.map-reference-layers'),
+        rect('.map-zoom'),
+      ].filter(Boolean);
+      const pairOverlaps = controls.some((left, index) => controls.slice(index + 1).some((right) => (
+        Math.min(left.right, right.right) - Math.max(left.left, right.left) > 1
+        && Math.min(left.bottom, right.bottom) - Math.max(left.top, right.top) > 1
+      )));
+      return {
+        frame,
+        controls,
+        pairOverlaps,
+        horizontalOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        touchHeights: [
+          rect('#bonus-layer-toggle')?.height,
+          rect('#camping-card-layer-toggle')?.height,
+          rect('#camping-card-scope')?.height,
+          rect('#map-filter button')?.height,
+          rect('.map-zoom button')?.height,
+        ],
+      };
+    });
+    const outsideFrame = !metrics.frame || metrics.controls.some((box) => (
+      box.left < metrics.frame.left - 1 || box.right > metrics.frame.right + 1
+    ));
+    if (!metrics.frame || metrics.controls.length !== 3 || metrics.horizontalOverflow > 1
+        || metrics.pairOverlaps || outsideFrame) {
+      fail(`${label}: map controls clip, overlap, or create horizontal overflow at ${viewport.width}px (${JSON.stringify(metrics)}).`);
+    }
+    if (touch && metrics.touchHeights.some((height) => !Number.isFinite(height) || height < 43.5)) {
+      fail(`${label}: map controls fall below the 44px touch floor at ${viewport.width}px (${JSON.stringify(metrics.touchHeights)}).`);
+    }
+    await page.locator('#map-frame').screenshot({
+      path: join(screenshotDirectory, `${label}-map-controls.png`),
+    });
     if (errors.length) fail(`${label}: browser errors: ${errors.join(' | ')}`);
   } finally {
     try {
@@ -1814,6 +2325,8 @@ try {
   if (requestedSignalCode !== null) await exitAfterCleanup(requestedSignalCode);
   browser = await chromium.connect(browserServer.wsEndpoint());
   await runViewport({ width: 1440, height: 900 }, 'desktop', true);
+  await runResponsiveControlProbe({ width: 1180, height: 820 }, 'midwidth');
+  await runResponsiveControlProbe({ width: 768, height: 900 }, 'tablet', { touch: true });
   await runViewport({ width: 390, height: 844 }, 'mobile', false);
 } catch (error) {
   fail(`${error.message}${serverProcess?.testOutput?.() ? `\n${serverProcess.testOutput()}` : ''}`);

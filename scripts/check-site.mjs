@@ -17,9 +17,11 @@ const requiredFiles = [
   'iceland26/itinerary.json',
   'iceland26/map-data.json',
   'iceland26/bonus-stores.json',
+  'iceland26/camping-card-sites.json',
   'iceland26/access.html',
   'iceland26/access.css',
   'iceland26/access.js',
+  'iceland26/media/hellulaug.webp',
   'iceland26/media/hraunfossar.webp',
   'iceland26/media/raudasandur.webp',
   'iceland26/media/latrabjarg.webp',
@@ -37,6 +39,7 @@ const requiredFiles = [
   'server/iceland26-store.mjs',
   'docs/iceland26-route-methodology.md',
   'docs/iceland26-bonus-store-census.md',
+  'docs/iceland26-camping-card-census.md',
   'docs/root-interaction-gate-diagnosis-2026-08-09.md',
   'scripts/build-iceland26-itinerary.mjs',
   'scripts/build-iceland26-map-data.mjs',
@@ -128,9 +131,12 @@ for (const value of [
   'id="decisions"',
   'id="trip-ops"',
   'id="idea-dialog"',
-  '/iceland26/styles.css?v=20260809-bonus-stores',
-  '/iceland26/app.js?v=20260809-bonus-stores',
+  '/iceland26/styles.css?v=20260814-camping-card-current-trip',
+  '/iceland26/app.js?v=20260814-camping-card-current-trip',
   'id="bonus-layer-toggle"',
+  'id="camping-card-layer-toggle"',
+  'id="camping-card-scope"',
+  'id="current-trip-state"',
   'noindex, nofollow',
 ]) {
   if (!icelandIndex.includes(value)) failures.push(`iceland26/index.html is missing ${value}`);
@@ -242,8 +248,17 @@ if (itinerary) {
   if (!Array.isArray(itinerary.operations) || itinerary.operations.length < 5) {
     failures.push('Iceland itinerary must preserve practical trip operations');
   }
+  const currentState = itinerary.trip?.currentState;
+  const currentDay = itinerary.days?.find((day) => day.id === currentState?.dayId);
+  if (currentState?.asOf !== '2026-08-13'
+      || currentState?.status !== 'checked-in'
+      || currentState?.currentPlaceId !== 'hamrar-campsite'
+      || currentState?.currentPlaceIsCampingCardSite !== false
+      || !currentDay?.stopIds?.includes('hamrar-campsite')) {
+    failures.push('Iceland itinerary must open on the traveller-confirmed August 13 Hamrar check-in');
+  }
   if (itinerary.methodology?.sourceDocumentSha256
-      !== '523d988f965ef24cbfef2141d284f460c8361f4d137e4f0be1fbdf73d1f116aa') {
+      !== 'f961d86b89d5a546f7d5d988f74c729a67c51139ab6ef151a2a2ce19d5702953') {
     failures.push('Iceland itinerary is not pinned to the revised source document');
   }
 }
@@ -255,10 +270,59 @@ try {
 } catch (error) {
   failures.push(`iceland26/map-data.json is invalid JSON: ${error.message}`);
 }
+
+const bonusStoresText = await readFile('iceland26/bonus-stores.json', 'utf8');
+const campingCardText = await readFile('iceland26/camping-card-sites.json', 'utf8');
+let campingCardData;
+try {
+  campingCardData = JSON.parse(campingCardText);
+} catch (error) {
+  failures.push(`iceland26/camping-card-sites.json is invalid JSON: ${error.message}`);
+}
+if (campingCardData) {
+  const sites = campingCardData.sites || [];
+  const ids = sites.map((site) => site.id);
+  if (campingCardData.schemaVersion !== 1) failures.push('Camping Card census schemaVersion must be 1');
+  if (campingCardData.officialInventory?.siteCount !== 30 || sites.length !== 30) {
+    failures.push('Camping Card census must preserve the exact official 30-site 2026 roster');
+  }
+  if (new Set(ids).size !== sites.length || sites.some((site) => !site.id?.startsWith('camping-card-'))) {
+    failures.push('Camping Card census IDs must be unique and namespaced');
+  }
+  if (sites.filter((site) => site.routeFit === 'direct').length !== 7
+      || sites.filter((site) => site.routeFit === 'conditional').length !== 8
+      || sites.filter((site) => site.routeFit === 'behind-current-route').length !== 15) {
+    failures.push('Camping Card route fit must remain 7 direct, 8 conditional, and 15 outside the current route');
+  }
+  if (sites.some((site) => /hamrar/i.test(site.name))) {
+    failures.push('Hamrar must not be misrepresented as a Camping Card campsite');
+  }
+  if (campingCardData.passStatus?.orderedAhead !== true
+      || campingCardData.passStatus?.source !== 'Traveller update'
+      || campingCardData.passStatus?.cardCountRecorded !== 2) {
+    failures.push('Camping Card order status must preserve the traveller-reported two-pass order');
+  }
+  if (campingCardData.officialInventory?.coordinateAudit?.verifiedSites !== 30
+      || campingCardData.officialInventory?.coordinateAudit?.materialCorrectionsOver250m !== 20
+      || campingCardData.officialInventory?.coordinateAudit?.toleranceMeters !== 250
+      || !/Guidance or Navigation destination/.test(
+        campingCardData.officialInventory?.coordinateMethod || '',
+      )) {
+    failures.push('Camping Card coordinates must retain the complete official Guidance-destination audit');
+  }
+  for (const site of sites) {
+    if (!site.included || !site.rendered || !site.name || !site.officialUrl?.startsWith('https://')
+        || !Number.isFinite(site.map?.lat) || !Number.isFinite(site.map?.lng)
+        || !site.nearestDayId || !site.nearestSegment || !site.routeRelation
+        || !Array.isArray(site.amenities) || !Array.isArray(site.phones)) {
+      failures.push(`Camping Card site is incomplete: ${site.id || '(missing id)'}`);
+    }
+  }
+}
 if (mapData) {
   if (mapData.schemaVersion !== 1) failures.push('Iceland map data schemaVersion must be 1');
   if (mapData.sourceDocumentSha256
-      !== '523d988f965ef24cbfef2141d284f460c8361f4d137e4f0be1fbdf73d1f116aa') {
+      !== 'f961d86b89d5a546f7d5d988f74c729a67c51139ab6ef151a2a2ce19d5702953') {
     failures.push('Iceland map data is not pinned to the revised source document');
   }
   if (!Array.isArray(mapData.boundary) || !mapData.boundary.length) {
@@ -268,7 +332,7 @@ if (mapData) {
     failures.push('Iceland map data must include route-wide daily geometry');
   }
   for (const route of mapData.routes || []) {
-    if (!route.id || !['locked', 'working', 'branch'].includes(route.state)
+    if (!route.id || !['locked', 'working', 'conditional', 'historical', 'branch'].includes(route.state)
         || !Array.isArray(route.dayIds) || !Array.isArray(route.points)
         || route.points.length < 2) {
       failures.push(`Iceland map route is incomplete: ${route.id || '(missing id)'}`);
@@ -293,6 +357,7 @@ for (const value of [
   "'/api/iceland26/suggestion'",
   "'/iceland26/map-data.json'",
   "'/iceland26/bonus-stores.json'",
+  "'/iceland26/camping-card-sites.json'",
   'textContent',
   'localStorage',
   'all four are in',
@@ -305,14 +370,28 @@ for (const value of [
   'map-marker__touch',
   'placeMediaByOption',
   'renderMapStory',
+  "'/iceland26/media/hellulaug.webp'",
   "'/iceland26/media/dynjandi.webp'",
-  'Image carried forward from the revised planning document · not a live conditions view.',
+  'Planning-document image · not a live conditions view.',
   'noreferrer noopener',
 ]) {
   if (!icelandClient.includes(value)) failures.push(`iceland26/app.js is missing ${value}`);
 }
 if (icelandClient.includes('.innerHTML')) {
   failures.push('Iceland client must not render shared user content with innerHTML');
+}
+if (icelandClient.includes("option.id === 'hamrar-campsite'")) {
+  failures.push('Iceland client must derive current-place presentation from currentState, not a Hamrar ID special case');
+}
+if (/parseDate\(currentState\.asOf\)\?\.toLocaleDateString\([\s\S]{0,180}timeZone/.test(icelandClient)) {
+  failures.push('Iceland current-state date must remain a browser-local date-only value without cross-zone rollover');
+}
+
+const mapGenerator = await readFile('scripts/build-iceland26-map-data.mjs', 'utf8');
+if (!/redirect:\s*["']error["']/.test(mapGenerator)
+    || !/response\.url[\s\S]*?new URL\(url\)\.origin/.test(mapGenerator)
+    || /loopbackHosts\s*=\s*new Set\([^)]*["']localhost["']/.test(mapGenerator)) {
+  failures.push('Iceland route generator must reject redirects, verify response origin, and use literal loopback hosts only');
 }
 
 const icelandServer = await readFile('server/static-server.mjs', 'utf8');
@@ -329,17 +408,20 @@ for (const value of [
   'publicRootFiles',
   'publicIcelandFiles',
   "'/iceland26/bonus-stores.json'",
+  "'/iceland26/camping-card-sites.json'",
   "['.webp', 'image/webp']",
   "path.startsWith('/iceland26/media/') && path.endsWith('.webp')",
+  'leg.options.filter((option) => option.active !== false)',
 ]) {
   if (!icelandServer.includes(value)) failures.push(`Iceland server access gate is missing ${value}`);
 }
 
-const icelandPublicText = `${icelandIndex}\n${itineraryText}\n${mapDataText}\n${icelandClient}`;
+const icelandPublicText = `${icelandIndex}\n${itineraryText}\n${mapDataText}\n${bonusStoresText}\n${campingCardText}\n${icelandClient}`;
 for (const [label, pattern] of [
   ['campsite-style reservation identifier', /\b\d{3}-\d{3}-\d{5}-\d{6}\b/],
   ['named reservation or confirmation identifier', /\b(?:reservation|confirmation)\s+(?:id\b|number\b|#)\s*[:#]?\s*[A-Z0-9][A-Z0-9-]{5,}\b/i],
   ['private Google Drive URL', /https?:\/\/(?:drive|docs)\.google\.com\//i],
+  ['local user filesystem path', /\/Users\/[A-Za-z0-9._-]+\//],
   ['motorhome terms document', /Motorhome Iceland Terms & Conditions/i],
 ]) {
   if (pattern.test(icelandPublicText)) {

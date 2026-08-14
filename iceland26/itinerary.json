@@ -9,15 +9,25 @@
       "Brad"
     ],
     "dateLabel": "August 8–24, 2026",
-    "summary": "A dated, geographically reconciled camper circuit for four adult planners and two young travellers.",
+    "summary": "A current-state, geographically reconciled camper circuit that preserves the planning document while making every remaining sleep and route branch explicit.",
     "baseline": [
       "Flights are recorded as booked",
       "Two motorhomes are recorded as booked",
-      "Bjarkalundur is recorded as booked for August 9–12",
       "Clockwise Ring Road direction",
-      "Home-airport transfer is recorded as confirmed and paid"
+      "Camping Hamrar check-in is traveller-confirmed for August 13",
+      "Two Camping Card passes were ordered; individual site coverage and capacity remain separate checks",
+      "Camper return by 13:00 on August 24 is fixed"
     ],
-    "direction": "clockwise circuit"
+    "direction": "clockwise circuit",
+    "currentState": {
+      "asOf": "2026-08-13",
+      "dayId": "day-2026-08-13",
+      "currentPlaceId": "hamrar-campsite",
+      "status": "checked-in",
+      "label": "Checked in at Camping Hamrar",
+      "provenance": "Traveller update",
+      "currentPlaceIsCampingCardSite": false
+    }
   },
   "days": [
     {
@@ -47,359 +57,371 @@
       "date": "2026-08-09",
       "weekday": "Sunday",
       "dayNumber": 2,
-      "title": "Arrival to the Westfjords",
-      "state": "locked",
-      "summary": "Pick up the two campers, provision at Nettó in Borgarnes and follow the direct core to the booked base. The waterfall pair is a separate conditional branch, not part of the locked route.",
-      "overnight": "Bjarkalundur · booked assertion",
+      "title": "Arrival to Bjarkalundur",
+      "state": "historical",
+      "summary": "Historical source record: camper pickup, Borgarnes provisioning and the booked Bjarkalundur base. Optional waterfalls are preserved without claiming that they happened.",
+      "overnight": "Bjarkalundur · source-booked",
       "route": {
-        "distanceKm": 255.5,
-        "baseMinutes": 226,
-        "camperMinutes": 300,
-        "confidence": "measured",
-        "note": "Direct KEF → Borgarnes → Bjarkalundur core only; the conservative camper plan excludes pickup, groceries, visits and the waterfall branch."
+        "distanceKm": 254.8,
+        "baseMinutes": 225,
+        "camperMinutes": 305,
+        "confidence": "local-snapshot-historical",
+        "note": "Direct core only; pickup, groceries and optional visits excluded."
       },
       "stopIds": [
         "arrival-bjarkalundur",
         "borgarfjordur-waterfalls"
       ],
-      "orderCheck": "The source’s optional chain is too long after an overnight flight. Eiríksstaðir is cut. From the Borgarnes provision stop, the Deildartunguhver → Hraunfossar → Bjarkalundur branch is 218.0 km / 3h10 car baseline and is excluded from the core.",
-      "progress": 0.105134621001
+      "orderCheck": "The optional waterfall pair was never part of the locked direct road baseline.",
+      "progress": 0.099873722729
     },
     {
       "id": "day-2026-08-10",
       "date": "2026-08-10",
       "weekday": "Monday",
       "dayNumber": 3,
-      "title": "South to Patreksfjörður",
-      "state": "open",
-      "summary": "Move from Bjarkalundur through Hellulaug/Flókalundur to Patreksfjörður, then choose at most one remote beach/cliff branch.",
-      "overnight": "Patreksfjörður · needs decision",
+      "title": "Flókalundur and Hellulaug",
+      "state": "historical",
+      "summary": "Historical source record. Hellulaug and the Flókalundur corridor remain visible; no optional visit is marked complete.",
+      "overnight": "Bjarkalundur / Flókalundur · historical source",
       "route": {
-        "distanceKm": 171.8,
-        "baseMinutes": 148,
-        "camperMinutes": 225,
-        "confidence": "measured",
-        "note": "Branch mileage is excluded."
+        "distanceKm": 222,
+        "baseMinutes": 190,
+        "camperMinutes": 260,
+        "confidence": "local-snapshot-historical",
+        "note": "Current traveller state does not establish which optional stop occurred."
       },
       "stopIds": [
-        "hellulaug-coast",
-        "raudasandur",
-        "latrabjarg-raudasandur"
+        "hellulaug-coast"
       ],
-      "orderCheck": "The source simultaneously says Bjarkalundur is booked and hopes for a new campsite. Rauðasandur and Látrabjarg are separate branches; attempting both plus a Bjarkalundur return is not child-realistic.",
-      "progress": 0.176542036112
+      "orderCheck": null,
+      "progress": 0.187598360364
     },
     {
       "id": "day-2026-08-11",
       "date": "2026-08-11",
       "weekday": "Tuesday",
       "dayNumber": 4,
-      "title": "Dynjandi and the clockwise handoff",
-      "state": "open",
-      "summary": "Use Dynjandi as a forward-moving Westfjords anchor, then continue toward the northern corridor.",
-      "overnight": "Arngerðareyri corridor · open",
+      "title": "Dynjandi day",
+      "state": "historical",
+      "summary": "Historical source record. Dynjandi remains a source-authored idea; completion is not inferred.",
+      "overnight": "Westfjords · historical source",
       "route": {
-        "distanceKm": 210.5,
-        "baseMinutes": 196,
-        "camperMinutes": 300,
-        "confidence": "measured",
-        "note": "Road 60 gravel/wind margin included only in camper plan."
+        "distanceKm": 170.1,
+        "baseMinutes": 146,
+        "camperMinutes": 200,
+        "confidence": "local-snapshot-historical",
+        "note": "Optional-stop completion is intentionally unknown."
       },
       "stopIds": [
         "dynjandi"
       ],
-      "orderCheck": "The document says “Dynjandi or Látrabjarg.” Returning from Dynjandi to Bjarkalundur is a 141 km backtrack; the map shows it as a branch, not the working route.",
-      "progress": 0.263248067892
+      "orderCheck": null,
+      "progress": 0.254667239151
     },
     {
       "id": "day-2026-08-12",
       "date": "2026-08-12",
       "weekday": "Wednesday",
       "dayNumber": 5,
-      "title": "Totality day",
-      "state": "open",
-      "summary": "No site chasing. Choose Patreksfjörður or Arngerðareyri, then stage with food, water, warm layers, full fuel and certified glasses.",
-      "overnight": "Selected eclipse site · open",
+      "title": "Eclipse at Flókalundur",
+      "state": "historical",
+      "summary": "The latest source places the eclipse day at Flókalundur. Earlier Patreksfjörður and Arngerðareyri choices are archived, not treated as rejected.",
+      "overnight": "Flókalundur · source record",
       "route": {
         "distanceKm": 0,
         "baseMinutes": 0,
         "camperMinutes": 0,
-        "confidence": "site-dependent",
-        "note": "Partial 16:43–18:45; remain after totality."
+        "confidence": "local-snapshot-stationary-historical",
+        "note": "No road movement asserted in the current route ledger."
       },
       "stopIds": [
-        "eclipse-patreksfjordur",
-        "eclipse-arngerdareyri"
+        "hellulaug-coast"
       ],
-      "orderCheck": "The stationary working line is Arngerðareyri; Patreksfjörður is the explicit southbound branch. An immediate post-totality return conflicts with official stay-late guidance.",
-      "progress": 0.263393535546
+      "orderCheck": "Earlier site alternatives were removed from the latest dated plan.",
+      "progress": 0.254667239151
     },
     {
       "id": "day-2026-08-13",
       "date": "2026-08-13",
       "weekday": "Thursday",
       "dayNumber": 6,
-      "title": "Westfjords to Varmahlíð",
-      "state": "working",
-      "summary": "A real transfer day: Arngerðareyri corridor to Hvítserkur, then stop at the Varmahlíð service base.",
-      "overnight": "Varmahlíð · confirm capacity",
+      "title": "Flókalundur to Camping Hamrar",
+      "state": "locked",
+      "summary": "Latest confirmed travel state: the campers reached Camping Hamrar after the northbound transfer. Kolugljúfur remains the source-listed halfway stop; a visit is not marked complete.",
+      "overnight": "Camping Hamrar · checked in",
       "route": {
-        "distanceKm": 334.3,
-        "baseMinutes": 301,
-        "camperMinutes": 435,
-        "confidence": "measured",
-        "note": "Attraction and comfort stops excluded."
+        "distanceKm": 452,
+        "baseMinutes": 409,
+        "camperMinutes": 555,
+        "confidence": "local-snapshot-traveller-confirmed",
+        "note": "Route is Flókalundur → Kolugljúfur → Hamrar. Attractions and comfort stops are excluded from drive time."
       },
       "stopIds": [
-        "hvitserkur-skagafjordur"
+        "kolugljufur",
+        "hamrar-campsite"
       ],
-      "orderCheck": "The document’s version reaches toward Akureyri, Goðafoss and Mývatn on the same day. This working day stops at Varmahlíð.",
-      "progress": 0.40398461562
+      "orderCheck": null,
+      "progress": 0.435281531859
     },
     {
       "id": "day-2026-08-14",
       "date": "2026-08-14",
       "weekday": "Friday",
       "dayNumber": 7,
-      "title": "Akureyri to Mývatn",
+      "title": "Goðafoss to Ásbyrgi",
       "state": "working",
-      "summary": "Resupply in Akureyri, continue to Goðafoss, then choose between the Húsavík whale branch and a Mývatn-scale experience. Hauganes is a separate out-and-back alternative.",
-      "overnight": "Mývatn area · open",
+      "summary": "Leave Hamrar around 08:00, stop at Goðafoss, optionally use Húsavík for harbourfront/coffee, then visit and potentially camp at Ásbyrgi.",
+      "overnight": "Ásbyrgi · two electrical pitches open",
       "route": {
-        "distanceKm": 181.2,
-        "baseMinutes": 168,
-        "camperMinutes": 240,
-        "confidence": "measured",
-        "note": "Hauganes and Húsavík branches, tours and attraction time are excluded."
+        "distanceKm": 145.3,
+        "baseMinutes": 134,
+        "camperMinutes": 185,
+        "confidence": "local-snapshot",
+        "note": "The core excludes the optional Húsavík town branch and all visit time."
       },
       "stopIds": [
-        "hauganes-whales",
         "godafoss",
-        "husavik-whale-watching",
-        "hverir-hverfjall",
-        "hverfjall",
-        "earth-lagoon"
+        "husavik-town-stop",
+        "asbyrgi",
+        "asbyrgi-campsite"
       ],
-      "orderCheck": "The source lists Seyðisfjörður before Námaskarð, Hauganes and Dettifoss. Actual clockwise order is Akureyri/Hauganes → Goðafoss → optional Húsavík → Mývatn/Hverir/Hverfjall → Dettifoss → East Iceland. The measured Húsavík alternative is 101.8 km / 1h32 before its three-hour tour.",
-      "progress": 0.480105808024
+      "orderCheck": "Geographic order is Hamrar → Goðafoss → optional Húsavík → Ásbyrgi. The earlier whale-tour/Hauganes ideas are no longer active.",
+      "progress": 0.493772292247
     },
     {
       "id": "day-2026-08-15",
       "date": "2026-08-15",
       "weekday": "Saturday",
       "dayNumber": 8,
-      "title": "Volcanic north to East Iceland",
+      "title": "Sound Rocks, waterfalls and Mývatn",
       "state": "working",
-      "summary": "A family birthday transfer through the volcanic north. Keep the direct Hverir → Dettifoss → Stuðlagil line, or substitute the Ásbyrgi branch; then pick zero or one Eastfjords spoke.",
-      "overnight": "Egilsstaðir area · open",
+      "summary": "From Ásbyrgi, use the short Hljóðaklettar route, Dettifoss/Selfoss west bank and Hverir before settling at a chosen Lake Mývatn camp. Earth or Forest Lagoon is optional evening recovery.",
+      "overnight": "Lake Mývatn campsite · choose and confirm",
       "route": {
-        "distanceKm": 257,
-        "baseMinutes": 257,
-        "camperMinutes": 360,
-        "confidence": "measured",
-        "note": "Direct working line only; stops and the 114.0 km / 1h38 Ásbyrgi alternative are excluded."
+        "distanceKm": 90.8,
+        "baseMinutes": 84,
+        "camperMinutes": 115,
+        "confidence": "local-snapshot",
+        "note": "Stops, hikes, meals and lagoon time are excluded."
       },
       "stopIds": [
-        "hverir-hverfjall",
-        "asbyrgi",
+        "hljodaklettar",
         "dettifoss-selfoss",
-        "studlagil",
-        "seydisfjordur",
-        "borgarfjordur-eystri"
+        "hverir-hverfjall",
+        "myvatn-camp",
+        "earth-lagoon"
       ],
-      "orderCheck": "On the Ásbyrgi alternative, actual order is Reykjahlíð → Ásbyrgi → Dettifoss. Seyðisfjörður and Borgarfjörður Eystri are separate Egilsstaðir out-and-backs, neither is “on the way” south, and the east Stuðlagil hike cannot share this schedule.",
-      "progress": 0.587324326378
+      "orderCheck": "This sequence is geographically coherent only from an Ásbyrgi sleep. Name the Mývatn campsite before adding the evening soak.",
+      "progress": 0.529219493613
     },
     {
       "id": "day-2026-08-16",
       "date": "2026-08-16",
       "weekday": "Sunday",
       "dayNumber": 9,
-      "title": "Eastfjords to Stokksnes",
+      "title": "Lake Mývatn local day",
       "state": "working",
-      "summary": "Stay on coastal Route 1, use Djúpivogur as a separate service/reset stop and end at Stokksnes/Höfn.",
-      "overnight": "Stokksnes/Höfn area · open",
+      "summary": "Stay at the same camp if possible. Use Hverfjall, Dimmuborgir and Grjótagjá as the core, choose one Krafla experience, then choose one quiet-lake stop or none.",
+      "overnight": "Same Lake Mývatn campsite · preferred",
       "route": {
-        "distanceKm": 243.5,
-        "baseMinutes": 220,
-        "camperMinutes": 330,
-        "confidence": "measured",
-        "note": "Geometry is forced through Breiðdalsvík to exclude Öxi."
+        "distanceKm": 21.3,
+        "baseMinutes": 42,
+        "camperMinutes": 60,
+        "confidence": "local-snapshot",
+        "note": "Krafla and quiet-lake options are separate branches; walks and stops are excluded."
       },
       "stopIds": [
-        "djupivogur",
-        "djupivogur-stokksnes"
+        "myvatn-camp",
+        "hverfjall",
+        "dimmuborgir",
+        "grjotagja",
+        "krafla-viti",
+        "krafla-leirhnjukur",
+        "hofdi-kalfastrond",
+        "skutustadagigar"
       ],
-      "orderCheck": "The source calls Djúpivogur → Stokksnes four hours. That adjacent leg is about 99 km; today’s real 244 km total begins at Egilsstaðir and must remain on Route 1, not gravel Route 939/Öxi.",
-      "progress": 0.687447270131
+      "orderCheck": "Do not stack both Krafla options or both quiet-lake choices. Their source order is a decision list, not one required route.",
+      "progress": 0.537327013826
     },
     {
       "id": "day-2026-08-17",
       "date": "2026-08-17",
       "weekday": "Monday",
       "dayNumber": 10,
-      "title": "Ice country to Vík",
-      "state": "open",
-      "summary": "Jökulsárlón is the anchor. Choose a whole-family boat or glacier-view trail, then protect the South Coast transfer.",
-      "overnight": "Vík area · open",
+      "title": "Mývatn to East Iceland",
+      "state": "working",
+      "summary": "Drive to Stuðlagil, use the serviced west viewpoint by default, then ask in Egilsstaðir whether puffins are still present. Continue direct to Seyðisfjörður unless live evidence earns the Borgarfjörður Eystri branch.",
+      "overnight": "Seyðisfjörður direct · Borgarfjörður branch if live puffins",
       "route": {
-        "distanceKm": 277.5,
-        "baseMinutes": 244,
-        "camperMinutes": 320,
-        "confidence": "measured",
-        "note": "Activities are excluded; this day needs a hard choice."
+        "distanceKm": 232.2,
+        "baseMinutes": 215,
+        "camperMinutes": 295,
+        "confidence": "local-snapshot",
+        "note": "Direct core ends in Seyðisfjörður; the Borgarfjörður branch is excluded."
       },
       "stopIds": [
-        "jokulsarlon-boat",
-        "glacier-hike",
-        "fjadrargljufur-eldhraun"
+        "studlagil",
+        "borgarfjordur-eystri",
+        "gufufoss",
+        "seydisfjordur"
       ],
-      "orderCheck": "Westbound geography is Jökulsárlón → Skaftafell → Fjaðrárgljúfur → Eldhraun → Vík. The document places Eldhraun after Reynisfjara.",
-      "progress": 0.800595074608
+      "orderCheck": "Borgarfjörður Eystri and Seyðisfjörður are separate spokes from Egilsstaðir. Visiting Borgarfjörður necessarily creates the August 18 backtrack.",
+      "progress": 0.630006216662
     },
     {
       "id": "day-2026-08-18",
       "date": "2026-08-18",
       "weekday": "Tuesday",
       "dayNumber": 11,
-      "title": "South Coast to Landeyjahöfn",
-      "state": "working",
-      "summary": "Use current-safe viewpoints, take only a short Waterfall Way taster and finish near the ferry.",
-      "overnight": "Hvolsvöllur/Landey area · open",
+      "title": "Conditional Eastfjords branch day",
+      "state": "conditional",
+      "summary": "Skip this separate transfer day when the direct August 17 route is used. If the puffin branch was chosen, return through Egilsstaðir, stop at Gufufoss if conditions allow and descend to Seyðisfjörður.",
+      "overnight": "Seyðisfjörður",
       "route": {
-        "distanceKm": 103.5,
-        "baseMinutes": 111,
-        "camperMinutes": 150,
-        "confidence": "measured",
-        "note": "Visit time excluded."
+        "distanceKm": 0,
+        "baseMinutes": 0,
+        "camperMinutes": 0,
+        "confidence": "local-snapshot-branch-dependent",
+        "note": "Zero road distance on the direct plan; the Borgarfjörður → Seyðisfjörður branch remains separate."
       },
       "stopIds": [
-        "reynisfjara",
-        "dyrholaey",
-        "skogafoss-waterfall-way",
-        "seljalandsfoss-gljufrabui"
+        "borgarfjordur-eystri",
+        "gufufoss",
+        "seydisfjordur"
       ],
-      "orderCheck": "Gljúfrabúi is a short walk north from the Seljalandsfoss stop—not across the road. The Skógafoss “3 km” note omits the return and 428 steps.",
-      "progress": 0.841714093597
+      "orderCheck": "This day exists only because the two fjords sit on different spokes. It is not additive to the direct August 17 plan.",
+      "progress": 0.630006216662
     },
     {
       "id": "day-2026-08-19",
       "date": "2026-08-19",
       "weekday": "Wednesday",
       "dayNumber": 12,
-      "title": "Heimaey day",
-      "state": "open",
-      "summary": "Default to an early 35-minute foot-passenger ferry with both campers left at Landeyjahöfn, then use local transport. Dalfjall is its own hike; camping in Herjólfsdalur is a conflicting overnight branch that first requires a different transport and sleep plan.",
-      "overnight": "Mainland or Herjólfsdalur · decide with ferry",
+      "title": "Seyðisfjörður to Stokksnes",
+      "state": "working",
+      "summary": "Follow Route 1 through the Eastfjords, use Djúpivogur as the service/scenic break and end around Stokksnes or Höfn.",
+      "overnight": "Stokksnes / Höfn area · open",
       "route": {
-        "distanceKm": 25.6,
-        "baseMinutes": 70,
-        "camperMinutes": 120,
-        "confidence": "scheduled",
-        "note": "Two 35-minute sailings and mainland driving only; the 3.5 km / 8m Herjólfsdalur island loop requires island transport and is excluded."
+        "distanceKm": 270,
+        "baseMinutes": 244,
+        "camperMinutes": 330,
+        "confidence": "local-snapshot",
+        "note": "Route is forced through the coastal road; visits excluded."
       },
       "stopIds": [
-        "beluga-sanctuary",
-        "heimaey-puffin-volcano",
-        "dalfjall-hike",
-        "herjolfsdalur-camping"
+        "djupivogur",
+        "djupivogur-stokksnes"
       ],
-      "orderCheck": "The source says 50 minutes and leaves camper logistics unresolved. Current scheduled sailing is 35 minutes. Herjólfsdalur camping cannot coexist with leaving the campers on the mainland unless separate island accommodation and equipment are booked.",
-      "progress": 0.852320987031
+      "orderCheck": "The source compresses Eastfjords, ice country, South Coast and Heimaey into one date. The working route gives this day only to Seyðisfjörður → Djúpivogur → Stokksnes/Höfn and avoids Öxi/939.",
+      "progress": 0.735681102999
     },
     {
       "id": "day-2026-08-20",
       "date": "2026-08-20",
       "weekday": "Thursday",
       "dayNumber": 13,
-      "title": "Golden Circle in road order",
+      "title": "Ice country to Vík",
       "state": "working",
-      "summary": "Travel from the Landey/Hella corridor through three independently rankable stops and camp at Þingvellir.",
-      "overnight": "Þingvellir · open/bookable",
+      "summary": "Use Jökulsárlón/Skaftafell as the ice-country anchor, continue to Fjaðrárgljúfur and Eldhraun, then finish in Vík. Reynisfjara and Dyrhólaey remain conditional branches.",
+      "overnight": "Vík area · open",
       "route": {
-        "distanceKm": 196.7,
-        "baseMinutes": 181,
-        "camperMinutes": 250,
-        "confidence": "measured",
-        "note": "Visits excluded."
+        "distanceKm": 276.7,
+        "baseMinutes": 243,
+        "camperMinutes": 330,
+        "confidence": "local-snapshot",
+        "note": "Activities and South Coast branches excluded."
       },
       "stopIds": [
-        "gullfoss",
-        "golden-circle-core",
-        "thingvellir",
-        "silfra-split"
+        "jokulsarlon-boat",
+        "glacier-hike",
+        "fjadrargljufur-eldhraun",
+        "reynisfjara",
+        "dyrholaey"
       ],
-      "orderCheck": "The source interleaves the sites. Correct westbound order is Gullfoss → Geysir/Strokkur → Þingvellir; Silfra is a separate eligibility-gated activity at Þingvellir.",
-      "progress": 0.932949974867
+      "orderCheck": "Westbound order is Jökulsárlón → Skaftafell → Fjaðrárgljúfur → Eldhraun → Vík. The source overload cannot fit in one day.",
+      "progress": 0.843167032412
     },
     {
       "id": "day-2026-08-21",
       "date": "2026-08-21",
       "weekday": "Friday",
       "dayNumber": 14,
-      "title": "Hot river to Reykjavík",
-      "state": "open",
-      "summary": "Make a real 7 km Reykjadalur decision, then move into Reykjavík.",
-      "overnight": "Reykjavík Eco · open",
+      "title": "Skógafoss and Golden Circle",
+      "state": "working",
+      "summary": "Use Skógafoss as the one South Coast core stop, then continue Gullfoss → Geysir → Þingvellir. The longer South Coast/Heimaey path is a replacement branch, not an add-on.",
+      "overnight": "Þingvellir · working sleep",
       "route": {
-        "distanceKm": 109.1,
-        "baseMinutes": 110,
-        "camperMinutes": 145,
-        "confidence": "measured",
-        "note": "Hike/bathing excluded."
+        "distanceKm": 248.2,
+        "baseMinutes": 229,
+        "camperMinutes": 310,
+        "confidence": "local-snapshot",
+        "note": "Core visits excluded; South Coast and ferry branches remain separate."
       },
       "stopIds": [
-        "reykjadalur"
+        "reynisfjara",
+        "dyrholaey",
+        "skogafoss-waterfall-way",
+        "seljalandsfoss-gljufrabui",
+        "heimaey-puffin-volcano",
+        "dalfjall-hike",
+        "herjolfsdalur-camping",
+        "beluga-sanctuary",
+        "gullfoss",
+        "golden-circle-core",
+        "thingvellir",
+        "silfra-split"
       ],
-      "orderCheck": "The source says “3 km.” Reykjadalur is about 3.5 km each way—roughly 7 km return—and needs 3.5–4 hours with bathing.",
-      "progress": 0.977393758777
+      "orderCheck": "The feasible core is Vík → Skógafoss → Gullfoss → Geysir → Þingvellir. Reynisfjara/Dyrhólaey/Seljalandsfoss and Heimaey compete with that core and with the August 22 buffer.",
+      "progress": 0.939687510248
     },
     {
       "id": "day-2026-08-22",
       "date": "2026-08-22",
       "weekday": "Saturday",
       "dayNumber": 15,
-      "title": "Protected buffer",
-      "state": "open",
-      "summary": "Keep the blank source-document day available for weather, fatigue, ferry recovery, laundry or a neighbourhood pool.",
-      "overnight": "Reykjavík area · flexible",
+      "title": "Protected buffer at Þingvellir",
+      "state": "working",
+      "summary": "Keep this source-blank day for weather, fatigue, laundry or recovery. Do not spend it in advance unless the group explicitly chooses a replacement branch.",
+      "overnight": "Þingvellir · flexible",
       "route": {
         "distanceKm": 0,
         "baseMinutes": 0,
         "camperMinutes": 0,
-        "confidence": "deliberate-buffer",
+        "confidence": "local-snapshot-deliberate-buffer",
         "note": "No committed road route."
       },
       "stopIds": [
         "weather-buffer",
         "reykjavik-pools"
       ],
-      "orderCheck": null,
-      "progress": 0.977393758777
+      "orderCheck": "An island overnight or delayed South Coast branch consumes this buffer; it is not free extra capacity.",
+      "progress": 0.939687510248
     },
     {
       "id": "day-2026-08-23",
       "date": "2026-08-23",
       "weekday": "Sunday",
       "dayNumber": 16,
-      "title": "Reykjavík soft landing",
-      "state": "open",
-      "summary": "Choose one whole-family city anchor. Sky Lagoon only happens through an explicit adult split.",
-      "overnight": "Reykjavík Eco · open",
+      "title": "Reykjadalur to Reykjavík",
+      "state": "working",
+      "summary": "Move from Þingvellir to the Reykjadalur trail decision, then finish in Reykjavík. Perlan is the whole-family branch; Sky Lagoon requires an adult split.",
+      "overnight": "Reykjavík · final night",
       "route": {
-        "distanceKm": 9.4,
-        "baseMinutes": 18,
-        "camperMinutes": 30,
-        "confidence": "measured",
-        "note": "Sky Lagoon branch excluded."
+        "distanceKm": 108.8,
+        "baseMinutes": 109,
+        "camperMinutes": 150,
+        "confidence": "local-snapshot",
+        "note": "Hike, city branches and bathing excluded."
       },
       "stopIds": [
+        "reykjadalur",
         "perlan",
         "sky-lagoon",
         "reykjavik-pools"
       ],
-      "orderCheck": "Sky Lagoon is about 45 minutes from KEF and prohibits under-12s; it is not “15 minutes from the airport” or a whole-family stop.",
-      "progress": 0.980953866255
+      "orderCheck": "The source places Sky Lagoon and Perlan on the fixed return day. They move to August 23 because August 24 has no safe sightseeing margin.",
+      "progress": 0.981907343345
     },
     {
       "id": "day-2026-08-24",
@@ -408,13 +430,13 @@
       "dayNumber": 17,
       "title": "Camper return and flight home",
       "state": "locked",
-      "summary": "No sightseeing. Leave Reykjavík with enough margin to return two campers by 13:00 and reach the terminal around 14:00.",
+      "summary": "No sightseeing. Finish fuel, waste, cleaning and packing the prior evening; return both campers by 13:00 and protect airport margin.",
       "overnight": "Homebound",
       "route": {
-        "distanceKm": 46.9,
-        "baseMinutes": 47,
+        "distanceKm": 46.8,
+        "baseMinutes": 46,
         "camperMinutes": 65,
-        "confidence": "measured",
+        "confidence": "local-snapshot-fixed-deadline",
         "note": "Return processing and airport transfer excluded."
       },
       "stopIds": [
@@ -431,14 +453,14 @@
       "title": "Arrival, Westfjords & totality",
       "dates": "Aug 8–12",
       "route": "Keflavík → Borgarnes → Bjarkalundur → southern Westfjords",
-      "summary": "The first drive and campsite dates are source-document assertions; the exact checkout morning remains unresolved. The eclipse date is fixed, while the viewing site and Westfjords pace remain open.",
+      "summary": "Historical August 8–12 source record. Optional stops are not marked completed; removed earlier-plan ideas remain in the read-only archive.",
       "options": [
         {
           "id": "outbound-flight",
           "title": "Overnight flight to Keflavík",
           "shortTitle": "Fly to Iceland",
           "location": "Toronto → Keflavík",
-          "status": "booked",
+          "status": "historical",
           "documentStatus": "Outbound flight is recorded as booked for 23:10 on August 8; arrival is 08:45 local on August 9.",
           "standout": false,
           "reviewSignal": "",
@@ -499,12 +521,13 @@
               "url": "https://www.icelandair.com/",
               "type": "official"
             }
-          ]
+          ],
+          "active": true
         },
         {
           "id": "arrival-bjarkalundur",
           "title": "Arrival day to Bjarkalundur",
-          "status": "booked",
+          "status": "historical",
           "standout": false,
           "hook": "Pick up the motorhomes at 10 a.m., provision in Borgarnes, and land at the booked Westfjords base without turning the first day into a race.",
           "planningContext": "Flights, motorhomes and the August 9–12 campsite are already booked. The campsite still needs the vehicle licence plate added.",
@@ -577,12 +600,13 @@
             "The direct core is 255.5 km / 3h46 car baseline before pickup, groceries or visits; the conservative camper plan is 5 hours.",
             "Eiríksstaðir is not realistic after a normal pickup and the optional waterfall branch.",
             "The booking dates conflict with the efficient Westfjords sequence."
-          ]
+          ],
+          "active": true
         },
         {
           "id": "borgarfjordur-waterfalls",
           "title": "Deildartunguhver + Hraunfossar",
-          "status": "conditional",
+          "status": "historical",
           "standout": false,
           "hook": "A compact first taste of geothermal power and lava-fed waterfalls, both built around short, easy walks.",
           "planningContext": "From the Borgarnes provision stop, the measured waterfall branch via Deildartunguhver and Hraunfossar to Bjarkalundur is 218.0 km / 3h10 car baseline. That is the branch total, not an incremental delta from the direct route.",
@@ -612,7 +636,7 @@
               "type": "official"
             }
           ],
-          "documentStatus": "Planned arrival-day stops; not booked and first to cut if pickup runs late. The locked arrival route now bypasses this branch.",
+          "documentStatus": "Preserved from the August 9 source plan. The current traveller update does not establish whether this optional branch was visited.",
           "location": "West Iceland · Deildartunguhver and Hraunfossar",
           "dayIds": [
             "day-2026-08-09"
@@ -658,12 +682,13 @@
             "Adds time to an already long arrival day.",
             "Deildartunguhver is a serious scald hazard, not a soak.",
             "Every minute here delays the slowest road section."
-          ]
+          ],
+          "active": true
         },
         {
           "id": "hellulaug-coast",
           "title": "Hellulaug + Barðastrandarsandur",
-          "status": "working",
+          "status": "historical",
           "standout": false,
           "hook": "A natural shore-side soak and a broad beach-and-mountain landscape on the route toward the southern fjords.",
           "planningContext": "These are proposed August 10 stops, not commitments. Hellulaug has no changing facilities; weather and crowding should decide.",
@@ -688,10 +713,11 @@
               "type": "official"
             }
           ],
-          "documentStatus": "A candidate on the southern-Westfjords day. The source also names an unverified Barðastrandarsandur pin; that beach remains scenery-only until legal parking is confirmed.",
+          "documentStatus": "Preserved as the Flókalundur/Hellulaug source record for August 10 and the Flókalundur eclipse base on August 12. No optional hot-pool visit is inferred.",
           "location": "Southern Westfjords · Hellulaug/Flókalundur",
           "dayIds": [
-            "day-2026-08-10"
+            "day-2026-08-10",
+            "day-2026-08-12"
           ],
           "map": {
             "lat": 65.577156,
@@ -737,12 +763,13 @@
             "Tiny, unstaffed and potentially busy.",
             "No changing facilities.",
             "Does not make the full Látrabjarg loop realistic."
-          ]
+          ],
+          "active": true
         },
         {
           "id": "dynjandi",
           "title": "Dynjandi, the Westfjords’ cascade",
-          "status": "open",
+          "status": "historical",
           "standout": true,
           "reviewSignal": "The recurring Westfjords highlight: recent trip reports call it one of the region’s most stunning stops, and the official trail is short enough to protect the rest of the day.",
           "hook": "A 100-metre bridal-veil waterfall with six lower cascades unfolding on the walk up.",
@@ -768,7 +795,7 @@
               "type": "travel post"
             }
           ],
-          "documentStatus": "The document asks “Dynjandi or Látrabjarg.” Dynjandi is not booked and works best as a forward-moving day, not a Bjarkalundur round trip.",
+          "documentStatus": "Preserved from the August 11 source plan. The current traveller update does not establish whether the optional stop was completed.",
           "location": "Arnarfjörður · Road 60",
           "dayIds": [
             "day-2026-08-11"
@@ -822,12 +849,13 @@
             "Road 60 is slow and substantially gravel in this corridor.",
             "Returning to Bjarkalundur adds roughly 141 km and 2 hours of car baseline.",
             "Upper trail is steep, wet and not stroller-friendly."
-          ]
+          ],
+          "active": true
         },
         {
           "id": "latrabjarg-raudasandur",
           "title": "Látrabjarg bird cliffs",
-          "status": "conditional",
+          "status": "historical",
           "standout": false,
           "reviewSignal": "Travellers love the scale and close bird encounters, but just as consistently warn about the remote, rough approach.",
           "hook": "Europe-scale sea cliffs and a red-gold beach at the far edge of the Westfjords.",
@@ -853,19 +881,10 @@
               "type": "reviews"
             }
           ],
-          "documentStatus": "The source pairs this with Rauðasandur. This card isolates Látrabjarg so the group can rank the two slow-road commitments independently.",
+          "documentStatus": "Látrabjarg is no longer in the latest dated plan. This preserves the earlier option and any shared state without implying that the group rejected or completed it.",
           "location": "Far southwest Westfjords · Road 612",
-          "dayIds": [
-            "day-2026-08-10"
-          ],
-          "map": {
-            "lat": 65.502433,
-            "lng": -24.529652,
-            "labelOffset": [
-              -118,
-              -12
-            ]
-          },
+          "dayIds": [],
+          "map": null,
           "visit": {
             "duration": "2–3h with access",
             "walk": "Flexible cliff-top path",
@@ -902,15 +921,16 @@
             "Late-season puffins are uncertain.",
             "The loose unguarded edge demands constant supervision."
           ],
-          "shortTitle": "Látrabjarg"
+          "shortTitle": "Látrabjarg",
+          "active": false
         },
         {
           "id": "raudasandur",
           "title": "Rauðasandur red-sand beach",
           "shortTitle": "Rauðasandur",
           "location": "Southern Westfjords · Road 614",
-          "status": "conditional",
-          "documentStatus": "Named in the source alongside Látrabjarg. It is now a separate group choice because Road 614, tide and an overnight are their own commitment.",
+          "status": "historical",
+          "documentStatus": "Rauðasandur is no longer in the latest dated plan. This preserves the earlier option and any shared state without implying that the group rejected or completed it.",
           "standout": true,
           "reviewSignal": "A conditions-aligned standout: families praise the scale, quiet and beach discoveries at low tide; poor weather, high tide and the steep access road explain the sharply less enthusiastic reports.",
           "hook": "A vast colour-shifting beach that can become a favourite—when tide, visibility and driver confidence all agree.",
@@ -924,17 +944,8 @@
             "2–4h including access",
             "Low-tide/weather gate"
           ],
-          "dayIds": [
-            "day-2026-08-10"
-          ],
-          "map": {
-            "lat": 65.474415,
-            "lng": -23.960064,
-            "labelOffset": [
-              14,
-              18
-            ]
-          },
+          "dayIds": [],
+          "map": null,
           "visit": {
             "duration": "2–4h including access",
             "walk": "About 15–20m each way to open sand; flexible beyond",
@@ -1007,12 +1018,13 @@
               "url": "https://www.tripadvisor.com/Attraction_Review-g2242596-d7187391-Reviews-Raudasandur_Beach-Latrabjarg_Westfjords_Region.html",
               "type": "reviews"
             }
-          ]
+          ],
+          "active": false
         },
         {
           "id": "eclipse-patreksfjordur",
           "title": "Total eclipse from Patreksfjörður",
-          "status": "open",
+          "status": "historical",
           "standout": true,
           "reviewSignal": "Eclipse specialists favour Patreksfjörður’s services and staging: about 2m04s totality—only seconds below Látrabjarg—without committing to the most constrained cliff road.",
           "hook": "The trip’s immovable moment: two minutes of totality over the Westfjords on August 12.",
@@ -1044,19 +1056,10 @@
               "type": "official"
             }
           ],
-          "documentStatus": "August 12 and the eclipse are fixed; Patreksfjörður is one open viewing/sleep candidate, not a booking.",
+          "documentStatus": "The latest source records the eclipse at Flókalundur without retaining this earlier site choice. This preserves the earlier option and any shared state without implying that the group rejected or completed it.",
           "location": "Patreksfjörður designated gathering site",
-          "dayIds": [
-            "day-2026-08-12"
-          ],
-          "map": {
-            "lat": 65.591283,
-            "lng": -23.974097,
-            "labelOffset": [
-              -124,
-              22
-            ]
-          },
+          "dayIds": [],
+          "map": null,
           "visit": {
             "duration": "Stage early; remain well after 18:45",
             "walk": "Town gathering-site dependent",
@@ -1096,15 +1099,16 @@
             "Creates a major southbound/backtrack commitment from the working northbound route.",
             "Immediate return to Bjarkalundur conflicts with official stay-late guidance.",
             "The campsite/sleep plan is not booked."
-          ]
+          ],
+          "active": false
         },
         {
           "id": "eclipse-arngerdareyri",
           "title": "Total eclipse from Arngerðareyri",
           "shortTitle": "Arngerðareyri eclipse site",
           "location": "Official gathering site near the airstrip",
-          "status": "open",
-          "documentStatus": "The eclipse date is fixed; this designated northbound site is an open alternative to Patreksfjörður, not a booked overnight.",
+          "status": "historical",
+          "documentStatus": "The latest source records the eclipse at Flókalundur without retaining this earlier site choice. This preserves the earlier option and any shared state without implying that the group rejected or completed it.",
           "standout": false,
           "reviewSignal": "",
           "hook": "The route-efficient eclipse choice: no hike and no southern backtrack, but a much thinner comfort and service layer.",
@@ -1118,17 +1122,8 @@
             "Arrive early and stay late",
             "Sleep/toilet plan still required"
           ],
-          "dayIds": [
-            "day-2026-08-12"
-          ],
-          "map": {
-            "lat": 65.90575,
-            "lng": -22.36156,
-            "labelOffset": [
-              14,
-              -12
-            ]
-          },
+          "dayIds": [],
+          "map": null,
           "visit": {
             "duration": "Stage early; remain well after 18:45",
             "walk": "Low-effort gravel staging",
@@ -1191,22 +1186,23 @@
               "url": "https://reykjaneswestfjords.is/camping/",
               "type": "official"
             }
-          ]
+          ],
+          "active": false
         }
       ]
     },
     {
       "id": "north",
       "number": "02",
-      "title": "North Iceland & the volcanic lake",
-      "dates": "Aug 13–15",
+      "title": "Current position, Diamond Circle & Mývatn",
+      "dates": "Aug 13–16",
       "route": "Bjarkalundur → Skagafjörður → Mývatn → Dettifoss",
-      "summary": "The itinerary opens up after the eclipse. This chapter needs one honest choice: spend the time on a whale-watching detour, or keep a clean volcanic-and-waterfall line across the north.",
+      "summary": "Hamrar is the latest confirmed position. The next live gates are two Ásbyrgi electrical pitches, a Mývatn base and the pace of each Diamond Circle day.",
       "options": [
         {
           "id": "hvitserkur-skagafjordur",
           "title": "Hvítserkur + Skagafjörður",
-          "status": "working",
+          "status": "historical",
           "standout": false,
           "hook": "A dragon-shaped sea stack, seal country, horses and an easier first step out of the fjords.",
           "planningContext": "The document presents this as the lower-pressure alternative to driving all the way to Mývatn on August 13.",
@@ -1226,19 +1222,10 @@
               "type": "guide"
             }
           ],
-          "documentStatus": "The document’s northbound Option 1; no campsite is booked.",
+          "documentStatus": "The latest northbound transfer uses Kolugljúfur and Hamrar instead of the earlier Hvítserkur/Varmahlíð line. This preserves the earlier option and any shared state without implying that the group rejected or completed it.",
           "location": "Northwest transition · Hvítserkur to Varmahlíð",
-          "dayIds": [
-            "day-2026-08-13"
-          ],
-          "map": {
-            "lat": 65.607127,
-            "lng": -20.625727,
-            "labelOffset": [
-              14,
-              -11
-            ]
-          },
+          "dayIds": [],
+          "map": null,
           "visit": {
             "duration": "45–75m at Hvítserkur",
             "walk": "Short upper viewpoint",
@@ -1277,12 +1264,13 @@
             "Road 711 is a slow washboard/pothole detour.",
             "No wildlife guarantee.",
             "Little capacity remains for Akureyri or Mývatn that day."
-          ]
+          ],
+          "active": false
         },
         {
           "id": "hauganes-whales",
           "title": "Hauganes whale watching",
-          "status": "conditional",
+          "status": "historical",
           "standout": true,
           "reviewSignal": "Roughly 4.8/5 across hundreds of reviews, with many “best experience of the trip” reports—balanced by recent reminders that wildlife and tour length are never guaranteed.",
           "hook": "A small-boat Eyjafjörður wildlife experience with a strong family fit and a no-sighting return-tour policy.",
@@ -1309,19 +1297,10 @@
               "type": "reviews"
             }
           ],
-          "documentStatus": "Explicitly questioned as out of the way. It is a separate 68.5 km return detour, not an eastbound stop.",
+          "documentStatus": "The latest north plan no longer contains the Hauganes detour. This preserves the earlier option and any shared state without implying that the group rejected or completed it.",
           "location": "Eyjafjörður · north of Akureyri",
-          "dayIds": [
-            "day-2026-08-14"
-          ],
-          "map": {
-            "lat": 65.923266,
-            "lng": -18.299683,
-            "labelOffset": [
-              14,
-              -14
-            ]
-          },
+          "dayIds": [],
+          "map": null,
           "visit": {
             "duration": "3.5–4h with check-in",
             "walk": "Harbour boarding",
@@ -1359,6 +1338,158 @@
             "Consumes roughly four hours plus an out-and-back drive.",
             "Wildlife and sea state are never guaranteed.",
             "Crowding/cold appear in recent drawbacks."
+          ],
+          "active": false
+        },
+        {
+          "id": "kolugljufur",
+          "title": "Kolugljúfur canyon and waterfall",
+          "shortTitle": "Kolugljúfur",
+          "location": "Víðidalur · northbound transfer",
+          "status": "working",
+          "active": true,
+          "documentStatus": "Named as the halfway stop on the latest August 13 route. Hamrar arrival is confirmed; a completed canyon visit is not assumed.",
+          "standout": false,
+          "reviewSignal": "",
+          "hook": "A compact canyon-and-waterfall break on the otherwise long transfer to Akureyri.",
+          "planningContext": "The route passes the canyon between Flókalundur and Hamrar. Keep it as a time-boxed stop, not evidence that the optional visit happened.",
+          "tags": [
+            "family",
+            "waterfall",
+            "current-route"
+          ],
+          "logistics": [
+            "Halfway transfer stop",
+            "Short viewpoint visit",
+            "No completion inferred"
+          ],
+          "dayIds": [
+            "day-2026-08-13"
+          ],
+          "map": {
+            "lat": 65.335107,
+            "lng": -20.572708,
+            "labelOffset": [
+              14,
+              -14
+            ]
+          },
+          "visit": {
+            "duration": "30–45m",
+            "walk": "Short uneven viewpoints",
+            "difficulty": "Easy to moderate"
+          },
+          "family": {
+            "fit": "A useful movement break with close supervision at the canyon.",
+            "stroller": "No",
+            "carrier": "Helpful",
+            "hazards": [
+              "Unprotected canyon edges",
+              "Wet or uneven ground"
+            ],
+            "notes": "Use only the safest viewpoint the conditions support."
+          },
+          "amenities": [
+            "Small parking area",
+            "No full service layer assumed"
+          ],
+          "booking": {
+            "required": false,
+            "notes": "No booking is recorded. Recheck live access before relying on this stop."
+          },
+          "pros": [
+            "Breaks the long drive.",
+            "Large landscape payoff in a short stop."
+          ],
+          "drawbacks": [
+            "Edge exposure requires active supervision.",
+            "No optional visit is marked complete."
+          ],
+          "sources": [
+            {
+              "label": "Official North Iceland destination guide",
+              "url": "https://www.northiceland.is/en/place/kolugljufur",
+              "type": "official"
+            }
+          ]
+        },
+        {
+          "id": "hamrar-campsite",
+          "title": "Camping Hamrar · Aug 13 last confirmed",
+          "shortTitle": "Camping Hamrar",
+          "location": "Hamrar 1 · Akureyri",
+          "status": "checked-in",
+          "active": true,
+          "documentStatus": "Traveller-confirmed check-in on August 13. Hamrar is the latest confirmed position; it is not in the official 30-site Camping Card roster.",
+          "standout": false,
+          "reviewSignal": "",
+          "hook": "Use the Aug 13 Hamrar check-in as the last confirmed Akureyri anchor for settling the next two sleeps and beginning the Diamond Circle.",
+          "planningContext": "This is the real last-confirmed location, not an inferred completion record for optional stops earlier in the day. The latest source places Hamrar about 5 km from central Akureyri.",
+          "tags": [
+            "locked",
+            "camping",
+            "services",
+            "current"
+          ],
+          "logistics": [
+            "Checked in · traveller update",
+            "Akureyri service base",
+            "Camping Card does not cover this site"
+          ],
+          "dayIds": [
+            "day-2026-08-13"
+          ],
+          "map": {
+            "lat": 65.648381,
+            "lng": -18.103282,
+            "labelOffset": [
+              14,
+              18
+            ]
+          },
+          "visit": {
+            "duration": "Aug 13 confirmed check-in",
+            "walk": "Camp and Akureyri dependent",
+            "difficulty": "Easy base day"
+          },
+          "family": {
+            "fit": "A practical full-service reset after the long Westfjords transfer.",
+            "stroller": "Camp-dependent",
+            "carrier": "Optional",
+            "hazards": [
+              "Campground vehicle movements",
+              "Playground supervision"
+            ],
+            "notes": "At the Aug 13 check-in, the next logistics tasks were food, groceries and the two-pitch Ásbyrgi decision."
+          },
+          "amenities": [
+            "Toilets and showers",
+            "Electric hookups",
+            "Kitchen and laundry services",
+            "Playground and walking paths",
+            "Akureyri food, fuel and groceries nearby"
+          ],
+          "booking": {
+            "required": true,
+            "notes": "Checked in according to the traveller update. Use the live reception record for pitch, payment and departure details.",
+            "url": "https://www.hamrar.is/home",
+            "label": "Camping Hamrar official site ↗"
+          },
+          "pros": [
+            "Traveller-confirmed Aug 13 check-in.",
+            "Strong family and camper service layer.",
+            "Good place to settle the next nights before adding attractions."
+          ],
+          "drawbacks": [
+            "Not a Camping Card site.",
+            "The next electrical-pitch decision is still open."
+          ],
+          "sources": [
+            {
+              "label": "Camping Hamrar official site",
+              "url": "https://www.hamrar.is/home",
+              "type": "official"
+            }
           ]
         },
         {
@@ -1389,7 +1520,7 @@
               "type": "official"
             }
           ],
-          "documentStatus": "Listed in the north chapter; not booked.",
+          "documentStatus": "Retained as the first named Diamond Circle stop on August 14; no attraction booking is required.",
           "location": "Route 1 · east of Akureyri",
           "dayIds": [
             "day-2026-08-14"
@@ -1435,15 +1566,16 @@
             "Can be busy.",
             "Mist and edges need supervision.",
             "Do not let a simple stop grow into a schedule delay."
-          ]
+          ],
+          "active": true
         },
         {
           "id": "husavik-whale-watching",
           "title": "Húsavík Original Whale Watching",
           "shortTitle": "Húsavík whales",
           "location": "Húsavík harbour · Skjálfandi Bay",
-          "status": "conditional",
-          "documentStatus": "Ásbyrgi / Húsavík is preserved from the source’s north-Iceland list. No whale tour is booked.",
+          "status": "historical",
+          "documentStatus": "The latest source considers only a Húsavík harbourfront or café stop; it does not propose a whale tour. This preserves the earlier option and any shared state without implying that the group rejected or completed it.",
           "standout": true,
           "reviewSignal": "Thousands of tour reviews repeatedly praise the crew, wildlife interpretation and memorable sightings. The consistent drawbacks are cold, seasickness and wildlife variability—no departure can guarantee whales.",
           "hook": "A three-hour traditional-oak-boat search for whales in the place most associated with the experience.",
@@ -1458,17 +1590,8 @@
             "Tour about 3h",
             "Book a few days ahead"
           ],
-          "dayIds": [
-            "day-2026-08-14"
-          ],
-          "map": {
-            "lat": 66.0450541,
-            "lng": -17.3434773,
-            "labelOffset": [
-              14,
-              -14
-            ]
-          },
+          "dayIds": [],
+          "map": null,
           "visit": {
             "duration": "About 3h plus check-in",
             "walk": "Harbour boarding",
@@ -1524,12 +1647,86 @@
               "url": "https://www.tripadvisor.com/AttractionProductReview-g189963-d11462056-Traditional_Oak_Ship_Whale_Watching_Tour_From_Husavik-Husavik_Northeast_Region.html",
               "type": "reviews"
             }
+          ],
+          "active": false
+        },
+        {
+          "id": "husavik-town-stop",
+          "title": "Húsavík harbourfront or café stop",
+          "shortTitle": "Húsavík town stop",
+          "location": "Húsavík · Diamond Circle",
+          "status": "open",
+          "active": true,
+          "documentStatus": "The latest source asks whether the town is worth a short harbourfront, bite or coffee stop. It does not propose whale watching.",
+          "standout": false,
+          "reviewSignal": "",
+          "hook": "A colourful harbour and food reset if the group wants a town pause between Goðafoss and Ásbyrgi.",
+          "planningContext": "This is a short town branch, not a three-hour wildlife tour. It adds road time and must not erode the Ásbyrgi arrival/electrical-pitch plan.",
+          "tags": [
+            "food",
+            "town",
+            "branch"
+          ],
+          "logistics": [
+            "Optional Goðafoss → Húsavík → Ásbyrgi branch",
+            "30–60m town stop",
+            "Live café hours required"
+          ],
+          "dayIds": [
+            "day-2026-08-14"
+          ],
+          "map": {
+            "lat": 66.045054,
+            "lng": -17.343477,
+            "labelOffset": [
+              14,
+              18
+            ]
+          },
+          "visit": {
+            "duration": "30–60m",
+            "walk": "Short harbourfront stroll",
+            "difficulty": "Easy"
+          },
+          "family": {
+            "fit": "A low-effort food and harbour break if everyone wants it.",
+            "stroller": "Town-dependent",
+            "carrier": "Usually unnecessary",
+            "hazards": [
+              "Harbour edge",
+              "Traffic"
+            ],
+            "notes": "Keep the stop short enough to protect Ásbyrgi."
+          },
+          "amenities": [
+            "Cafés and restaurants",
+            "Fuel and town services",
+            "Public facilities vary by live hours"
+          ],
+          "booking": {
+            "required": false,
+            "notes": "No booking is recorded. Recheck live access before relying on this stop."
+          },
+          "pros": [
+            "Pleasant service break.",
+            "Lets the group see Húsavík without committing to a tour."
+          ],
+          "drawbacks": [
+            "Adds a detour to an already full day.",
+            "Café hours and crowding need a live check."
+          ],
+          "sources": [
+            {
+              "label": "Official North Iceland · Húsavík",
+              "url": "https://www.northiceland.is/en/destinations/communities/husavik",
+              "type": "official"
+            }
           ]
         },
         {
           "id": "hverir-hverfjall",
           "title": "Hverir geothermal area",
-          "status": "open",
+          "status": "working",
           "standout": true,
           "reviewSignal": "A current Mývatn travel guide pairs Hverir’s otherworldly geothermal colour with Hverfjall’s short, steep crater climb; the combination scales cleanly to the day’s energy.",
           "hook": "Steam, sulphur and a near-perfect black tephra crater above Lake Mývatn.",
@@ -1559,7 +1756,6 @@
           "documentStatus": "Named separately in the source. The legacy combined ID remains attached to Hverir so existing rankings and notes survive; Hverfjall now has its own card.",
           "location": "Námaskarð · Lake Mývatn",
           "dayIds": [
-            "day-2026-08-14",
             "day-2026-08-15"
           ],
           "map": {
@@ -1606,14 +1802,15 @@
             "Sulfur smell and steam can overwhelm some visitors.",
             "Wind and crowding reduce the payoff."
           ],
-          "shortTitle": "Hverir"
+          "shortTitle": "Hverir",
+          "active": true
         },
         {
           "id": "hverfjall",
           "title": "Hverfjall crater hike",
           "shortTitle": "Hverfjall",
           "location": "Lake Mývatn · northwest crater trail",
-          "status": "conditional",
+          "status": "working",
           "documentStatus": "Named as its own hike in the source. It is now independently rankable instead of being bundled with Hverir.",
           "standout": true,
           "reviewSignal": "Traveller reports consistently value the crater-scale view and short ascent; the recurring cautions are the steep loose surface, exposed wind, current parking fee and rough summer access road.",
@@ -1630,7 +1827,7 @@
             "Rough summer approach and wind gate"
           ],
           "dayIds": [
-            "day-2026-08-14"
+            "day-2026-08-16"
           ],
           "map": {
             "lat": 65.606098,
@@ -1694,7 +1891,8 @@
               "url": "https://www.reddit.com/r/VisitingIceland/comments/1ex4u9l/julyaug_2024_17_days_campervan_around_iceland/",
               "type": "travel post"
             }
-          ]
+          ],
+          "active": true
         },
         {
           "id": "earth-lagoon",
@@ -1726,10 +1924,10 @@
               "type": "reviews"
             }
           ],
-          "documentStatus": "The former Mývatn Nature Baths reopened as Earth Lagoon in July 2026. It is open, but hours should be confirmed against the booked slot.",
+          "documentStatus": "The latest source proposes an optional late Mývatn soak after camp. No reservation or final lagoon choice is recorded.",
           "location": "Lake Mývatn",
           "dayIds": [
-            "day-2026-08-14"
+            "day-2026-08-15"
           ],
           "map": {
             "lat": 65.630741,
@@ -1776,30 +1974,31 @@
             "Older reviews describe a different facility.",
             "Early post-rebuild value/temperature feedback is mixed.",
             "A fixed slot reduces route flexibility."
-          ]
+          ],
+          "active": true
         },
         {
           "id": "asbyrgi",
           "title": "Ásbyrgi canyon and Botnstjörn",
           "shortTitle": "Ásbyrgi",
           "location": "Jökulsárgljúfur · north of Dettifoss",
-          "status": "conditional",
-          "documentStatus": "Preserved from the source’s “Ásbyrgi / Húsavík” north-Iceland idea. It is not booked and is not on the working Mývatn → Dettifoss line.",
+          "status": "working",
+          "documentStatus": "Retained as the August 14 canyon visit. The separate asbyrgi-campsite card carries the still-open two-electric-pitch decision.",
           "standout": false,
           "reviewSignal": "The easy pond-and-forest walk draws strong family and tranquillity reports; other travellers rank the canyon floor below Iceland’s more dramatic stops or report rougher footing on optional rim trails.",
           "hook": "Trade volcanic barrenness for a sheltered horseshoe canyon, birch forest and a quiet pond.",
-          "planningContext": "The measured Reykjahlíð → Ásbyrgi → Dettifoss alternative is 114.0 km / 1h38 car baseline, excluding the visit. On August 15 it only fits by dropping another long stop or changing the overnight target.",
+          "planningContext": "Ásbyrgi is the last major August 14 destination. Use the short Botnstjörn version as the default, then handle the two-electric-pitch sleep decision on its separate campsite card.",
           "tags": [
             "family",
             "weather-flex"
           ],
           "logistics": [
-            "114.0 km / 1h38 branch baseline",
-            "A1 Botnstjörn 1 km / 30m",
-            "Visitor centre and campground"
+            "A1 Botnstjörn · about 1 km / 30m",
+            "Visitor centre",
+            "Separate campsite decision"
           ],
           "dayIds": [
-            "day-2026-08-15"
+            "day-2026-08-14"
           ],
           "map": {
             "lat": 66.0284991,
@@ -1869,12 +2068,167 @@
               "url": "https://www.reddit.com/r/VisitingIceland/comments/w9gzz0/",
               "type": "travel post"
             }
+          ],
+          "active": true
+        },
+        {
+          "id": "asbyrgi-campsite",
+          "title": "Ásbyrgi campsite · two electric pitches",
+          "shortTitle": "Ásbyrgi campsite",
+          "location": "Vatnajökull National Park · Ásbyrgi",
+          "status": "open",
+          "active": true,
+          "documentStatus": "The latest source says to decide whether to sleep here and, if yes, book two electrical sites. No booking is recorded.",
+          "standout": false,
+          "reviewSignal": "",
+          "hook": "Sleeping inside the canyon makes Hljóðaklettar and Dettifoss the logical next morning instead of another Akureyri out-and-back.",
+          "planningContext": "This is the highest-priority current logistics choice. Confirm two motorhome electrical pitches together; the day visit remains a separate card.",
+          "tags": [
+            "camping",
+            "book-ahead",
+            "decision"
+          ],
+          "logistics": [
+            "Two electrical sites needed",
+            "Book if staying",
+            "Natural start for August 15"
+          ],
+          "dayIds": [
+            "day-2026-08-14"
+          ],
+          "map": {
+            "lat": 66.02466,
+            "lng": -16.49658,
+            "labelOffset": [
+              -132,
+              18
+            ]
+          },
+          "visit": {
+            "duration": "Overnight decision",
+            "walk": "Campground dependent",
+            "difficulty": "Booking/logistics gate"
+          },
+          "family": {
+            "fit": "A strong serviced family base that reduces next-day driving.",
+            "stroller": "Camp-dependent",
+            "carrier": "Optional",
+            "hazards": [
+              "Campground traffic",
+              "Canyon terrain away from camp"
+            ],
+            "notes": "Do not assume adjacent electrical pitches until confirmed."
+          },
+          "amenities": [
+            "Washrooms and showers",
+            "Cooking facilities and drinking water",
+            "Laundry",
+            "Electrical pitches",
+            "Visitor centre nearby"
+          ],
+          "booking": {
+            "required": true,
+            "notes": "The park recommends advance booking for electricity. Confirm two suitable motorhome pitches before relying on this sleep.",
+            "url": "https://www.vatnajokulsthjodgardur.is/en/areas/jokulsargljufur/tjaldsvaedid-i-asbyrgi",
+            "label": "Official campsite booking ↗",
+            "phone": "+354 470 7100"
+          },
+          "pros": [
+            "Sets up the August 15 sequence cleanly.",
+            "Strong service layer.",
+            "Avoids an Akureyri return."
+          ],
+          "drawbacks": [
+            "Two electrical pitches are not yet confirmed.",
+            "Commits the group to the Diamond Circle pace."
+          ],
+          "sources": [
+            {
+              "label": "Official Ásbyrgi campground",
+              "url": "https://www.vatnajokulsthjodgardur.is/en/areas/jokulsargljufur/tjaldsvaedid-i-asbyrgi",
+              "type": "official"
+            }
+          ]
+        },
+        {
+          "id": "hljodaklettar",
+          "title": "Hljóðaklettar · Sound Rocks",
+          "shortTitle": "Hljóðaklettar",
+          "location": "Jökulsárgljúfur · south of Ásbyrgi",
+          "status": "working",
+          "active": true,
+          "documentStatus": "First named August 15 stop in the latest source.",
+          "standout": false,
+          "reviewSignal": "",
+          "hook": "Climb among echoing basalt formations before the much larger Dettifoss landscape.",
+          "planningContext": "Use the roughly 1.2 km Tröllið/Hljóðaklettar version as the default; the 3 km circuit is an energy-dependent extension.",
+          "tags": [
+            "family",
+            "hike",
+            "volcanic"
+          ],
+          "logistics": [
+            "About 15m from Ásbyrgi camp",
+            "1.2 km default route",
+            "Longer 3 km circuit optional"
+          ],
+          "dayIds": [
+            "day-2026-08-15"
+          ],
+          "map": {
+            "lat": 65.93898,
+            "lng": -16.532606,
+            "labelOffset": [
+              14,
+              -14
+            ]
+          },
+          "visit": {
+            "duration": "45–90m",
+            "walk": "About 1.2 km default; 3 km longer circuit",
+            "difficulty": "Uneven lava terrain"
+          },
+          "family": {
+            "fit": "The short route can be a playful whole-family scramble at the youngest pace.",
+            "stroller": "No",
+            "carrier": "Helpful on uneven ground",
+            "hazards": [
+              "Uneven basalt",
+              "Slips and short scrambles",
+              "Weather exposure"
+            ],
+            "notes": "Choose the short loop unless the group has abundant energy."
+          },
+          "amenities": [
+            "Parking",
+            "Seasonal toilets/services require live confirmation",
+            "Ásbyrgi services nearby"
+          ],
+          "booking": {
+            "required": false,
+            "notes": "No booking is recorded. Recheck live access before relying on this stop."
+          },
+          "pros": [
+            "Unusual tactile geology.",
+            "Short version fits the birthday day.",
+            "Directly on the planned route."
+          ],
+          "drawbacks": [
+            "Uneven terrain can take longer than the distance suggests.",
+            "The longer circuit would compress Dettifoss and Mývatn."
+          ],
+          "sources": [
+            {
+              "label": "Vatnajökull National Park · Jökulsárgljúfur",
+              "url": "https://www.vatnajokulsthjodgardur.is/en/areas/jokulsargljufur",
+              "type": "official"
+            }
           ]
         },
         {
           "id": "dettifoss-selfoss",
           "title": "Dettifoss + Selfoss, west bank",
-          "status": "open",
+          "status": "working",
           "standout": true,
           "reviewSignal": "The paved west-bank approach is the practical fit for this route, but older posts now mislead: a 2025 landslide permanently changed the Dettifoss viewing layout in May 2026.",
           "hook": "Raw glacial power at Dettifoss, followed by the amphitheatre of Selfoss on one compact loop.",
@@ -1956,6 +2310,522 @@
             "Long stop on a 257 km transition day.",
             "Wet rough trail is not stroller-friendly.",
             "Older articles may describe a now-closed viewpoint."
+          ],
+          "active": true
+        },
+        {
+          "id": "myvatn-camp",
+          "title": "Lake Mývatn campsite decision",
+          "shortTitle": "Mývatn camp",
+          "location": "Lake Mývatn area",
+          "status": "open",
+          "active": true,
+          "documentStatus": "The latest source requires an August 15–16 Mývatn sleep but lists several candidate campgrounds without selecting one.",
+          "standout": false,
+          "reviewSignal": "",
+          "hook": "Choose one two-night base so August 16 can stay local instead of becoming another packing-and-driving day.",
+          "planningContext": "Hlíð, Vogar, Grjótagjá and Dimmuborgir are source-listed ideas, not a booking. Confirm two camper pitches, electricity, showers, waste service and late-arrival policy.",
+          "tags": [
+            "camping",
+            "decision",
+            "two-night-base"
+          ],
+          "logistics": [
+            "Camp August 15",
+            "Prefer same base August 16",
+            "Two campers and services to confirm"
+          ],
+          "dayIds": [
+            "day-2026-08-15",
+            "day-2026-08-16"
+          ],
+          "map": {
+            "lat": 65.62378,
+            "lng": -16.91754,
+            "labelOffset": [
+              14,
+              18
+            ]
+          },
+          "visit": {
+            "duration": "One or two nights",
+            "walk": "Chosen campsite dependent",
+            "difficulty": "Logistics decision"
+          },
+          "family": {
+            "fit": "A settled two-night base is the lowest-stress family option.",
+            "stroller": "Camp-dependent",
+            "carrier": "Optional",
+            "hazards": [
+              "Midges",
+              "Campground vehicle movement"
+            ],
+            "notes": "Bring nets and choose services before scenery."
+          },
+          "amenities": [
+            "Electricity to verify",
+            "Showers/toilets to verify",
+            "Waste and water service to verify",
+            "Food/fuel available around Reykjahlíð"
+          ],
+          "booking": {
+            "required": "Select and confirm",
+            "notes": "No campground is recorded as chosen or booked. Compare the official directory and contact the selected site directly.",
+            "url": "https://tjalda.is/en/",
+            "label": "Official campground directory ↗"
+          },
+          "pros": [
+            "Turns August 16 into a genuine local day.",
+            "Reduces packing and decision fatigue."
+          ],
+          "drawbacks": [
+            "No site is selected yet.",
+            "Popular services/electricity may fill."
+          ],
+          "sources": [
+            {
+              "label": "Official Iceland campground directory",
+              "url": "https://tjalda.is/en/",
+              "type": "official"
+            }
+          ]
+        },
+        {
+          "id": "dimmuborgir",
+          "title": "Dimmuborgir lava formations",
+          "shortTitle": "Dimmuborgir",
+          "location": "Lake Mývatn",
+          "status": "working",
+          "active": true,
+          "documentStatus": "Named as the second August 16 stop in the latest source.",
+          "standout": false,
+          "reviewSignal": "",
+          "hook": "Walk through arches, caves and lava towers on a loop that can shrink with the group’s energy.",
+          "planningContext": "Choose the roughly 30-minute small circle or the approximately 2.4 km Church Circle; do not assume both.",
+          "tags": [
+            "family",
+            "hike",
+            "volcanic"
+          ],
+          "logistics": [
+            "30m short loop",
+            "About 2.4 km / 1h Church Circle",
+            "Directly after Hverfjall"
+          ],
+          "dayIds": [
+            "day-2026-08-16"
+          ],
+          "map": {
+            "lat": 65.591545,
+            "lng": -16.9127,
+            "labelOffset": [
+              14,
+              18
+            ]
+          },
+          "visit": {
+            "duration": "30–75m",
+            "walk": "Short loop or 2.4 km Church Circle",
+            "difficulty": "Easy to moderate uneven paths"
+          },
+          "family": {
+            "fit": "Strong whole-family option because the route length is easy to scale.",
+            "stroller": "Limited",
+            "carrier": "Helpful",
+            "hazards": [
+              "Uneven lava",
+              "Slippery rock"
+            ],
+            "notes": "Pick one loop and preserve energy for the rest of Mývatn."
+          },
+          "amenities": [
+            "Parking",
+            "Seasonal café/toilets nearby; verify live hours"
+          ],
+          "booking": {
+            "required": false,
+            "notes": "No booking is recorded. Recheck live access before relying on this stop."
+          },
+          "pros": [
+            "Distinctive formations.",
+            "Scalable loop lengths.",
+            "Logical local route."
+          ],
+          "drawbacks": [
+            "Can be busy.",
+            "Uneven ground limits stroller usefulness."
+          ],
+          "sources": [
+            {
+              "label": "Official protected-area guidance",
+              "url": "https://www.ust.is/english/visiting-iceland/protected-areas/north-east/dimmuborgir/",
+              "type": "official"
+            }
+          ]
+        },
+        {
+          "id": "grjotagja",
+          "title": "Grjótagjá lava cave",
+          "shortTitle": "Grjótagjá",
+          "location": "Lake Mývatn",
+          "status": "working",
+          "active": true,
+          "documentStatus": "Named as a brief August 16 stop in the latest source.",
+          "standout": false,
+          "reviewSignal": "",
+          "hook": "A quick look into a geothermal fissure and lava cave between the longer Mývatn walks.",
+          "planningContext": "Treat this as a 20–30 minute geology stop. Bathing is not part of the plan; obey live barriers and private-land rules.",
+          "tags": [
+            "geology",
+            "short-stop"
+          ],
+          "logistics": [
+            "20–30m",
+            "Brief cave/fissure view",
+            "No bathing assumed"
+          ],
+          "dayIds": [
+            "day-2026-08-16"
+          ],
+          "map": {
+            "lat": 65.627161,
+            "lng": -16.881681,
+            "labelOffset": [
+              14,
+              -14
+            ]
+          },
+          "visit": {
+            "duration": "20–30m",
+            "walk": "Very short rough approach",
+            "difficulty": "Uneven, confined cave access"
+          },
+          "family": {
+            "fit": "A short stop only if the cave entrance and supervision feel comfortable.",
+            "stroller": "No",
+            "carrier": "Not useful in cave",
+            "hazards": [
+              "Slippery rock",
+              "Confined space",
+              "Hot water",
+              "Private-land restrictions"
+            ],
+            "notes": "View only from permitted areas and never enter the water."
+          },
+          "amenities": [
+            "Small parking area",
+            "No services assumed"
+          ],
+          "booking": {
+            "required": false,
+            "notes": "No booking is recorded. Recheck live access before relying on this stop."
+          },
+          "pros": [
+            "Fast geological contrast.",
+            "Fits between larger stops."
+          ],
+          "drawbacks": [
+            "Confined and slippery.",
+            "Limited payoff if crowded."
+          ],
+          "sources": [
+            {
+              "label": "Official North Iceland destination guide",
+              "url": "https://www.northiceland.is/en/place/grjotagja",
+              "type": "official"
+            }
+          ]
+        },
+        {
+          "id": "krafla-viti",
+          "title": "Krafla option · Víti crater",
+          "shortTitle": "Krafla · Víti",
+          "location": "Krafla volcanic area",
+          "status": "open",
+          "active": true,
+          "documentStatus": "One of two mutually exclusive Krafla options in the latest source.",
+          "standout": false,
+          "reviewSignal": "",
+          "hook": "Choose the compact crater-lake version of Krafla when the day needs a shorter volcanic stop.",
+          "planningContext": "This is the approximately 45–60 minute Krafla choice. Rank it against Leirhnjúkur rather than stacking both.",
+          "tags": [
+            "branch",
+            "volcanic",
+            "weather-flex"
+          ],
+          "logistics": [
+            "Choose one Krafla option",
+            "45–60m",
+            "Shorter than Leirhnjúkur"
+          ],
+          "dayIds": [
+            "day-2026-08-16"
+          ],
+          "map": {
+            "lat": 65.71766,
+            "lng": -16.75655,
+            "labelOffset": [
+              14,
+              18
+            ]
+          },
+          "visit": {
+            "duration": "45–60m",
+            "walk": "Short crater viewpoints/loop dependent on conditions",
+            "difficulty": "Easy to moderate"
+          },
+          "family": {
+            "fit": "The more manageable Krafla choice for the whole group.",
+            "stroller": "No",
+            "carrier": "Helpful",
+            "hazards": [
+              "Exposed wind",
+              "Crater slopes",
+              "Geothermal terrain"
+            ],
+            "notes": "Stay on marked routes and turn back in poor wind."
+          },
+          "amenities": [
+            "Parking",
+            "No full service layer assumed"
+          ],
+          "booking": {
+            "required": false,
+            "notes": "No booking is recorded. Recheck live access before relying on this stop."
+          },
+          "pros": [
+            "High volcanic payoff for less time.",
+            "Clear alternative to a longer hike."
+          ],
+          "drawbacks": [
+            "Exposed weather.",
+            "Less immersive than Leirhnjúkur."
+          ],
+          "sources": [
+            {
+              "label": "Official North Iceland · Krafla",
+              "url": "https://www.northiceland.is/en/place/krafla",
+              "type": "official"
+            }
+          ]
+        },
+        {
+          "id": "krafla-leirhnjukur",
+          "title": "Krafla option · Leirhnjúkur",
+          "shortTitle": "Krafla · Leirhnjúkur",
+          "location": "Krafla volcanic area",
+          "status": "open",
+          "active": true,
+          "documentStatus": "One of two mutually exclusive Krafla options in the latest source.",
+          "standout": false,
+          "reviewSignal": "",
+          "hook": "Take the more substantial route through steaming terrain and young lava when the group still has real hiking energy.",
+          "planningContext": "Official estimates vary with route length; plan one to three hours. Choose this instead of Víti when immersion earns the extra time.",
+          "tags": [
+            "branch",
+            "hike",
+            "volcanic"
+          ],
+          "logistics": [
+            "Choose one Krafla option",
+            "1–3h depending on turnaround",
+            "Geothermal path discipline"
+          ],
+          "dayIds": [
+            "day-2026-08-16"
+          ],
+          "map": {
+            "lat": 65.713162,
+            "lng": -16.774608,
+            "labelOffset": [
+              -130,
+              -14
+            ]
+          },
+          "visit": {
+            "duration": "1–3h",
+            "walk": "Variable marked volcanic trail",
+            "difficulty": "Moderate, exposed and uneven"
+          },
+          "family": {
+            "fit": "A higher-energy choice whose turnaround must follow the youngest pace.",
+            "stroller": "No",
+            "carrier": "Helpful",
+            "hazards": [
+              "Hot ground/steam",
+              "Uneven lava",
+              "Wind and exposure"
+            ],
+            "notes": "Stay on marked paths; do not chase the longest loop by default."
+          },
+          "amenities": [
+            "Parking",
+            "No full service layer assumed"
+          ],
+          "booking": {
+            "required": false,
+            "notes": "No booking is recorded. Recheck live access before relying on this stop."
+          },
+          "pros": [
+            "Most immersive Krafla option.",
+            "Steam and recent lava feel genuinely distinct."
+          ],
+          "drawbacks": [
+            "Consumes much more of the day.",
+            "Uneven geothermal terrain raises supervision needs."
+          ],
+          "sources": [
+            {
+              "label": "Official North Iceland · Krafla",
+              "url": "https://www.northiceland.is/en/place/krafla",
+              "type": "official"
+            }
+          ]
+        },
+        {
+          "id": "hofdi-kalfastrond",
+          "title": "Quiet lake option · Höfði/Kálfaströnd",
+          "shortTitle": "Höfði/Kálfaströnd",
+          "location": "South Lake Mývatn",
+          "status": "open",
+          "active": true,
+          "documentStatus": "One of two optional quiet-lake choices in the latest source.",
+          "standout": false,
+          "reviewSignal": "",
+          "hook": "Trade another volcanic headline for trees, water and offshore lava pillars.",
+          "planningContext": "Choose this, Skútustaðagígar or neither after the Krafla decision; it is not part of the core local loop.",
+          "tags": [
+            "branch",
+            "quiet",
+            "family"
+          ],
+          "logistics": [
+            "Optional quiet-lake branch",
+            "Choose one or none",
+            "Flexible short walk"
+          ],
+          "dayIds": [
+            "day-2026-08-16"
+          ],
+          "map": {
+            "lat": 65.587745,
+            "lng": -16.947768,
+            "labelOffset": [
+              14,
+              18
+            ]
+          },
+          "visit": {
+            "duration": "30–60m",
+            "walk": "Flexible lakeside paths",
+            "difficulty": "Easy to moderate"
+          },
+          "family": {
+            "fit": "A gentler scenery reset if everyone still wants another stop.",
+            "stroller": "Path-dependent",
+            "carrier": "Optional",
+            "hazards": [
+              "Lake edge",
+              "Midges",
+              "Uneven paths"
+            ],
+            "notes": "Keep it genuinely optional."
+          },
+          "amenities": [
+            "Parking",
+            "No full service layer assumed"
+          ],
+          "booking": {
+            "required": false,
+            "notes": "No booking is recorded. Recheck live access before relying on this stop."
+          },
+          "pros": [
+            "Quiet contrast.",
+            "Flexible duration."
+          ],
+          "drawbacks": [
+            "Lower headline payoff.",
+            "May be the sensible stop to skip."
+          ],
+          "sources": [
+            {
+              "label": "Official North Iceland · Lake Mývatn",
+              "url": "https://www.northiceland.is/en/destinations/nature/lakes-and-rivers/lake-myvatn",
+              "type": "official"
+            }
+          ]
+        },
+        {
+          "id": "skutustadagigar",
+          "title": "Quiet lake option · Skútustaðagígar",
+          "shortTitle": "Skútustaðagígar",
+          "location": "South Lake Mývatn",
+          "status": "open",
+          "active": true,
+          "documentStatus": "One of two optional quiet-lake choices in the latest source.",
+          "standout": false,
+          "reviewSignal": "",
+          "hook": "Finish with easy pseudocrater walking and broad lake views if the day still has margin.",
+          "planningContext": "Choose the roughly 20–30 minute short loop, the approximately one-hour longer route, or skip it. It competes with Höfði/Kálfaströnd.",
+          "tags": [
+            "branch",
+            "family",
+            "easy-walk"
+          ],
+          "logistics": [
+            "Optional quiet-lake branch",
+            "20–30m short loop",
+            "About 1h longer route"
+          ],
+          "dayIds": [
+            "day-2026-08-16"
+          ],
+          "map": {
+            "lat": 65.570851,
+            "lng": -17.034903,
+            "labelOffset": [
+              -126,
+              -14
+            ]
+          },
+          "visit": {
+            "duration": "20–60m",
+            "walk": "Short or longer pseudocrater loop",
+            "difficulty": "Easy"
+          },
+          "family": {
+            "fit": "The easiest late-day walking choice if the group wants one more stop.",
+            "stroller": "Main loop dependent",
+            "carrier": "Usually unnecessary",
+            "hazards": [
+              "Lake edge",
+              "Midges",
+              "Wind"
+            ],
+            "notes": "Choose the short loop by default."
+          },
+          "amenities": [
+            "Parking",
+            "Nearby seasonal services; verify live hours"
+          ],
+          "booking": {
+            "required": false,
+            "notes": "No booking is recorded. Recheck live access before relying on this stop."
+          },
+          "pros": [
+            "Easy scalable walk.",
+            "Good broad lake views."
+          ],
+          "drawbacks": [
+            "Adds another stop to a full local day.",
+            "Midges and wind can reduce the payoff."
+          ],
+          "sources": [
+            {
+              "label": "Official North Iceland · Skútustaðagígar",
+              "url": "https://www.northiceland.is/en/place/skutustadagigar",
+              "type": "official"
+            }
           ]
         }
       ]
@@ -1963,15 +2833,15 @@
     {
       "id": "east",
       "number": "03",
-      "title": "Eastfjords & the family birthday",
-      "dates": "Aug 15–16",
+      "title": "East Iceland & the puffin-gated fork",
+      "dates": "Aug 17–19",
       "route": "Mývatn → Stuðlagil → Eastfjords → Stokksnes",
-      "summary": "The birthday day is currently overfull. Stuðlagil needs its own deliberate block; the late-season puffin detour should survive only if the fjord and village are part of the appeal.",
+      "summary": "Use live puffin evidence at Egilsstaðir to choose the Borgarfjörður Eystri branch or the direct route to Seyðisfjörður; never draw both as one through-road.",
       "options": [
         {
           "id": "studlagil",
           "title": "Stuðlagil’s basalt canyon",
-          "status": "open",
+          "status": "working",
           "standout": true,
           "reviewSignal": "Reviewers overwhelmingly prefer the east-side canyon-floor experience; the west platform is a legitimate fast fallback, not an equivalent visit.",
           "hook": "A turquoise river cutting between monumental basalt columns.",
@@ -2001,7 +2871,7 @@
           "documentStatus": "The source leaves the side unresolved. The working family/camper plan uses the serviced west viewpoint; the east canyon floor is a separate half-day.",
           "location": "Jökuldalur · Grund west viewpoint",
           "dayIds": [
-            "day-2026-08-15"
+            "day-2026-08-17"
           ],
           "map": {
             "lat": 65.162327,
@@ -2049,6 +2919,81 @@
             "West and east are not equivalent experiences.",
             "East side would displace another major stop.",
             "Reservoir flow can alter water level and colour."
+          ],
+          "active": true
+        },
+        {
+          "id": "gufufoss",
+          "title": "Gufufoss on the Seyðisfjörður descent",
+          "shortTitle": "Gufufoss",
+          "location": "Fjarðarheiði · above Seyðisfjörður",
+          "status": "working",
+          "active": true,
+          "documentStatus": "The latest source explicitly adds Gufufoss while descending to Seyðisfjörður.",
+          "standout": false,
+          "reviewSignal": "",
+          "hook": "A short waterfall pause on the mountain-pass descent before reaching the fjord town.",
+          "planningContext": "It belongs on either the direct August 17 route or the conditional August 18 backtrack from Borgarfjörður Eystri.",
+          "tags": [
+            "waterfall",
+            "short-stop",
+            "current-route"
+          ],
+          "logistics": [
+            "On the Seyðisfjörður descent",
+            "Short stop",
+            "Weather/pass gate"
+          ],
+          "dayIds": [
+            "day-2026-08-17",
+            "day-2026-08-18"
+          ],
+          "map": {
+            "lat": 65.239973,
+            "lng": -14.05688,
+            "labelOffset": [
+              14,
+              -14
+            ]
+          },
+          "visit": {
+            "duration": "20–30m",
+            "walk": "Short viewpoint approach",
+            "difficulty": "Easy to moderate"
+          },
+          "family": {
+            "fit": "A compact whole-family stop if wind, visibility and parking are comfortable.",
+            "stroller": "No",
+            "carrier": "Optional",
+            "hazards": [
+              "Wet rock",
+              "Waterfall edge",
+              "Mountain-pass weather"
+            ],
+            "notes": "Skip it if the pass needs everyone’s attention."
+          },
+          "amenities": [
+            "Roadside parking",
+            "Use Seyðisfjörður for services"
+          ],
+          "booking": {
+            "required": false,
+            "notes": "No booking is recorded. Recheck live access before relying on this stop."
+          },
+          "pros": [
+            "Directly on the descent.",
+            "Large payoff for little time."
+          ],
+          "drawbacks": [
+            "Weather and parking can make a short stop unwise.",
+            "Not worth delaying a late camp arrival."
+          ],
+          "sources": [
+            {
+              "label": "Official East Iceland destination guide",
+              "url": "https://www.east.is/en/place/gufufoss",
+              "type": "official"
+            }
           ]
         },
         {
@@ -2056,23 +3001,24 @@
           "title": "Seyðisfjörður as a deliberate spoke",
           "shortTitle": "Seyðisfjörður",
           "location": "Road 93 from Egilsstaðir",
-          "status": "conditional",
-          "documentStatus": "The source lists Seyðisfjörður before northern stops. Geographically it is a separate Egilsstaðir out-and-back after Stuðlagil, not a through-road south.",
+          "status": "working",
+          "documentStatus": "The direct August 17 destination when the puffin branch is skipped; otherwise reached on August 18 after the necessary backtrack.",
           "standout": false,
           "reviewSignal": "Travellers value the fjord arrival and compact town; 2026 campsite reports disagree on crowding/cleanliness, so arrival time matters.",
           "hook": "A beautiful fjord town worth choosing deliberately—not a free stop between the north and South Coast.",
-          "planningContext": "Only add it by dropping another east detour or accepting a later camp; Road 93 is exposed in fog and wind.",
+          "planningContext": "This is the working August 17 destination. If Borgarfjörður Eystri is chosen instead, Seyðisfjörður moves to August 18 and remains a separate Egilsstaðir spoke.",
           "tags": [
             "family",
             "weather-flex"
           ],
           "logistics": [
-            "54.5 km return from Egilsstaðir",
-            "2–4h or overnight",
-            "First-come campsite"
+            "Direct destination when puffin branch is skipped",
+            "Conditional August 18 arrival otherwise",
+            "Road 93 weather gate"
           ],
           "dayIds": [
-            "day-2026-08-15"
+            "day-2026-08-17",
+            "day-2026-08-18"
           ],
           "map": {
             "lat": 65.260598,
@@ -2131,24 +3077,25 @@
               "url": "https://seydisfjordurcampsite.com/",
               "type": "official"
             }
-          ]
+          ],
+          "active": true
         },
         {
           "id": "borgarfjordur-eystri",
           "title": "Borgarfjörður Eystri puffin hedge",
-          "status": "backup",
+          "status": "conditional",
           "standout": false,
           "reviewSignal": "Official season guidance ends around mid-August; actual August 2025 reports ranged from a handful of stragglers to about twenty birds.",
           "hook": "A beautiful fjord village and close viewing platform—if the drive matters even without a puffin payoff.",
-          "planningContext": "Do not make the detour solely for puffins on August 15. Heimaey is the stronger late-season hedge.",
+          "planningContext": "Check the live camera or ask locally in Egilsstaðir. Take this branch only if same-day evidence supports the wildlife goal and the group accepts the required return through Egilsstaðir on August 18.",
           "tags": [
             "family",
             "weather-flex"
           ],
           "logistics": [
-            "Tail end of season",
-            "Long detour",
-            "Wildlife not guaranteed"
+            "Live puffin evidence required",
+            "Separate Egilsstaðir spoke",
+            "Using it creates the August 18 backtrack"
           ],
           "sources": [
             {
@@ -2167,10 +3114,11 @@
               "type": "official"
             }
           ],
-          "documentStatus": "A late-puffin hedge in the source; not on the through-road south and not additive with Seyðisfjörður.",
+          "documentStatus": "A live-puffin-gated branch on August 17. If used, it consumes the separate August 18 transfer back through Egilsstaðir.",
           "location": "Hafnarhólmi · separate Egilsstaðir spoke",
           "dayIds": [
-            "day-2026-08-15"
+            "day-2026-08-17",
+            "day-2026-08-18"
           ],
           "map": {
             "lat": 65.542075,
@@ -2213,7 +3161,8 @@
             "About 152 km return from Egilsstaðir.",
             "Late-season sightings range from many to a few stragglers.",
             "Competes directly with Seyðisfjörður and forward progress."
-          ]
+          ],
+          "active": true
         },
         {
           "id": "djupivogur",
@@ -2237,7 +3186,7 @@
             "Food, fuel, pool and campsite nearby"
           ],
           "dayIds": [
-            "day-2026-08-16"
+            "day-2026-08-19"
           ],
           "map": {
             "lat": 64.656158,
@@ -2296,7 +3245,8 @@
               "url": "https://www.tripadvisor.com/Attractions-g315846-Activities-Djupivogur_East_Region.html",
               "type": "reviews"
             }
-          ]
+          ],
+          "active": true
         },
         {
           "id": "djupivogur-stokksnes",
@@ -2304,7 +3254,7 @@
           "status": "working",
           "standout": false,
           "hook": "A gentler Eastfjords town break followed by black dunes and the sharp Vestrahorn skyline.",
-          "planningContext": "The adjacent Djúpivogur–Stokksnes road segment is about 99 km, not four hours. The full Egilsstaðir coastal day remains substantial and must stay on Route 1 rather than Öxi/939.",
+          "planningContext": "The adjacent Djúpivogur–Stokksnes segment is not the whole day. The working transfer begins in Seyðisfjörður, follows coastal Route 1 through the Eastfjords and ends around Stokksnes/Höfn; Öxi/939 is excluded.",
           "tags": [
             "family",
             "weather-flex"
@@ -2334,7 +3284,7 @@
           "documentStatus": "Named in the source after Djúpivogur. The legacy combined ID remains attached to Stokksnes so existing rankings and notes survive; Djúpivogur now has its own card.",
           "location": "Stokksnes · Vestrahorn",
           "dayIds": [
-            "day-2026-08-16"
+            "day-2026-08-19"
           ],
           "map": {
             "lat": 64.25507,
@@ -2382,7 +3332,8 @@
             "Wind and cloud can hide the mountain.",
             "Crowding and value reviews are mixed."
           ],
-          "shortTitle": "Stokksnes"
+          "shortTitle": "Stokksnes",
+          "active": true
         }
       ]
     },
@@ -2390,7 +3341,7 @@
       "id": "glacier",
       "number": "04",
       "title": "Glacier lagoon & ice country",
-      "dates": "Aug 17",
+      "dates": "Aug 20",
       "route": "Stokksnes → Jökulsárlón → Skaftafell",
       "summary": "The clearest unbooked anchor in the plan. Jökulsárlón earns protected time; the group must choose a whole-family boat or split for an age-gated experience.",
       "options": [
@@ -2437,7 +3388,7 @@
           "documentStatus": "The lagoon is a priority; boat type remains undecided and unbooked.",
           "location": "Jökulsárlón and Diamond Beach",
           "dayIds": [
-            "day-2026-08-17"
+            "day-2026-08-20"
           ],
           "map": {
             "lat": 64.048122,
@@ -2486,7 +3437,8 @@
             "The Zodiac height gate likely splits the group.",
             "Weather and ice change operations.",
             "A booked time constrains an already long Aug 17."
-          ]
+          ],
+          "active": true
         },
         {
           "id": "glacier-hike",
@@ -2514,7 +3466,7 @@
           "documentStatus": "“Glacier hike” is only an idea until a named operator and child/boot/medical rules are selected.",
           "location": "Skaftafell",
           "dayIds": [
-            "day-2026-08-17"
+            "day-2026-08-20"
           ],
           "map": {
             "lat": 64.016672,
@@ -2560,7 +3512,8 @@
             "Generic “glacier hike” is not bookable logistics.",
             "On-ice activities split the family.",
             "Time competes with Jökulsárlón and the South Coast transfer."
-          ]
+          ],
+          "active": true
         }
       ]
     },
@@ -2568,7 +3521,7 @@
       "id": "south",
       "number": "05",
       "title": "South Coast: canyon to falls",
-      "dates": "Aug 17–18",
+      "dates": "Aug 20–21",
       "route": "Fjaðrárgljúfur → Vík → Skógar → Seljalandsfoss",
       "summary": "A dense run of famous stops. The best version is not six parking lots—it is one meaningful waterfall walk, a safety-first beach call and room for the weather to edit.",
       "options": [
@@ -2603,7 +3556,7 @@
           "documentStatus": "Both are in the document; Eldhraun is corrected to appear before Vík/Reynisfjara westbound.",
           "location": "South Coast · Fjaðrárgljúfur then Eldhraun",
           "dayIds": [
-            "day-2026-08-17"
+            "day-2026-08-20"
           ],
           "map": {
             "lat": 63.771198,
@@ -2647,7 +3600,8 @@
             "Jökulsárlón to Vík via all stops is a very full day.",
             "Edges require close supervision.",
             "Lava-field pull-outs are limited and moss is fragile."
-          ]
+          ],
+          "active": true
         },
         {
           "id": "reynisfjara",
@@ -2678,10 +3632,11 @@
               "type": "official"
             }
           ],
-          "documentStatus": "The source proposes a beach stop. At the August 8 research snapshot, SafeTravel permits viewpoint-only access; recheck for August 18.",
+          "documentStatus": "Preserved from the overloaded August 19 source list as a conditional South Coast branch; it is not part of the feasible core.",
           "location": "South Coast · designated viewpoint",
           "dayIds": [
-            "day-2026-08-18"
+            "day-2026-08-20",
+            "day-2026-08-21"
           ],
           "map": {
             "lat": 63.404344,
@@ -2726,12 +3681,13 @@
             "Viewpoint-only at the current snapshot.",
             "A famous reputation does not reduce lethal wave risk.",
             "Conditions can close access entirely."
-          ]
+          ],
+          "active": true
         },
         {
           "id": "dyrholaey",
           "title": "Dyrhólaey panorama",
-          "status": "working",
+          "status": "conditional",
           "standout": false,
           "hook": "A high coastal overview of the sea arch, beaches and Mýrdalur—strong for the landscape, weak as a late puffin promise.",
           "planningContext": "The upper road is steep, narrow and rough. Extreme wind should cancel the upper viewpoint.",
@@ -2751,10 +3707,11 @@
               "type": "official"
             }
           ],
-          "documentStatus": "Listed in the source; use lower parking with these large motorhomes.",
+          "documentStatus": "Preserved from the overloaded August 19 source list as a conditional South Coast branch; it must displace another stop.",
           "location": "South Coast · lower viewpoint",
           "dayIds": [
-            "day-2026-08-18"
+            "day-2026-08-20",
+            "day-2026-08-21"
           ],
           "map": {
             "lat": 63.404034,
@@ -2797,12 +3754,13 @@
             "Very exposed to wind.",
             "Upper road is unsuitable for these rigs.",
             "Late-season bird signal is weak."
-          ]
+          ],
+          "active": true
         },
         {
           "id": "skogafoss-waterfall-way",
           "title": "Skógafoss Waterfall Way, partial",
-          "status": "open",
+          "status": "working",
           "standout": true,
           "reviewSignal": "Travel writers and family reports agree that even the first stretch above Skógafoss adds multiple falls and quickly sheds the parking-lot crowd.",
           "hook": "Climb beside Skógafoss, then keep walking upriver until the group has had enough waterfalls without needing the full 16 km.",
@@ -2829,10 +3787,10 @@
               "type": "reviews"
             }
           ],
-          "documentStatus": "The document’s “3 km / 10 waterfalls” omits the return and 428-step climb. The working plan is a 60–90m taster.",
+          "documentStatus": "Skógafoss is the single South Coast core stop on the August 21 working line; any longer Waterfall Way walk remains an open energy decision.",
           "location": "Skógafoss · Waterfall Way taster",
           "dayIds": [
-            "day-2026-08-18"
+            "day-2026-08-21"
           ],
           "map": {
             "lat": 63.531806,
@@ -2876,15 +3834,16 @@
             "The source distance understates the return.",
             "Stairs can consume family energy.",
             "Mist makes surfaces wet."
-          ]
+          ],
+          "active": true
         },
         {
           "id": "seljalandsfoss-gljufrabui",
           "title": "Seljalandsfoss + Gljúfrabúi",
-          "status": "working",
+          "status": "conditional",
           "standout": false,
           "hook": "One waterfall you can circle and one hidden in a narrow cleft, paired across the same stop.",
-          "planningContext": "Both are named for August 18. The source link beside Seljalandsfoss in the planning document is incorrect, so use current signage and official conditions.",
+          "planningContext": "The latest source includes both waterfalls inside its overloaded South Coast list. They share one stop; the linked Svartifoss page is incorrect. Use this only as part of the replacement branch, not as an add-on to the Golden Circle core.",
           "tags": [
             "family",
             "weather-flex"
@@ -2901,10 +3860,10 @@
               "type": "official"
             }
           ],
-          "documentStatus": "Both are planned. Gljúfrabúi is 300–500 m north from the same parking stop, not across the road; the source’s Svartifoss link is discarded.",
+          "documentStatus": "Preserved as an August 21 replacement branch. Adding it to the Golden Circle core would overload the day.",
           "location": "Seljalandsfoss · same-stop walk north to Gljúfrabúi",
           "dayIds": [
-            "day-2026-08-18"
+            "day-2026-08-21"
           ],
           "map": {
             "lat": 63.615457,
@@ -2950,7 +3909,8 @@
             "Everyone will get wet.",
             "Gljúfrabúi interior is not stroller-friendly.",
             "Crowds and slippery surfaces can slow the stop."
-          ]
+          ],
+          "active": true
         }
       ]
     },
@@ -2958,14 +3918,14 @@
       "id": "heimaey-golden",
       "number": "06",
       "title": "Heimaey, Golden Circle & hot river",
-      "dates": "Aug 19–21",
+      "dates": "Aug 21–23",
       "route": "Landeyjahöfn → Heimaey → Þingvellir → Hveragerði",
       "summary": "The planning document already contains an enthusiastic yes to the Westman Islands. Make that decision concrete with a ferry-aligned tour; then keep the Golden Circle to its strong core.",
       "options": [
         {
           "id": "heimaey-puffin-volcano",
           "title": "Heimaey Puffin & Volcano Tour",
-          "status": "open",
+          "status": "conditional",
           "standout": true,
           "reviewSignal": "An exceptional review record—about 5.0/5 across hundreds of reviews, including 2026 reports—and one of the itinerary’s best late-season puffin hedges.",
           "hook": "A compact island circuit through Stórhöfði, Eldfell and Herjólfsdalur with a local guide.",
@@ -3002,10 +3962,10 @@
               "type": "official"
             }
           ],
-          "documentStatus": "The document records strong enthusiasm, not a ferry/tour booking. This card preserves the researched Eldfell/puffin vehicle tour; the source-authored Dalfjall hike now has its own card.",
+          "documentStatus": "Preserved from the latest source as a replacement branch from the South Coast, not an additive stop; no ferry or tour is recorded as booked.",
           "location": "Heimaey · foot-passenger day trip",
           "dayIds": [
-            "day-2026-08-19"
+            "day-2026-08-21"
           ],
           "map": {
             "lat": 63.4323,
@@ -3052,7 +4012,8 @@
             "Puffins are not guaranteed on August 19.",
             "Ferry disruption can change ports.",
             "Vehicle ferrying requires exact camper dimensions and scarce inventory."
-          ]
+          ],
+          "active": true
         },
         {
           "id": "dalfjall-hike",
@@ -3060,7 +4021,7 @@
           "shortTitle": "Dalfjall hike",
           "location": "Heimaey · Herjólfsdalur",
           "status": "conditional",
-          "documentStatus": "Explicitly requested in the source. It is now separate from the researched Eldfell tour and has not been booked.",
+          "documentStatus": "Preserved inside the replacement-only Heimaey branch; it is not part of the August 21 Golden Circle core.",
           "standout": false,
           "reviewSignal": "Traveller posts praise the ridge and ocean views, while local guidance makes the exposure plain: it is self-responsibility terrain, wind changes the decision and the full ridge is not a casual young-child walk.",
           "hook": "Climb from the green valley onto a narrow island ridge with sea views in every direction.",
@@ -3075,7 +4036,7 @@
             "Local transport needed from harbour"
           ],
           "dayIds": [
-            "day-2026-08-19"
+            "day-2026-08-21"
           ],
           "map": {
             "lat": 63.4448,
@@ -3139,7 +4100,8 @@
               "url": "https://www.reddit.com/r/VisitingIceland/comments/1skm0dl/westman_islands_day_trip/",
               "type": "travel post"
             }
-          ]
+          ],
+          "active": true
         },
         {
           "id": "herjolfsdalur-camping",
@@ -3147,7 +4109,7 @@
           "shortTitle": "Herjólfsdalur camp",
           "location": "Heimaey · Herjólfsdalur valley",
           "status": "conditional",
-          "documentStatus": "The source says “camping at base of hike—figure this out.” No pitch, glamping unit or vehicle ferry is booked.",
+          "documentStatus": "Preserved inside the replacement-only Heimaey branch. An island overnight would consume the protected August 22 buffer and requires a different ferry/sleep plan.",
           "standout": false,
           "reviewSignal": "Verified-stay listings rate the valley location exceptionally highly and praise the setting and shared facilities; some campsite reviews warn that toilets can feel too limited at peak occupancy.",
           "hook": "Sleep beneath the island cliffs at the Dalfjall trailhead instead of racing back to the mainland.",
@@ -3163,7 +4125,7 @@
             "Contact camp and ferry before assent"
           ],
           "dayIds": [
-            "day-2026-08-19"
+            "day-2026-08-21"
           ],
           "map": {
             "lat": 63.4424937,
@@ -3233,7 +4195,8 @@
               "url": "https://www.tripadvisor.co.uk/Hotel_Review-g189977-d10440443-Reviews-Glamping_Camping-Vestmannaeyjar_Heimaey_Island_Westmann_Islands_South_Region.html",
               "type": "reviews"
             }
-          ]
+          ],
+          "active": true
         },
         {
           "id": "beluga-sanctuary",
@@ -3269,10 +4232,10 @@
               "type": "official"
             }
           ],
-          "documentStatus": "Recommended in the source. In summer 2026 this is a conservation visitor centre—not guaranteed bay viewing.",
+          "documentStatus": "Preserved inside the replacement-only Heimaey branch; no ticket is recorded as booked.",
           "location": "Heimaey harbour",
           "dayIds": [
-            "day-2026-08-19"
+            "day-2026-08-21"
           ],
           "map": {
             "lat": 63.442875,
@@ -3318,7 +4281,8 @@
             "No 2026 move into Klettsvík Bay.",
             "Some reviews find static displays under-labelled.",
             "Competes with an already full island day."
-          ]
+          ],
+          "active": true
         },
         {
           "id": "gullfoss",
@@ -3342,7 +4306,7 @@
             "Go early for the best crowd margin"
           ],
           "dayIds": [
-            "day-2026-08-20"
+            "day-2026-08-21"
           ],
           "map": {
             "lat": 64.325235,
@@ -3406,7 +4370,8 @@
               "url": "https://www.reddit.com/r/VisitingIceland/comments/1ubuqcp/trip_report_june_613_2026/",
               "type": "travel post"
             }
-          ]
+          ],
+          "active": true
         },
         {
           "id": "golden-circle-core",
@@ -3445,7 +4410,7 @@
           "documentStatus": "Named in the source. The legacy Golden Circle ID remains attached to Geysir so existing rankings and notes survive; Gullfoss and Þingvellir now have their own cards.",
           "location": "Haukadalur · Geysir and Strokkur",
           "dayIds": [
-            "day-2026-08-20"
+            "day-2026-08-21"
           ],
           "map": {
             "lat": 64.309511,
@@ -3493,7 +4458,8 @@
             "Geysir itself is generally dormant.",
             "Geothermal hazards require strict path discipline."
           ],
-          "shortTitle": "Geysir / Strokkur"
+          "shortTitle": "Geysir / Strokkur",
+          "active": true
         },
         {
           "id": "thingvellir",
@@ -3517,7 +4483,7 @@
             "Hidden fissure supervision"
           ],
           "dayIds": [
-            "day-2026-08-20"
+            "day-2026-08-21"
           ],
           "map": {
             "lat": 64.25541,
@@ -3583,7 +4549,8 @@
               "url": "https://www.tripadvisor.com/Attraction_Review-g315853-d276576-Reviews-Thingvellir_National_Park-Thingvellir_South_Region.html",
               "type": "reviews"
             }
-          ]
+          ],
+          "active": true
         },
         {
           "id": "silfra-split",
@@ -3610,7 +4577,7 @@
           "documentStatus": "Only a deliberate adult/eligible-participant split; not a whole-family stop.",
           "location": "Þingvellir",
           "dayIds": [
-            "day-2026-08-20"
+            "day-2026-08-21"
           ],
           "map": {
             "lat": 64.25541,
@@ -3652,12 +4619,13 @@
             "Splits the group.",
             "Consumes a large block on the Golden Circle day.",
             "Strict cold-water eligibility and cancellation rules."
-          ]
+          ],
+          "active": true
         },
         {
           "id": "reykjadalur",
           "title": "Reykjadalur thermal river",
-          "status": "open",
+          "status": "working",
           "standout": true,
           "reviewSignal": "A memorable natural-bathing hike, but recent family reports stress that the sustained opening ascent makes “not hard” a relative description.",
           "hook": "Earn the soak: climb into a steaming valley and bathe in a warm river under open sky.",
@@ -3692,7 +4660,7 @@
           "documentStatus": "The source calls it a 3 km hike. Official route is about 3.5 km each way—roughly 7 km return.",
           "location": "Hveragerði · Reykjadalur",
           "dayIds": [
-            "day-2026-08-21"
+            "day-2026-08-23"
           ],
           "map": {
             "lat": 64.021156,
@@ -3736,7 +4704,8 @@
             "Twice the distance stated in the source.",
             "Front-loaded climb can be strenuous for families.",
             "Weather and crowding materially change the experience."
-          ]
+          ],
+          "active": true
         }
       ]
     },
@@ -3776,14 +4745,14 @@
               "type": "official"
             }
           ],
-          "documentStatus": "August 22 is blank in the source. The working plan protects it rather than filling it in advance.",
-          "location": "Reykjavík / route-wide",
+          "documentStatus": "August 22 remains blank in the latest source. The working route protects it at the Þingvellir overnight instead of spending it in advance.",
+          "location": "Þingvellir / route-wide",
           "dayIds": [
             "day-2026-08-22"
           ],
           "map": {
-            "lat": 64.145228,
-            "lng": -21.874213,
+            "lat": 64.25541,
+            "lng": -21.128043,
             "labelOffset": [
               14,
               18
@@ -3818,7 +4787,8 @@
           "drawbacks": [
             "Tempting to overfill in advance.",
             "Does not solve an August 19 ferry booking failure by itself."
-          ]
+          ],
+          "active": true
         },
         {
           "id": "perlan",
@@ -3899,7 +4869,8 @@
           "drawbacks": [
             "Timed elements can still involve waits.",
             "Indoor time competes with a final city walk."
-          ]
+          ],
+          "active": true
         },
         {
           "id": "sky-lagoon",
@@ -3978,7 +4949,8 @@
             "Necessarily splits the group.",
             "Crowding/value reviews vary.",
             "Not an airport-adjacent final-morning activity."
-          ]
+          ],
+          "active": true
         },
         {
           "id": "reykjavik-pools",
@@ -4048,7 +5020,8 @@
           "drawbacks": [
             "Less “bucket list” framing.",
             "Amenities and child features vary by pool."
-          ]
+          ],
+          "active": true
         },
         {
           "id": "departure",
@@ -4117,89 +5090,99 @@
           "drawbacks": [
             "Flight time conflict remains unresolved.",
             "Return processing for two campers is not part of the 47-minute road baseline."
-          ]
+          ],
+          "active": true
         }
       ]
     }
   ],
   "decisions": [
     {
-      "id": "decision-booked-base",
-      "priority": "1 · unblock first",
-      "title": "Confirm the booked-base dates",
-      "why": "“August 9–12” and “four nights” do not describe the same checkout morning, and the plates are still missing.",
-      "deadline": "On arrival · Aug 9",
+      "id": "decision-asbyrgi-electric",
+      "priority": "1 · decide now",
+      "title": "Book two Ásbyrgi electrical pitches—or choose another sleep",
+      "why": "The August 15 route begins cleanly only from Ásbyrgi, and electricity is the capacity-sensitive part. No booking is recorded.",
+      "deadline": "Before leaving Hamrar · Aug 14",
       "status": "open",
       "dayIds": [
-        "day-2026-08-09"
+        "day-2026-08-14"
       ],
       "optionIds": [
-        "arrival-bjarkalundur"
+        "asbyrgi-campsite"
       ]
     },
     {
-      "id": "decision-eclipse-sleep",
-      "priority": "2 · safety critical",
-      "title": "Choose eclipse site + sleep together",
-      "why": "Patreksfjörður is the service-rich family default; Arngerðareyri preserves northbound pace but has fewer verified services. Immediate site-hopping is out.",
-      "deadline": "Aug 9–10",
+      "id": "decision-myvatn-base",
+      "priority": "2 · next sleep",
+      "title": "Choose the Lake Mývatn base",
+      "why": "The source names several camps but selects none. A two-night base prevents August 16 from becoming another pack-and-move day.",
+      "deadline": "Before Aug 15 departure",
       "status": "open",
       "dayIds": [
-        "day-2026-08-12"
+        "day-2026-08-15",
+        "day-2026-08-16"
       ],
       "optionIds": [
-        "eclipse-patreksfjordur",
-        "eclipse-arngerdareyri"
+        "myvatn-camp"
       ]
     },
     {
-      "id": "decision-westfjords-branch",
-      "priority": "3 · route shaping",
-      "title": "Pick the Westfjords branch",
-      "why": "Dynjandi, Rauðasandur and Látrabjarg are not one reasonable camper day. Choose what earns the gravel and what gets dropped.",
-      "deadline": "Before Aug 10 departure",
+      "id": "decision-husavik-town",
+      "priority": "3 · Aug 14 route pace",
+      "title": "Húsavík town stop or direct to Ásbyrgi",
+      "why": "A harbourfront/coffee stop is plausible; a whale tour is not in the latest plan. Protect the Ásbyrgi visit and campsite arrival.",
+      "deadline": "At Goðafoss · Aug 14",
       "status": "open",
       "dayIds": [
-        "day-2026-08-10",
-        "day-2026-08-11"
+        "day-2026-08-14"
       ],
       "optionIds": [
-        "dynjandi",
-        "raudasandur",
-        "latrabjarg-raudasandur"
+        "husavik-town-stop"
       ]
     },
     {
-      "id": "decision-north-sleeps",
-      "priority": "4 · route shaping",
-      "title": "Choose north branches + every sleep",
-      "why": "Varmahlíð, Mývatn/Egilsstaðir and the Eastfjords need real camper stops. Hauganes, Húsavík, Hverfjall and Ásbyrgi are competing time commitments, not a stackable list.",
-      "deadline": "By Aug 11",
+      "id": "decision-myvatn-shape",
+      "priority": "4 · avoid stacking",
+      "title": "Choose one Krafla and one-or-zero quiet-lake stop",
+      "why": "Víti and Leirhnjúkur are alternatives. Höfði/Kálfaströnd and Skútustaðagígar are also alternatives. Ranking them separately prevents an impossible checklist.",
+      "deadline": "Evening Aug 15 or morning Aug 16",
       "status": "open",
       "dayIds": [
-        "day-2026-08-13",
-        "day-2026-08-14",
-        "day-2026-08-15"
+        "day-2026-08-16"
       ],
       "optionIds": [
-        "hvitserkur-skagafjordur",
-        "hauganes-whales",
-        "husavik-whale-watching",
-        "hverir-hverfjall",
-        "hverfjall",
-        "asbyrgi",
-        "earth-lagoon"
+        "krafla-viti",
+        "krafla-leirhnjukur",
+        "hofdi-kalfastrond",
+        "skutustadagigar"
+      ]
+    },
+    {
+      "id": "decision-puffin-fork",
+      "priority": "5 · live evidence only",
+      "title": "Borgarfjörður Eystri or direct Seyðisfjörður",
+      "why": "Check the official/live feed or ask locally in Egilsstaðir. The puffin branch creates a real August 18 backtrack; it is not a free add-on.",
+      "deadline": "Egilsstaðir · Aug 17",
+      "status": "open",
+      "dayIds": [
+        "day-2026-08-17",
+        "day-2026-08-18"
+      ],
+      "optionIds": [
+        "borgarfjordur-eystri",
+        "seydisfjordur",
+        "gufufoss"
       ]
     },
     {
       "id": "decision-ice-country",
-      "priority": "5 · book ahead",
+      "priority": "6 · bookable choice",
       "title": "Choose the ice-country anchor",
-      "why": "Book the all-ages Amphibian, accept a Zodiac/adult split, or keep the safe Skaftafell view. The day cannot support every version.",
-      "deadline": "As soon as route survives",
+      "why": "Use a whole-family lagoon boat, accept a guided adult/eligibility split, or keep the safe Skaftafell view. August 20 cannot support every version.",
+      "deadline": "As soon as the east branch is settled",
       "status": "open",
       "dayIds": [
-        "day-2026-08-17"
+        "day-2026-08-20"
       ],
       "optionIds": [
         "jokulsarlon-boat",
@@ -4207,46 +5190,33 @@
       ]
     },
     {
-      "id": "decision-heimaey",
-      "priority": "6 · book ahead",
-      "title": "Choose the Heimaey day + sleep model",
-      "why": "Default to foot passengers with campers at Landeyjahöfn. Dalfjall needs local transport; Herjólfsdalur camping conflicts with that default and requires either exact-dimension vehicle space or separately booked island sleeping equipment/lodging.",
-      "deadline": "At least several days ahead",
+      "id": "decision-south-versus-heimaey",
+      "priority": "7 · replacement decision",
+      "title": "Keep the feasible core or replace it with South Coast/Heimaey",
+      "why": "Reynisfjara, Dyrhólaey, Seljalandsfoss and Heimaey are preserved, but they compete with the Golden Circle and may consume the August 22 buffer.",
+      "deadline": "Before any ferry or island booking",
       "status": "open",
       "dayIds": [
-        "day-2026-08-19"
+        "day-2026-08-20",
+        "day-2026-08-21",
+        "day-2026-08-22"
       ],
       "optionIds": [
-        "beluga-sanctuary",
+        "reynisfjara",
+        "dyrholaey",
+        "seljalandsfoss-gljufrabui",
         "heimaey-puffin-volcano",
         "dalfjall-hike",
-        "herjolfsdalur-camping"
-      ]
-    },
-    {
-      "id": "decision-adult-splits",
-      "priority": "7 · group logistics",
-      "title": "Approve or reject adult splits",
-      "why": "Silfra, a guided glacier experience and Sky Lagoon change who is caring for the young travellers. Treat that as logistics, not a footnote.",
-      "deadline": "Before any non-refundable booking",
-      "status": "open",
-      "dayIds": [
-        "day-2026-08-17",
-        "day-2026-08-20",
-        "day-2026-08-23"
-      ],
-      "optionIds": [
-        "glacier-hike",
-        "silfra-split",
-        "sky-lagoon"
+        "herjolfsdalur-camping",
+        "beluga-sanctuary"
       ]
     },
     {
       "id": "decision-departure-truth",
       "priority": "8 · confirm",
       "title": "Resolve flight + camper-return truth",
-      "why": "Check 17:05 versus 17:10 against Icelandair and confirm the contract-specific return address, fuel, waste and cleaning rules.",
-      "deadline": "By Aug 20",
+      "why": "Check 17:05 versus 17:10 against the live airline itinerary and confirm the contract-specific return address, fuel, waste and cleaning rules.",
+      "deadline": "By Aug 23",
       "status": "open",
       "dayIds": [
         "day-2026-08-24"
@@ -4258,57 +5228,51 @@
   ],
   "operations": [
     {
-      "id": "ops-arrival",
+      "id": "ops-current",
       "icon": "01",
-      "title": "Airport → campers",
-      "body": "At arrivals, use the green EUROPCAR–HOLDUR desk and the Motorhomes and Campers priority ticket.",
+      "title": "Latest confirmed position",
+      "body": "Camping Hamrar on August 13 is the last traveller-confirmed state. The interface should call it “last confirmed” after the date rolls, not silently move the campers.",
       "items": [
-        "Pickup is recorded for 10:00 on Aug 9.",
-        "Two child seats are required.",
-        "Photograph each camper and verify equipment before departure.",
-        "Confirm the contract road-use charge and return rules without copying private terms here."
+        "Hamrar is confirmed checked in.",
+        "Kolugljúfur remains a route waypoint; an optional visit is not marked complete.",
+        "Do not advance the current position without a traveller update.",
+        "Hamrar is not a Camping Card site."
       ],
       "links": [
         {
-          "label": "Rental public contact",
-          "url": "https://www.motorhomeiceland.com/contact-us"
-        }
-      ]
-    },
-    {
-      "id": "ops-eclipse",
-      "icon": "02",
-      "title": "Eclipse protocol",
-      "body": "Partial 16:43–18:45; totality about 17:44–17:46. Use one designated site and one backup.",
-      "items": [
-        "ISO 12312-2 glasses for every partial phase.",
-        "Food, water, medication, warm/waterproof layers and full fuel.",
-        "No road or shoulder stopping.",
-        "Roads 612/614 have one-way controls; arrive early and stay late."
-      ],
-      "links": [
-        {
-          "label": "Official Westfjords eclipse plan",
-          "url": "https://www.westfjords.is/en/experiences/solar-eclipse-2026"
+          "label": "Camping Hamrar",
+          "url": "https://www.hamrar.is/home"
         }
       ]
     },
     {
       "id": "ops-camping",
-      "icon": "03",
+      "icon": "02",
       "title": "Sleep before sightseeing",
-      "body": "The first base is recorded as booked; later campsites are not. Name the sleep before adding the attraction.",
+      "body": "Name the next campsite before adding attractions. The Camping Card layer is a coverage reference, not proof of room or electricity.",
       "items": [
-        "Confirm every post-Aug-12 night.",
-        "Check two-motorhome capacity, electricity, waste and arrival policy.",
-        "Wild camping is not the plan.",
-        "Keep the August 22 buffer uncommitted."
+        "Two campers require two suitable sites.",
+        "Confirm electricity separately.",
+        "Check waste, water, shower and arrival policy.",
+        "Keep August 22 protected."
       ],
       "links": [
         {
           "label": "Official campground directory",
           "url": "https://tjalda.is/en/"
         }
+      ]
+    },
+    {
+      "id": "ops-day-pacing",
+      "icon": "03",
+      "title": "One core, then branches",
+      "body": "Each dated route distinguishes a feasible core from replacement branches.",
+      "items": [
+        "Húsavík is a short town branch, not a whale tour.",
+        "Choose one Krafla experience.",
+        "Choose one quiet-lake stop or none.",
+        "Borgarfjörður and Heimaey consume time elsewhere."
       ]
     },
     {
@@ -4379,9 +5343,9 @@
       "title": "Fuel + services rhythm",
       "body": "Refuel before remote roads and treat a half tank as the Eastfjords floor.",
       "items": [
-        "Nettó—not Bónus—at Borgarbraut 58–60.",
-        "Provision before the Westfjords.",
-        "Use Akureyri/Reykjahlíð and Djúpivogur/Höfn as deliberate service anchors.",
+        "Use Akureyri before the Diamond Circle.",
+        "Use Reykjahlíð before the East Iceland transfer.",
+        "Use Egilsstaðir and Djúpivogur/Höfn as deliberate service anchors.",
         "Do not rely on food, toilets or cell service at remote viewpoints."
       ]
     },
@@ -4410,7 +5374,7 @@
       "id": "snaefellsnes-ruled-out",
       "title": "Snæfellsnes peninsula",
       "status": "ruled-out",
-      "documentStatus": "Ruled out in the revised source",
+      "documentStatus": "Direct strike-through in the latest source preserves Snæfellsnes as ruled out.",
       "items": [
         "Búðir · white beach",
         "Arnarstapi · coastal-cliff hike and birdlife",
@@ -4432,16 +5396,224 @@
           "type": "official"
         }
       ]
+    },
+    {
+      "id": "latrabjarg-raudasandur-removed-from-latest-plan",
+      "optionId": "latrabjarg-raudasandur",
+      "title": "Látrabjarg bird cliffs",
+      "status": "removed-from-latest-plan",
+      "documentStatus": "Látrabjarg is no longer in the latest dated plan.",
+      "items": [
+        "Stable option ID and any existing group state are preserved.",
+        "No current date, map marker, ranking control or sticky-note input is exposed.",
+        "Removal from the latest source is not represented as group rejection, cancellation or completion."
+      ],
+      "sources": [
+        {
+          "label": "Nature-reserve guidelines",
+          "url": "https://www.westfjords.is/en/moya/news/latrabjarg-guidelines-for-the-nature-reserve-1",
+          "type": "official"
+        },
+        {
+          "label": "Traveller reviews",
+          "url": "https://www.tripadvisor.com/Attraction_Review-g2242596-d2313153-Reviews-Latrabjarg_bird_cliffs-Latrabjarg_Westfjords_Region.html",
+          "type": "reviews"
+        }
+      ]
+    },
+    {
+      "id": "raudasandur-removed-from-latest-plan",
+      "optionId": "raudasandur",
+      "title": "Rauðasandur red-sand beach",
+      "status": "removed-from-latest-plan",
+      "documentStatus": "Rauðasandur is no longer in the latest dated plan.",
+      "items": [
+        "Stable option ID and any existing group state are preserved.",
+        "No current date, map marker, ranking control or sticky-note input is exposed.",
+        "Removal from the latest source is not represented as group rejection, cancellation or completion."
+      ],
+      "sources": [
+        {
+          "label": "Official Visit Westfjords beach guide",
+          "url": "https://www.westfjords.is/en/place/raudasandur",
+          "type": "official"
+        },
+        {
+          "label": "Melanes campsite",
+          "url": "https://www.melanes.com/campsite",
+          "type": "official"
+        },
+        {
+          "label": "Umferðin · Road 614",
+          "url": "https://umferdin.is/kafli/90521",
+          "type": "official"
+        },
+        {
+          "label": "Official 2026 tide tables",
+          "url": "https://www.lhg.is/wp-content/uploads/2025/11/Sjavarfallatoflur_2026_vefutgafa.pdf",
+          "type": "official"
+        },
+        {
+          "label": "Family travel report",
+          "url": "https://fullsuitcase.com/raudisandur-iceland/",
+          "type": "travel blog"
+        },
+        {
+          "label": "Balanced traveller reviews",
+          "url": "https://www.tripadvisor.com/Attraction_Review-g2242596-d7187391-Reviews-Raudasandur_Beach-Latrabjarg_Westfjords_Region.html",
+          "type": "reviews"
+        }
+      ]
+    },
+    {
+      "id": "eclipse-patreksfjordur-removed-from-latest-plan",
+      "optionId": "eclipse-patreksfjordur",
+      "title": "Total eclipse from Patreksfjörður",
+      "status": "removed-from-latest-plan",
+      "documentStatus": "The latest source records the eclipse at Flókalundur without retaining this earlier site choice.",
+      "items": [
+        "Stable option ID and any existing group state are preserved.",
+        "No current date, map marker, ranking control or sticky-note input is exposed.",
+        "Removal from the latest source is not represented as group rejection, cancellation or completion."
+      ],
+      "sources": [
+        {
+          "label": "Official Westfjords eclipse plan",
+          "url": "https://www.westfjords.is/en/experiences/solar-eclipse-2026",
+          "type": "official"
+        },
+        {
+          "label": "Viewing-location comparison",
+          "url": "https://eclipse2026.is/stories/where-to-watch-the-eclipse-in-the-westfjords",
+          "type": "specialist"
+        },
+        {
+          "label": "Self-guided traveller guidance",
+          "url": "https://www.ferdamalastofa.is/en/total-solar-eclipse/self-guided-travelers",
+          "type": "official"
+        }
+      ]
+    },
+    {
+      "id": "eclipse-arngerdareyri-removed-from-latest-plan",
+      "optionId": "eclipse-arngerdareyri",
+      "title": "Total eclipse from Arngerðareyri",
+      "status": "removed-from-latest-plan",
+      "documentStatus": "The latest source records the eclipse at Flókalundur without retaining this earlier site choice.",
+      "items": [
+        "Stable option ID and any existing group state are preserved.",
+        "No current date, map marker, ranking control or sticky-note input is exposed.",
+        "Removal from the latest source is not represented as group rejection, cancellation or completion."
+      ],
+      "sources": [
+        {
+          "label": "Official Westfjords eclipse plan",
+          "url": "https://www.westfjords.is/en/experiences/solar-eclipse-2026",
+          "type": "official"
+        },
+        {
+          "label": "Government eclipse guidance",
+          "url": "https://island.is/en/p/total-solar-eclipse-2026/the-westfjords-and-latrabjarg",
+          "type": "official"
+        },
+        {
+          "label": "Official gathering-site map pin",
+          "url": "https://maps.app.goo.gl/JQwMyq9ms4K1uqMH8",
+          "type": "official"
+        },
+        {
+          "label": "Nearby Hotel Reykjanes camping",
+          "url": "https://reykjaneswestfjords.is/camping/",
+          "type": "official"
+        }
+      ]
+    },
+    {
+      "id": "hvitserkur-skagafjordur-removed-from-latest-plan",
+      "optionId": "hvitserkur-skagafjordur",
+      "title": "Hvítserkur + Skagafjörður",
+      "status": "removed-from-latest-plan",
+      "documentStatus": "The latest northbound transfer uses Kolugljúfur and Hamrar instead of the earlier Hvítserkur/Varmahlíð line.",
+      "items": [
+        "Stable option ID and any existing group state are preserved.",
+        "No current date, map marker, ranking control or sticky-note input is exposed.",
+        "Removal from the latest source is not represented as group rejection, cancellation or completion."
+      ],
+      "sources": [
+        {
+          "label": "Hvítserkur guide",
+          "url": "https://guidetoiceland.is/connect-with-locals/regina/hvitserkur-up-north",
+          "type": "guide"
+        }
+      ]
+    },
+    {
+      "id": "hauganes-whales-removed-from-latest-plan",
+      "optionId": "hauganes-whales",
+      "title": "Hauganes whale watching",
+      "status": "removed-from-latest-plan",
+      "documentStatus": "The latest north plan no longer contains the Hauganes detour.",
+      "items": [
+        "Stable option ID and any existing group state are preserved.",
+        "No current date, map marker, ranking control or sticky-note input is exposed.",
+        "Removal from the latest source is not represented as group rejection, cancellation or completion."
+      ],
+      "sources": [
+        {
+          "label": "2026 operator brochure",
+          "url": "https://whales.is/wp-content/uploads/WWH_baeklingur_2026_Net.pdf",
+          "type": "official"
+        },
+        {
+          "label": "Recent reviews",
+          "url": "https://www.tripadvisor.co.uk/Attraction_Review-g7755439-d4521254-Reviews-Whale_Watching_Hauganes-Hauganes_Northeast_Region.html",
+          "type": "reviews"
+        }
+      ]
+    },
+    {
+      "id": "husavik-whale-watching-removed-from-latest-plan",
+      "optionId": "husavik-whale-watching",
+      "title": "Húsavík Original Whale Watching",
+      "status": "removed-from-latest-plan",
+      "documentStatus": "The latest source considers only a Húsavík harbourfront or café stop; it does not propose a whale tour.",
+      "items": [
+        "Stable option ID and any existing group state are preserved.",
+        "No current date, map marker, ranking control or sticky-note input is exposed.",
+        "Removal from the latest source is not represented as group rejection, cancellation or completion."
+      ],
+      "sources": [
+        {
+          "label": "North Sailing Original tour",
+          "url": "https://www.northsailing.is/tour/husavik-original-whale-watching/",
+          "type": "official"
+        },
+        {
+          "label": "North Sailing family and weather FAQ",
+          "url": "https://www.northsailing.is/whale-watching/frequently-asked-questions/",
+          "type": "official"
+        },
+        {
+          "label": "Original-tour traveller reviews",
+          "url": "https://www.tripadvisor.com/AttractionProductReview-g189963-d11462056-Traditional_Oak_Ship_Whale_Watching_Tour_From_Husavik-Husavik_Northeast_Region.html",
+          "type": "reviews"
+        }
+      ]
     }
   ],
   "methodology": {
-    "sourceDocumentSha256": "523d988f965ef24cbfef2141d284f460c8361f4d137e4f0be1fbdf73d1f116aa",
-    "sourceDocumentModified": "2026-08-08T00:43:50-04:00",
-    "lastResearchRefresh": "2026-08-08",
-    "statusModel": "Locked means explicitly booked/fixed in the source; working is the current geographic proposal; open needs group assent or a live gate; branch is a mutually exclusive alternative.",
-    "driveMethod": "OSRM car baselines over OpenStreetMap are shown separately from motorhome planning time. Neither includes attractions, groceries, fuel, toilets, roadworks, weather, ferry disruption or eclipse traffic unless stated.",
-    "mapMethod": "Self-contained Natural Earth coastline and an attributed OpenStreetMap/OSRM route snapshot; no runtime map tiles, tracking or geolocation.",
-    "freshness": "Roads, weather, ferry, beach access, operator availability, campground capacity and flight/rental contract truth must be rechecked live.",
+    "sourceDocument": "Iceland Summer 2026 (1).docx",
+    "sourceDocumentSha256": "f961d86b89d5a546f7d5d988f74c729a67c51139ab6ef151a2a2ce19d5702953",
+    "sourceDocumentModified": "2026-08-13T20:12:12Z",
+    "lastResearchRefresh": "2026-08-14",
+    "currentStateProvenance": "Traveller update received August 13: checked in at Camping Hamrar. This outranks any conflicting proposed route in the planning document.",
+    "statusModel": "Locked means explicitly booked/fixed or traveller-confirmed; working is the current geographic proposal; open needs group assent or a live gate; conditional is a mutually exclusive or capacity-dependent branch; historical preserves earlier source work without implying completion.",
+    "routeLedger": "Committed iceland26/map-data.json, routed by local OSRM over the Geofabrik Iceland OpenStreetMap extract; no public routing request is required to generate this itinerary.",
+    "routeSnapshotGeneratedAt": "2026-08-14T07:44:55.739Z",
+    "routeDataSnapshotDate": "2026-08-13",
+    "driveMethod": "Static local-OSRM car baselines are shown separately from motorhome planning time. Camper time is the baseline plus 35%, rounded up to five minutes. Neither figure includes attractions, groceries, fuel, toilets, roadworks, weather, ferry disruption or eclipse traffic unless stated.",
+    "mapMethod": "Self-contained Natural Earth coastline and committed local OSRM/Geofabrik route geometry; no runtime map tiles, tracking, geolocation or live-traffic feed.",
+    "freshness": "Camping Hamrar on August 13 is the latest confirmed position. Roads, weather, ferry, beach access, wildlife, operator availability, campground capacity, Camping Card coverage and flight/rental contract truth must be rechecked live.",
     "privacy": "Reservation identifiers, prices, payment splits, private links, exact child details, identity documents and personal packing remain outside client assets.",
     "links": [
       {
@@ -4449,8 +5621,12 @@
         "url": "https://www.openstreetmap.org/copyright"
       },
       {
-        "label": "OSRM API",
-        "url": "https://project-osrm.org/docs/v5.24.0/api/"
+        "label": "OSRM project",
+        "url": "https://project-osrm.org/"
+      },
+      {
+        "label": "Geofabrik Iceland extract",
+        "url": "https://download.geofabrik.de/europe/iceland.html"
       },
       {
         "label": "Natural Earth terms",

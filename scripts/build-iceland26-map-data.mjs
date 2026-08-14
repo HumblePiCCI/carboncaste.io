@@ -3,13 +3,16 @@
 /**
  * Build the self-contained Iceland 2026 map snapshot.
  *
- * Road geometry and car-baseline measurements come from OSRM's public demo
- * server over OpenStreetMap data. The island outline comes from Natural Earth
- * 1:50m Admin 0 Countries. Both inputs are reduced to the precision needed by
- * the trip-board SVG before being written to iceland26/map-data.json.
+ * Road geometry and car-baseline measurements come from a loopback-only OSRM
+ * instance over a verified Geofabrik OpenStreetMap extract. The island outline
+ * comes from Natural Earth 1:50m Admin 0 Countries. Both inputs are reduced to
+ * the precision needed by the trip-board SVG before being written to
+ * iceland26/map-data.json. The generator rejects non-loopback routing hosts so
+ * private itinerary waypoints cannot be sent to an external router by mistake.
  *
  * Refresh road geometry while reusing the committed coastline:
- *   node scripts/build-iceland26-map-data.mjs
+ *   node scripts/build-iceland26-map-data.mjs \
+ *     --osrm-base http://127.0.0.1:18129
  *
  * Refresh from a newer Natural Earth source:
  *   node scripts/build-iceland26-map-data.mjs \
@@ -17,6 +20,9 @@
  *
  * Validation without network access:
  *   node scripts/build-iceland26-map-data.mjs --validate-only
+ *
+ * Validate the authored route graph without reading or writing map data:
+ *   node scripts/build-iceland26-map-data.mjs --config-only
  *
  * Recompute only the deterministic day-progress ledger without network access:
  *   node scripts/build-iceland26-map-data.mjs --progress-only
@@ -30,9 +36,19 @@ const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, "..");
 const DEFAULT_OUTPUT_PATH = path.join(REPO_ROOT, "iceland26", "map-data.json");
 const DEFAULT_BOUNDARY_PATH = DEFAULT_OUTPUT_PATH;
-const OSRM_BASE = "https://router.project-osrm.org";
-const SNAPSHOT_DATE = "2026-08-08";
-const SOURCE_DOCUMENT_SHA256 = "523d988f965ef24cbfef2141d284f460c8361f4d137e4f0be1fbdf73d1f116aa";
+const DEFAULT_OSRM_BASE = "http://127.0.0.1:18129";
+const SNAPSHOT_DATE = "2026-08-13";
+const SOURCE_DOCUMENT_SHA256 = "f961d86b89d5a546f7d5d988f74c729a67c51139ab6ef151a2a2ce19d5702953";
+const ROUTING_SNAPSHOT = Object.freeze({
+  engine: "OSRM",
+  engineVersion: "v5.26.0",
+  execution: "local-private",
+  imageDigest: "sha256:af5d4a83fb90086a43b1ae2ca22872e6768766ad5fcbb07a29ff90ec644ee409",
+  dataProvider: "Geofabrik",
+  dataSet: "Iceland OpenStreetMap PBF",
+  dataTimestamp: "2026-08-13T20:21:01Z",
+  dataMd5: "97525792b54cad1392ed8df6f4f9338b",
+});
 const MAP_BOUNDS = Object.freeze({
   minLng: -25,
   maxLng: -13,
@@ -58,20 +74,26 @@ const LOCATIONS = Object.freeze({
   raudasandur: [-23.960064, 65.474415],
   latrabjarg: [-24.529652, 65.502433],
   dynjandi: [-23.209067, 65.736568],
-  // Official 2026 eclipse gathering-site pin beside the airstrip.
-  arngerdareyri: [-22.36156, 65.90575],
-  hvitserkur: [-20.625727, 65.607127],
-  varmahlid: [-19.464418, 65.555644],
-  akureyri: [-18.112176, 65.683904],
+  kolugljufur: [-20.572708, 65.335107],
+  hamrarCamp: [-18.103282, 65.648381],
   godafoss: [-17.54958, 65.682821],
-  reykjahlid: [-16.910007, 65.641561],
-  hauganes: [-18.299683, 65.923266],
-  husavikHarbor: [-17.3434773, 66.0450541],
+  husavikTown: [-17.343477, 66.045054],
+  asbyrgiCamp: [-16.49658, 66.02466],
+  hljodaklettar: [-16.532606, 65.93898],
+  myvatnCamp: [-16.91754, 65.62378],
   hverir: [-16.809182, 65.641143],
   asbyrgiVisitorCentre: [-16.4871638, 66.0284991],
   dettifossWest: [-16.3994, 65.8122],
+  hverfjall: [-16.875055, 65.606098],
+  dimmuborgir: [-16.9127, 65.591545],
+  grjotagja: [-16.881681, 65.627161],
+  kraflaViti: [-16.75655, 65.71766],
+  kraflaLeirhnjukur: [-16.774608, 65.713162],
+  hofdi: [-16.947768, 65.587745],
+  skutustadagigar: [-17.034903, 65.570851],
   studlagilWest: [-15.308125, 65.162327],
   egilsstadir: [-14.3948, 65.2669],
+  gufufoss: [-14.05688, 65.239973],
   seydisfjordurCamp: [-14.012072, 65.260598],
   hafnarholmi: [-13.754811, 65.542075],
   // This OSM village point forces the coast road via Breiddalsvik, preventing
@@ -140,96 +162,110 @@ const ROUTE_CONFIGS = Object.freeze([
     ["nettoBorgarnes", "deildartunguhver", "hraunfossar", "bjarkalundur"],
     "Optional alternative segment from Borgarnes Nettó through Deildartunguhver and Hraunfossar to Bjarkalundur; not part of the locked core.",
   ),
-  road("route-2026-08-10", "day-2026-08-10", "working", [
+  road("route-2026-08-10", "day-2026-08-10", "historical", [
     "bjarkalundur",
     "hellulaug",
     "flokalundur",
-    "patreksfjordurCamp",
-  ]),
-  road("branch-2026-08-10-raudasandur", "day-2026-08-10", "branch", [
-    "patreksfjordurCamp",
-    "raudasandur",
-  ]),
-  road("branch-2026-08-10-latrabjarg", "day-2026-08-10", "branch", [
-    "patreksfjordurCamp",
-    "latrabjarg",
-  ]),
-  road("route-2026-08-11", "day-2026-08-11", "working", [
-    "patreksfjordurCamp",
-    "flokalundur",
-    "dynjandi",
-    "arngerdareyri",
-  ]),
-  road("branch-2026-08-11-booked-base-backtrack", "day-2026-08-11", "branch", [
-    "dynjandi",
     "bjarkalundur",
+  ]),
+  road("route-2026-08-11", "day-2026-08-11", "historical", [
+    "bjarkalundur",
+    "dynjandi",
+    "flokalundur",
   ]),
   manual(
     "route-2026-08-12",
     "day-2026-08-12",
-    "working",
-    [LOCATIONS.arngerdareyri, LOCATIONS.arngerdareyri],
+    "historical",
+    [LOCATIONS.flokalundur, LOCATIONS.flokalundur],
     0,
-    "Stationary working plan at Arngerdareyri; no eclipse-day site chasing.",
+    "Stationary historical ledger at Flókalundur; superseded eclipse-site alternatives are excluded from the active route.",
   ),
-  road("branch-2026-08-12-patreksfjordur-eclipse", "day-2026-08-12", "branch", [
-    "arngerdareyri",
-    "patreksfjordurCamp",
-  ]),
-  road("route-2026-08-13", "day-2026-08-13", "working", [
-    "arngerdareyri",
-    "hvitserkur",
-    "varmahlid",
+  road("route-2026-08-13", "day-2026-08-13", "locked", [
+    "flokalundur",
+    "kolugljufur",
+    "hamrarCamp",
   ]),
   road("route-2026-08-14", "day-2026-08-14", "working", [
-    "varmahlid",
-    "akureyri",
+    "hamrarCamp",
     "godafoss",
-    "reykjahlid",
-  ]),
-  road("branch-2026-08-14-hauganes", "day-2026-08-14", "branch", [
-    "akureyri",
-    "hauganes",
-    "akureyri",
+    "asbyrgiCamp",
   ]),
   road(
-    "branch-2026-08-14-husavik",
+    "branch-2026-08-14-husavik-town",
     "day-2026-08-14",
     "branch",
-    ["godafoss", "husavikHarbor", "reykjahlid"],
-    "Optional Húsavík waterfront alternative between Goðafoss and Reykjahlíð; not part of the working route.",
+    ["godafoss", "husavikTown", "asbyrgiCamp"],
+    "Optional Húsavík harbourfront/café path between Goðafoss and Ásbyrgi; no whale tour is implied.",
   ),
   road("route-2026-08-15", "day-2026-08-15", "working", [
-    "reykjahlid",
-    "hverir",
+    "asbyrgiCamp",
+    "hljodaklettar",
     "dettifossWest",
+    "hverir",
+    "myvatnCamp",
+  ]),
+  road("route-2026-08-16", "day-2026-08-16", "working", [
+    "myvatnCamp",
+    "hverfjall",
+    "dimmuborgir",
+    "grjotagja",
+    "myvatnCamp",
+  ]),
+  road("branch-2026-08-16-krafla-viti", "day-2026-08-16", "branch", [
+    "grjotagja",
+    "kraflaViti",
+    "myvatnCamp",
+  ]),
+  road("branch-2026-08-16-krafla-leirhnjukur", "day-2026-08-16", "branch", [
+    "grjotagja",
+    "kraflaLeirhnjukur",
+    "myvatnCamp",
+  ]),
+  road("branch-2026-08-16-hofdi-kalfastrond", "day-2026-08-16", "branch", [
+    "myvatnCamp",
+    "hofdi",
+    "myvatnCamp",
+  ]),
+  road("branch-2026-08-16-skutustadagigar", "day-2026-08-16", "branch", [
+    "myvatnCamp",
+    "skutustadagigar",
+    "myvatnCamp",
+  ]),
+  road("route-2026-08-17", "day-2026-08-17", "working", [
+    "myvatnCamp",
     "studlagilWest",
     "egilsstadir",
-  ]),
-  road("branch-2026-08-15-seydisfjordur", "day-2026-08-15", "branch", [
-    "egilsstadir",
+    "gufufoss",
     "seydisfjordurCamp",
-    "egilsstadir",
   ]),
-  road("branch-2026-08-15-hafnarholmi", "day-2026-08-15", "branch", [
+  road("branch-2026-08-17-borgarfjordur-puffins", "day-2026-08-17", "branch", [
     "egilsstadir",
     "hafnarholmi",
-    "egilsstadir",
   ]),
-  road(
-    "branch-2026-08-15-asbyrgi",
-    "day-2026-08-15",
-    "branch",
-    ["reykjahlid", "asbyrgiVisitorCentre", "dettifossWest"],
-    "Optional Ásbyrgi visitor-centre alternative from Reykjahlíð to Dettifoss; not part of the working route.",
+  manual(
+    "route-2026-08-18",
+    "day-2026-08-18",
+    "conditional",
+    [LOCATIONS.seydisfjordurCamp, LOCATIONS.seydisfjordurCamp],
+    0,
+    "Stationary conditional Eastfjords day in Seyðisfjörður when the August 17 direct branch is used.",
   ),
-  road("route-2026-08-16", "day-2026-08-16", "working", [
+  road("branch-2026-08-18-borgarfjordur-to-seydisfjordur", "day-2026-08-18", "branch", [
+    "hafnarholmi",
+    "egilsstadir",
+    "gufufoss",
+    "seydisfjordurCamp",
+  ]),
+  road("route-2026-08-19", "day-2026-08-19", "working", [
+    "seydisfjordurCamp",
+    "gufufoss",
     "egilsstadir",
     "breiddalsvikCoastVia",
     "djupivogurCamp",
     "stokksnesGate",
   ]),
-  road("route-2026-08-17", "day-2026-08-17", "working", [
+  road("route-2026-08-20", "day-2026-08-20", "working", [
     "stokksnesGate",
     "jokulsarlon",
     "skaftafell",
@@ -237,7 +273,14 @@ const ROUTE_CONFIGS = Object.freeze([
     "eldhraun",
     "vik",
   ]),
-  road("route-2026-08-18", "day-2026-08-18", "working", [
+  road("route-2026-08-21", "day-2026-08-21", "working", [
+    "vik",
+    "skogafoss",
+    "gullfoss",
+    "geysir",
+    "thingvellirP1",
+  ]),
+  road("branch-2026-08-21-south-coast", "day-2026-08-21", "branch", [
     "vik",
     "reynisfjara",
     "dyrholaeyLower",
@@ -246,14 +289,14 @@ const ROUTE_CONFIGS = Object.freeze([
     "landeyjahofn",
   ]),
   manual(
-    "route-2026-08-19-ferry-outbound",
-    "day-2026-08-19",
-    "working",
+    "branch-2026-08-21-ferry-outbound",
+    "day-2026-08-21",
+    "branch",
     [LOCATIONS.landeyjahofn, LOCATIONS.heimaeyHarbor],
     35,
-    "Manual ferry line; official FAQ states a 35-minute sailing: https://herjolfur.is/en/frequently-asked-questions/ ; departure times: https://herjolfur.is/en/schedule/ (snapshot 2026-08-08).",
+    "Replacement branch only. Manual ferry line; official FAQ states a 35-minute sailing: https://herjolfur.is/en/frequently-asked-questions/ ; departure times: https://herjolfur.is/en/schedule/ (snapshot 2026-08-13).",
   ),
-  road("branch-2026-08-19-heimaey-loop", "day-2026-08-19", "branch", [
+  road("branch-2026-08-21-heimaey-loop", "day-2026-08-21", "branch", [
     "heimaeyHarbor",
     "belugaSanctuary",
     "eldfellParking",
@@ -261,58 +304,78 @@ const ROUTE_CONFIGS = Object.freeze([
     "heimaeyHarbor",
   ]),
   road(
-    "branch-2026-08-19-herjolfsdalur",
-    "day-2026-08-19",
+    "branch-2026-08-21-herjolfsdalur",
+    "day-2026-08-21",
     "branch",
     ["heimaeyHarbor", "herjolfsdalurCamp", "heimaeyHarbor"],
-    "Optional local-transfer road baseline to Herjólfsdalur campsite; the working plan remains foot-passenger ferry travel with both campers parked at Landeyjahöfn.",
+    "Replacement-only local transfer. Camping would consume the August 22 buffer and requires a different ferry/sleep plan.",
   ),
   manual(
-    "route-2026-08-19-ferry-return",
-    "day-2026-08-19",
-    "working",
+    "branch-2026-08-21-ferry-return",
+    "day-2026-08-21",
+    "branch",
     [LOCATIONS.heimaeyHarbor, LOCATIONS.landeyjahofn],
     35,
-    "Manual ferry line; official FAQ states a 35-minute sailing: https://herjolfur.is/en/frequently-asked-questions/ ; departure times: https://herjolfur.is/en/schedule/ (snapshot 2026-08-08).",
+    "Replacement branch only. Manual ferry line; official FAQ states a 35-minute sailing: https://herjolfur.is/en/frequently-asked-questions/ ; departure times: https://herjolfur.is/en/schedule/ (snapshot 2026-08-13).",
   ),
-  road("route-2026-08-20", "day-2026-08-20", "working", [
-    "landeyjahofn",
-    "gullfoss",
-    "geysir",
-    "thingvellirP1",
-  ]),
-  road("route-2026-08-21", "day-2026-08-21", "working", [
-    "thingvellirP1",
-    "reykjadalurTrailhead",
-    "reykjavikEco",
-  ]),
   manual(
     "route-2026-08-22",
     "day-2026-08-22",
     "working",
-    [LOCATIONS.reykjavikEco, LOCATIONS.reykjavikEco],
+    [LOCATIONS.thingvellirP1, LOCATIONS.thingvellirP1],
     0,
-    "Stationary Reykjavik weather and recovery buffer.",
+    "Stationary protected weather, fatigue, and recovery buffer at the working Þingvellir overnight.",
   ),
   road("route-2026-08-23", "day-2026-08-23", "working", [
+    "thingvellirP1",
+    "reykjadalurTrailhead",
+    "reykjavikEco",
+  ]),
+  road("branch-2026-08-23-perlan", "day-2026-08-23", "branch", [
     "reykjavikEco",
     "perlan",
     "reykjavikEco",
   ]),
   road("branch-2026-08-23-sky-lagoon", "day-2026-08-23", "branch", [
-    "perlan",
+    "reykjavikEco",
     "skyLagoon",
     "reykjavikEco",
   ]),
-  road("route-2026-08-24", "day-2026-08-24", "working", ["reykjavikEco", "kef"]),
+  road("route-2026-08-24", "day-2026-08-24", "locked", ["reykjavikEco", "kef"]),
 ]);
+
+function normalizeOsrmBase(value) {
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error(`Invalid OSRM base URL: ${value}`);
+  }
+  if (!new Set(["http:", "https:"]).has(parsed.protocol)) {
+    throw new Error("OSRM base URL must use http or https.");
+  }
+  if (parsed.username || parsed.password || parsed.search || parsed.hash) {
+    throw new Error("OSRM base URL must not include credentials, a query, or a fragment.");
+  }
+  // Use literal loopback addresses only. `localhost` is intentionally rejected
+  // because its resolver behavior is environmental rather than a URL-level
+  // guarantee that itinerary coordinates remain on this machine.
+  const loopbackHosts = new Set(["127.0.0.1", "[::1]"]);
+  if (!loopbackHosts.has(parsed.hostname)) {
+    throw new Error("OSRM base URL must use loopback; external routing hosts are not permitted.");
+  }
+  parsed.pathname = parsed.pathname.replace(/\/+$/, "") || "/";
+  return parsed.toString().replace(/\/$/, "");
+}
 
 function parseArgs(argv) {
   const parsed = {
     boundaryPath: DEFAULT_BOUNDARY_PATH,
     outputPath: DEFAULT_OUTPUT_PATH,
+    osrmBase: normalizeOsrmBase(process.env.ICELAND26_OSRM_BASE || DEFAULT_OSRM_BASE),
     validateOnly: false,
     progressOnly: false,
+    configOnly: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -321,16 +384,20 @@ function parseArgs(argv) {
       parsed.boundaryPath = path.resolve(argv[++index]);
     } else if (argument === "--output") {
       parsed.outputPath = path.resolve(argv[++index]);
+    } else if (argument === "--osrm-base") {
+      parsed.osrmBase = normalizeOsrmBase(argv[++index]);
     } else if (argument === "--validate-only") {
       parsed.validateOnly = true;
     } else if (argument === "--progress-only") {
       parsed.progressOnly = true;
+    } else if (argument === "--config-only") {
+      parsed.configOnly = true;
     } else {
       throw new Error(`Unknown argument: ${argument}`);
     }
   }
-  if (parsed.validateOnly && parsed.progressOnly) {
-    throw new Error("Use either --validate-only or --progress-only, not both.");
+  if ([parsed.validateOnly, parsed.progressOnly, parsed.configOnly].filter(Boolean).length > 1) {
+    throw new Error("Use only one of --validate-only, --progress-only, or --config-only.");
   }
   return parsed;
 }
@@ -450,6 +517,64 @@ function manualDistanceKm(points) {
   return distance;
 }
 
+function validateRouteConfigs() {
+  const validStates = new Set(["locked", "working", "conditional", "historical", "branch"]);
+  const seenRouteIds = new Set();
+  const mainRoutesByDay = new Map();
+
+  const resolvedPoints = ROUTE_CONFIGS.map((config) => {
+    if (seenRouteIds.has(config.id)) throw new Error(`Duplicate route config id: ${config.id}`);
+    seenRouteIds.add(config.id);
+    if (!validStates.has(config.state)) throw new Error(`Invalid route config state: ${config.id}`);
+    if (
+      config.dayIds.length !== 1 ||
+      !/^day-2026-08-(0[9]|1\d|2[0-4])$/.test(config.dayIds[0])
+    ) {
+      throw new Error(`Invalid route config day: ${config.id}`);
+    }
+
+    const points = config.kind === "road"
+      ? config.locations.map((name) => {
+        const point = LOCATIONS[name];
+        if (!point) throw new Error(`Unknown location ${name} in ${config.id}`);
+        return point;
+      })
+      : config.points;
+    if (!Array.isArray(points) || points.length < 2 || !points.every(coordinateIsValid)) {
+      throw new Error(`Invalid route config coordinates: ${config.id}`);
+    }
+
+    if (config.state !== "branch") {
+      const day = config.dayIds[0];
+      if (mainRoutesByDay.has(day)) throw new Error(`Multiple main routes configured for ${day}`);
+      mainRoutesByDay.set(day, config.id);
+    }
+    return { config, points };
+  });
+
+  for (const dayId of TRIP_DAY_IDS.slice(1)) {
+    if (!mainRoutesByDay.has(dayId)) throw new Error(`Missing chronological route for ${dayId}`);
+  }
+
+  const chronological = resolvedPoints.filter(({ config }) => config.state !== "branch");
+  for (let index = 1; index < chronological.length; index += 1) {
+    const previous = chronological[index - 1];
+    const current = chronological[index];
+    const gapKm = haversineKm(previous.points.at(-1), current.points[0]);
+    if (gapKm > 0.25) {
+      throw new Error(
+        `Route config discontinuity between ${previous.config.id} and ${current.config.id}: ${gapKm.toFixed(1)} km.`,
+      );
+    }
+  }
+
+  return {
+    routeCount: ROUTE_CONFIGS.length,
+    branchCount: ROUTE_CONFIGS.filter((config) => config.state === "branch").length,
+    chronologicalCount: chronological.length,
+  };
+}
+
 function wait(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
@@ -460,8 +585,12 @@ async function fetchJsonWithRetry(url, attempts = 4) {
     try {
       const response = await fetch(url, {
         headers: { "user-agent": "carboncaste-iceland26-route-snapshot/1.0" },
+        redirect: "error",
         signal: AbortSignal.timeout(45_000),
       });
+      if (!response.url || new URL(response.url).origin !== new URL(url).origin) {
+        throw new Error("OSRM response origin changed; refusing to disclose route coordinates.");
+      }
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return await response.json();
     } catch (error) {
@@ -472,14 +601,14 @@ async function fetchJsonWithRetry(url, attempts = 4) {
   throw new Error(`OSRM request failed after ${attempts} attempts: ${finalError.message}`);
 }
 
-async function buildRoadRoute(config) {
+async function buildRoadRoute(config, osrmBase) {
   const requestedPoints = config.locations.map((name) => {
     const point = LOCATIONS[name];
     if (!point) throw new Error(`Unknown location ${name} in ${config.id}`);
     return point;
   });
   const coordinates = requestedPoints.map((point) => point.join(",")).join(";");
-  const url = new URL(`/route/v1/driving/${coordinates}`, OSRM_BASE);
+  const url = new URL(`/route/v1/driving/${coordinates}`, `${osrmBase}/`);
   url.searchParams.set("overview", "full");
   url.searchParams.set("geometries", "geojson");
   url.searchParams.set("steps", "false");
@@ -499,7 +628,7 @@ async function buildRoadRoute(config) {
     distanceKm: Number((route.distance / 1000).toFixed(1)),
     durationMinutes: Math.round(route.duration / 60),
     points,
-    source: `${OSRM_BASE}; OpenStreetMap road graph; fastest driving route through ordered waypoints; car baseline; snapshot ${SNAPSHOT_DATE}.${config.sourceNote ? ` ${config.sourceNote}` : ""}`,
+    source: `${ROUTING_SNAPSHOT.engine} ${ROUTING_SNAPSHOT.engineVersion}; local/private route build; ${ROUTING_SNAPSHOT.dataProvider} ${ROUTING_SNAPSHOT.dataSet} timestamp ${ROUTING_SNAPSHOT.dataTimestamp}, MD5 ${ROUTING_SNAPSHOT.dataMd5}; fastest driving route through ordered waypoints; car baseline.${config.sourceNote ? ` ${config.sourceNote}` : ""}`,
   };
 }
 
@@ -638,6 +767,29 @@ function attachDayProgress(snapshot) {
   return refreshed;
 }
 
+function validateWaypointOrder(route, config) {
+  const waypoints = config.kind === "road"
+    ? config.locations.map((name) => LOCATIONS[name])
+    : config.points;
+  if (
+    haversineKm(route.points[0], waypoints[0]) > 2 ||
+    haversineKm(route.points.at(-1), waypoints.at(-1)) > 2
+  ) {
+    throw new Error(`${route.id} does not begin and end at its authored endpoints.`);
+  }
+
+  let cursor = 0;
+  for (const waypoint of waypoints.slice(1, -1)) {
+    const relativeIndex = route.points
+      .slice(cursor)
+      .findIndex((point) => haversineKm(point, waypoint) < 2);
+    if (relativeIndex < 0) {
+      throw new Error(`${route.id} does not traverse its authored waypoints in order.`);
+    }
+    cursor += relativeIndex + 1;
+  }
+}
+
 function validateSnapshot(snapshot) {
   if (snapshot.schemaVersion !== 1) throw new Error("schemaVersion must equal 1.");
   if (snapshot.sourceDocumentSha256 !== SOURCE_DOCUMENT_SHA256) {
@@ -649,12 +801,41 @@ function validateSnapshot(snapshot) {
   if (!Array.isArray(snapshot.routes) || snapshot.routes.length === 0) {
     throw new Error("At least one route is required.");
   }
+  const routingSnapshot = snapshot.routingSnapshot;
+  if (
+    routingSnapshot?.engine !== ROUTING_SNAPSHOT.engine ||
+    routingSnapshot?.engineVersion !== ROUTING_SNAPSHOT.engineVersion ||
+    routingSnapshot?.execution !== ROUTING_SNAPSHOT.execution ||
+    routingSnapshot?.imageDigest !== ROUTING_SNAPSHOT.imageDigest ||
+    routingSnapshot?.dataProvider !== ROUTING_SNAPSHOT.dataProvider ||
+    routingSnapshot?.dataSet !== ROUTING_SNAPSHOT.dataSet ||
+    routingSnapshot?.dataTimestamp !== ROUTING_SNAPSHOT.dataTimestamp ||
+    routingSnapshot?.dataMd5 !== ROUTING_SNAPSHOT.dataMd5 ||
+    routingSnapshot?.endpoint !== "http://127.0.0.1:18129"
+  ) {
+    throw new Error("Route snapshot is missing the exact local/private OSRM build provenance.");
+  }
+  const expectedRouteIds = ROUTE_CONFIGS.map((config) => config.id);
+  if (
+    snapshot.routes.length !== expectedRouteIds.length ||
+    snapshot.routes.some((route, index) => route.id !== expectedRouteIds[index])
+  ) {
+    throw new Error("Route snapshot topology/order does not match the authored route graph.");
+  }
 
   const seenIds = new Set();
-  for (const route of snapshot.routes) {
+  for (const [index, route] of snapshot.routes.entries()) {
+    const config = ROUTE_CONFIGS[index];
     if (seenIds.has(route.id)) throw new Error(`Duplicate route id: ${route.id}`);
     seenIds.add(route.id);
-    if (!new Set(["locked", "working", "branch"]).has(route.state)) {
+    if (
+      route.state !== config.state ||
+      route.dayIds.length !== config.dayIds.length ||
+      route.dayIds.some((dayId, dayIndex) => dayId !== config.dayIds[dayIndex])
+    ) {
+      throw new Error(`Route state/day contract drifted on ${route.id}.`);
+    }
+    if (!new Set(["locked", "working", "conditional", "historical", "branch"]).has(route.state)) {
       throw new Error(`Invalid state on ${route.id}.`);
     }
     if (!route.dayIds?.every((day) => /^day-2026-08-(0[9]|1\d|2[0-4])$/.test(day))) {
@@ -671,6 +852,14 @@ function validateSnapshot(snapshot) {
     }
     if (!Number.isFinite(route.durationMinutes) || route.durationMinutes < 0) {
       throw new Error(`Route ${route.id} has invalid duration.`);
+    }
+    validateWaypointOrder(route, config);
+    if (
+      config.kind === "road" &&
+      (!route.source.includes(ROUTING_SNAPSHOT.dataTimestamp) ||
+        !route.source.includes(ROUTING_SNAPSHOT.dataMd5))
+    ) {
+      throw new Error(`${route.id} is missing routed-source provenance.`);
     }
     for (const point of route.points) {
       if (
@@ -697,9 +886,18 @@ function validateSnapshot(snapshot) {
   }
   const requiredBranches = [
     ["branch-2026-08-09-waterfalls", LOCATIONS.hraunfossar],
-    ["branch-2026-08-14-husavik", LOCATIONS.husavikHarbor],
-    ["branch-2026-08-15-asbyrgi", LOCATIONS.asbyrgiVisitorCentre],
-    ["branch-2026-08-19-herjolfsdalur", LOCATIONS.herjolfsdalurCamp],
+    ["branch-2026-08-14-husavik-town", LOCATIONS.husavikTown],
+    ["branch-2026-08-16-krafla-viti", LOCATIONS.kraflaViti],
+    ["branch-2026-08-16-krafla-leirhnjukur", LOCATIONS.kraflaLeirhnjukur],
+    ["branch-2026-08-16-hofdi-kalfastrond", LOCATIONS.hofdi],
+    ["branch-2026-08-16-skutustadagigar", LOCATIONS.skutustadagigar],
+    ["branch-2026-08-17-borgarfjordur-puffins", LOCATIONS.hafnarholmi],
+    ["branch-2026-08-18-borgarfjordur-to-seydisfjordur", LOCATIONS.gufufoss],
+    ["branch-2026-08-21-south-coast", LOCATIONS.landeyjahofn],
+    ["branch-2026-08-21-heimaey-loop", LOCATIONS.storhofdi],
+    ["branch-2026-08-21-herjolfsdalur", LOCATIONS.herjolfsdalurCamp],
+    ["branch-2026-08-23-perlan", LOCATIONS.perlan],
+    ["branch-2026-08-23-sky-lagoon", LOCATIONS.skyLagoon],
   ];
   for (const [routeId, destination] of requiredBranches) {
     const route = snapshot.routes.find((candidate) => candidate.id === routeId);
@@ -723,36 +921,37 @@ function validateSnapshot(snapshot) {
   ) {
     throw new Error("The waterfall branch must pass both researched waterfall stops.");
   }
-  for (const [workingRouteId, optionalStop] of [
-    ["route-2026-08-14", LOCATIONS.husavikHarbor],
-    ["route-2026-08-15", LOCATIONS.asbyrgiVisitorCentre],
-  ]) {
-    const workingRoute = snapshot.routes.find((route) => route.id === workingRouteId);
-    if (workingRoute.points.some((point) => haversineKm(point, optionalStop) < 5)) {
-      throw new Error(`${workingRouteId} must not absorb its optional northern branch.`);
-    }
+  const currentDayRoute = snapshot.routes.find((route) => route.id === "route-2026-08-13");
+  if (
+    !currentDayRoute ||
+    currentDayRoute.state !== "locked" ||
+    !currentDayRoute.points.some((point) => haversineKm(point, LOCATIONS.kolugljufur) < 2) ||
+    haversineKm(currentDayRoute.points.at(-1), LOCATIONS.hamrarCamp) > 2
+  ) {
+    throw new Error("The locked August 13 route must pass Kolugljúfur and finish at Hamrar.");
   }
   const ferryRoutes = snapshot.routes.filter((route) => /ferry/i.test(route.id));
   if (
     ferryRoutes.length !== 2 ||
     ferryRoutes.some(
       (route) =>
+        route.state !== "branch" ||
         route.durationMinutes !== 35 ||
         !route.source.includes("https://herjolfur.is/en/frequently-asked-questions/"),
     )
   ) {
     throw new Error("Both ferry lines must use Herjolfur's official 35-minute schedule.");
   }
-  const eastfjordsRoute = snapshot.routes.find((route) => route.id === "route-2026-08-16");
+  const eastfjordsRoute = snapshot.routes.find((route) => route.id === "route-2026-08-19");
   if (
     !eastfjordsRoute ||
     !eastfjordsRoute.points.some(
       (point) => haversineKm(point, LOCATIONS.breiddalsvikCoastVia) < 2,
     )
   ) {
-    throw new Error("The August 16 route must pass Breiddalsvik and avoid Oxi/939.");
+    throw new Error("The August 19 route must pass Breiðdalsvík and avoid Öxi/939.");
   }
-  for (const date of ["09", "10", "11", "14", "15", "19", "23"]) {
+  for (const date of ["09", "14", "16", "17", "18", "21", "23"]) {
     const day = `day-2026-08-${date}`;
     if (!snapshot.routes.some((route) => route.state === "branch" && route.dayIds.includes(day))) {
       throw new Error(`Expected branch geometry for ${day}.`);
@@ -760,6 +959,17 @@ function validateSnapshot(snapshot) {
   }
   if (snapshot.routes.some((route) => /bardastrandar|barðastrandar/i.test(route.id))) {
     throw new Error("Bardastrandarsandur must remain unplaced and unrouted.");
+  }
+  const chronologicalRoutes = snapshot.routes.filter((route) => route.state !== "branch");
+  for (let index = 1; index < chronologicalRoutes.length; index += 1) {
+    const previous = chronologicalRoutes[index - 1];
+    const current = chronologicalRoutes[index];
+    const gapKm = haversineKm(previous.points.at(-1), current.points[0]);
+    if (gapKm > 2) {
+      throw new Error(
+        `Chronological route discontinuity between ${previous.id} and ${current.id}: ${gapKm.toFixed(1)} km.`,
+      );
+    }
   }
   const expectedDayProgress = computeDayProgress(snapshot.routes, snapshot.bounds);
   const actualDayIds = Object.keys(snapshot.dayProgress ?? {});
@@ -787,12 +997,12 @@ function validateSnapshot(snapshot) {
   return snapshot;
 }
 
-async function buildSnapshot(boundaryPath) {
+async function buildSnapshot(boundaryPath, osrmBase) {
   const boundary = await readBoundary(boundaryPath);
   const routes = [];
   for (const config of ROUTE_CONFIGS) {
     const route =
-      config.kind === "road" ? await buildRoadRoute(config) : buildManualRoute(config);
+      config.kind === "road" ? await buildRoadRoute(config, osrmBase) : buildManualRoute(config);
     routes.push(route);
     process.stderr.write(
       `${route.id}: ${route.distanceKm.toFixed(1)} km / ${route.durationMinutes} min\n`,
@@ -805,6 +1015,10 @@ async function buildSnapshot(boundaryPath) {
     schemaVersion: 1,
     sourceDocumentSha256: SOURCE_DOCUMENT_SHA256,
     generatedAt: new Date().toISOString(),
+    routingSnapshot: {
+      ...ROUTING_SNAPSHOT,
+      endpoint: osrmBase,
+    },
     attribution: [
       {
         name: "© OpenStreetMap contributors",
@@ -818,6 +1032,13 @@ async function buildSnapshot(boundaryPath) {
         url: "https://project-osrm.org/",
         license: "BSD-2-Clause software; OpenStreetMap data remains ODbL",
         usage: "Fastest-route geometry, distance, and unbuffered car duration",
+        snapshotDate: SNAPSHOT_DATE,
+      },
+      {
+        name: "Geofabrik Download Server",
+        url: "https://download.geofabrik.de/europe/iceland.html",
+        license: "OpenStreetMap data is ODbL 1.0",
+        usage: `Iceland PBF timestamp ${ROUTING_SNAPSHOT.dataTimestamp}; verified MD5 ${ROUTING_SNAPSHOT.dataMd5}`,
         snapshotDate: SNAPSHOT_DATE,
       },
       {
@@ -838,6 +1059,13 @@ async function buildSnapshot(boundaryPath) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  const configSummary = validateRouteConfigs();
+  if (args.configOnly) {
+    process.stdout.write(
+      `Validated ${configSummary.routeCount} route configs: ${configSummary.chronologicalCount} chronological and ${configSummary.branchCount} branch routes.\n`,
+    );
+    return;
+  }
   if (args.progressOnly) {
     const snapshot = JSON.parse(await readFile(args.outputPath, "utf8"));
     const refreshed = attachDayProgress(snapshot);
@@ -857,7 +1085,7 @@ async function main() {
     return;
   }
 
-  const snapshot = await buildSnapshot(args.boundaryPath);
+  const snapshot = await buildSnapshot(args.boundaryPath, args.osrmBase);
   await writeFile(args.outputPath, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
   process.stdout.write(
     `Wrote ${args.outputPath} with ${snapshot.routes.length} routes and ${snapshot.boundary.length} boundary polygon(s).\n`,

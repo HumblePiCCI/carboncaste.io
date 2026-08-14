@@ -13,7 +13,7 @@ const preferenceLabels = {
   pass: 'Not for me',
   undecided: 'Undecided',
 };
-const lockedStatuses = new Set(['booked', 'fixed', 'locked']);
+const lockedStatuses = new Set(['booked', 'fixed', 'locked', 'checked-in']);
 const openStatuses = new Set(['open', 'conditional', 'backup', 'community']);
 const experienceSourceTypes = new Set([
   'reviews',
@@ -24,29 +24,17 @@ const experienceSourceTypes = new Set([
   'specialist',
 ]);
 const placeMediaByOption = Object.freeze({
-  'borgarfjordur-waterfalls': {
-    src: '/iceland26/media/hraunfossar.webp',
-    alt: 'Hraunfossar waterfalls flowing from dark lava into the river.',
+  'hellulaug-coast': {
+    src: '/iceland26/media/hellulaug.webp',
+    alt: 'The stone-edged Hellulaug hot pool beside the rocky Westfjords coast.',
   },
   raudasandur: {
     src: '/iceland26/media/raudasandur.webp',
     alt: 'The broad red-gold sand and distant headland at Rauðasandur.',
   },
-  'latrabjarg-raudasandur': {
-    src: '/iceland26/media/latrabjarg.webp',
-    alt: 'Látrabjarg sea cliffs viewed from the grassy cliff top.',
-  },
   dynjandi: {
     src: '/iceland26/media/dynjandi.webp',
     alt: 'The broad upper cascade of Dynjandi waterfall.',
-  },
-  'hverir-hverfjall': {
-    src: '/iceland26/media/hverir.webp',
-    alt: 'Mineral-coloured geothermal ground and vents at Hverir.',
-  },
-  hverfjall: {
-    src: '/iceland26/media/hverfjall.webp',
-    alt: 'The dark volcanic slope and rim landscape of Hverfjall.',
   },
   studlagil: {
     src: '/iceland26/media/studlagil.webp',
@@ -96,6 +84,7 @@ const elements = {
   syncStatus: requiredElement('#sync-status'),
   baseline: requiredElement('#baseline-list'),
   tripDate: requiredElement('#trip-date'),
+  currentTripState: requiredElement('#current-trip-state'),
   countDays: requiredElement('#count-days'),
   countOptions: requiredElement('#count-options'),
   countOpen: requiredElement('#count-open'),
@@ -117,6 +106,8 @@ const elements = {
   mapAttribution: requiredElement('.map-attribution'),
   mapFilter: requiredElement('#map-filter'),
   bonusLayer: requiredElement('#bonus-layer-toggle'),
+  campingCardLayer: requiredElement('#camping-card-layer-toggle'),
+  campingCardScope: requiredElement('#camping-card-scope'),
   zoomOut: requiredElement('#zoom-out'),
   zoomReset: requiredElement('#zoom-reset'),
   zoomIn: requiredElement('#zoom-in'),
@@ -145,6 +136,7 @@ const elements = {
 let itinerary = null;
 let mapData = null;
 let bonusData = null;
+let campingCardData = null;
 let sharedState = {
   available: false,
   revision: 0,
@@ -157,6 +149,8 @@ let selectedDayIndex = Math.max(0, Number(elements.scrubber.value) || 0);
 let selectedOptionId = null;
 let activeMapFilter = 'all';
 let bonusLayerEnabled = true;
+let campingCardLayerEnabled = true;
+let campingCardScope = 'remaining';
 let mapZoom = 1;
 let panelOpen = true;
 let refreshTimer = null;
@@ -351,7 +345,7 @@ function communityOptions() {
 
 function allOptions() {
   const researched = asArray(itinerary?.legs).flatMap((leg) => (
-    asArray(leg.options).map((option) => ({
+    asArray(leg.options).filter((option) => option.active !== false).map((option) => ({
       ...option,
       legId: leg.id,
       legTitle: leg.title,
@@ -375,8 +369,33 @@ function isBonusStore(place) {
   return place?.category === 'bonus-grocery';
 }
 
+function includedCampingCardSites() {
+  return asArray(campingCardData?.sites)
+    .filter((site) => site.included)
+    .map((site) => ({
+      ...site,
+      category: 'camping-card-site',
+      status: site.routeFit,
+      dayIds: site.nearestDayId ? [site.nearestDayId] : [],
+    }));
+}
+
+function isCampingCardSite(place) {
+  return place?.category === 'camping-card-site';
+}
+
+function isReferencePlace(place) {
+  return isBonusStore(place) || isCampingCardSite(place);
+}
+
+function campingCardSiteMatchesScope(site) {
+  if (campingCardScope === 'all') return true;
+  if (campingCardScope === 'direct') return site.routeFit === 'direct';
+  return site.routeFit === 'direct' || site.routeFit === 'conditional';
+}
+
 function allMapPlaces() {
-  return [...allOptions(), ...includedBonusStores()];
+  return [...allOptions(), ...includedBonusStores(), ...includedCampingCardSites()];
 }
 
 function placeById(placeId) {
@@ -447,6 +466,9 @@ function statusLabel(status) {
     conditional: 'Conditional',
     backup: 'Backup',
     community: 'Group suggestion',
+    historical: 'Earlier plan',
+    direct: 'Directly useful',
+    'behind-current-route': 'Outside remaining route',
   };
   return labels[status] || humanize(status || 'working');
 }
@@ -467,6 +489,24 @@ function renderBaseline() {
     );
     elements.baseline.append(row);
   });
+
+  const currentState = trip.currentState;
+  const visible = Boolean(currentState?.asOf && currentState?.label);
+  elements.currentTripState.hidden = !visible;
+  elements.currentTripState.replaceChildren();
+  if (visible) {
+    const asOf = parseDate(currentState.asOf)?.toLocaleDateString([], {
+      month: 'short',
+      day: 'numeric',
+    });
+    elements.currentTripState.append(
+      createElement('span', 'current-trip-banner__pulse'),
+      createElement('strong', null, `Last confirmed${asOf ? ` · ${asOf}` : ''} · `),
+      document.createTextNode(currentState.label),
+    );
+    elements.currentTripState.dataset.dayId = currentState.dayId || '';
+    elements.currentTripState.dataset.placeId = currentState.currentPlaceId || '';
+  }
 }
 
 function renderCounts() {
@@ -484,10 +524,45 @@ function renderCounts() {
   elements.countAgreements.textContent = String(agreements);
 }
 
+function renderReferenceLayerControls() {
+  const sites = includedCampingCardSites();
+  const directCount = sites.filter((site) => site.routeFit === 'direct').length;
+  const remainingCount = sites.filter((site) => (
+    site.routeFit === 'direct' || site.routeFit === 'conditional'
+  )).length;
+  const labels = {
+    direct: `Direct fits · ${directCount}`,
+    remaining: `Remaining route · ${remainingCount}`,
+    all: `All sites · ${sites.length}`,
+  };
+  [...elements.campingCardScope.options].forEach((option) => {
+    option.textContent = labels[option.value] || option.textContent;
+  });
+  elements.campingCardScope.value = campingCardScope;
+  elements.campingCardScope.disabled = !campingCardLayerEnabled;
+  elements.campingCardLayer.setAttribute(
+    'aria-label',
+    campingCardLayerEnabled
+      ? `Camping Card campsite layer, showing ${labels[campingCardScope] || labels.remaining}`
+      : `Camping Card campsite layer, hidden; scope set to ${labels[campingCardScope] || labels.remaining}`,
+  );
+}
+
 function parseDate(date) {
   if (!date) return null;
   const parsed = new Date(`${date}T12:00:00`);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function todayInIceland() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Atlantic/Reykjavik',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
 }
 
 function dateParts(day) {
@@ -524,10 +599,19 @@ function renderTimeline() {
     button.dataset.focusKey = `day-${day.id || index}`;
     button.tabIndex = index === selectedDayIndex ? 0 : -1;
     button.classList.toggle('is-active', index === selectedDayIndex);
-    button.setAttribute('aria-current', index === selectedDayIndex ? 'date' : 'false');
+    const currentDayIndex = days.findIndex((candidate) => candidate.date === todayInIceland());
+    const confirmedDayIndex = days.findIndex((candidate) => candidate.id === itinerary?.trip?.currentState?.dayId);
+    const isCurrentTripDay = index === currentDayIndex;
+    const isLatestConfirmedDay = index === confirmedDayIndex;
+    const isEarlierTripDay = currentDayIndex >= 0 && index < currentDayIndex;
+    button.classList.toggle('is-current-trip-day', isCurrentTripDay);
+    button.classList.toggle('is-latest-confirmed-day', isLatestConfirmedDay);
+    button.classList.toggle('is-earlier-trip-day', isEarlierTripDay);
+    button.setAttribute('aria-current', isCurrentTripDay ? 'date' : 'false');
+    button.setAttribute('aria-pressed', String(index === selectedDayIndex));
     button.setAttribute(
       'aria-label',
-      `${parts.weekday}, ${parts.monthDay}: ${day.title}. ${statusLabel(day.state)}.`,
+      `${parts.weekday}, ${parts.monthDay}: ${day.title}. ${statusLabel(day.state)}.${isCurrentTripDay ? ' Today in Iceland.' : (isEarlierTripDay ? ' Earlier trip day; optional stops are not assumed completed.' : '')}${isLatestConfirmedDay ? ' Latest traveller-confirmed location update.' : ''}`,
     );
     button.append(
       createElement('strong', null, parts.dayNumber),
@@ -579,9 +663,18 @@ function renderDayRail() {
   }
 
   const parts = dateParts(day);
+  const days = asArray(itinerary?.days);
+  const currentDayIndex = days.findIndex((candidate) => candidate.date === todayInIceland());
+  const confirmedDayIndex = days.findIndex((candidate) => candidate.id === itinerary?.trip?.currentState?.dayId);
+  const thisDayIndex = days.findIndex((candidate) => candidate.id === day.id);
+  const dayPhase = currentDayIndex >= 0 && thisDayIndex === currentDayIndex
+    ? 'Today · '
+    : (confirmedDayIndex >= 0 && thisDayIndex === confirmedDayIndex
+      ? 'Last confirmed · '
+      : (currentDayIndex >= 0 && thisDayIndex < currentDayIndex ? 'Earlier day · ' : ''));
   elements.dayDate.textContent = `${parts.weekday} · ${parts.monthDay}`;
   elements.dayTitle.textContent = day.title;
-  elements.dayState.textContent = `${statusLabel(day.state)} day`;
+  elements.dayState.textContent = `${dayPhase}${statusLabel(day.state)}`;
   elements.dayState.dataset.state = day.state || 'working';
   elements.daySummary.textContent = firstText(day.summary);
 
@@ -735,6 +828,9 @@ function renderGeometry(parent, geometry, className) {
 
 function markerMatchesFilter(option) {
   if (isBonusStore(option)) return bonusLayerEnabled;
+  if (isCampingCardSite(option)) {
+    return campingCardLayerEnabled && campingCardSiteMatchesScope(option);
+  }
   if (activeMapFilter === 'all') return true;
   if (activeMapFilter === 'locked') return lockedStatuses.has(option.status);
   if (activeMapFilter === 'standout') return Boolean(option.standout);
@@ -890,7 +986,9 @@ function routesForSelectedDay() {
   if (!day) return [];
   const matching = asArray(mapData?.routes).filter((route) => asArray(route.dayIds).includes(day.id));
   if (matching.length) return matching.map((route) => ({
-    state: ['locked', 'working', 'branch'].includes(route.state) ? route.state : 'working',
+    state: ['locked', 'working', 'conditional', 'historical', 'branch'].includes(route.state)
+      ? route.state
+      : 'working',
     points: asArray(route.points),
   }));
   const fallback = asArray(day.stopIds)
@@ -911,7 +1009,9 @@ function renderMap(animateCampers = false) {
 
   const routeLayer = createSvgElement('g', { 'aria-hidden': 'true' });
   asArray(mapData?.routes).forEach((route) => {
-    const state = ['locked', 'working', 'branch'].includes(route.state) ? route.state : 'working';
+    const state = ['locked', 'working', 'conditional', 'historical', 'branch'].includes(route.state)
+      ? route.state
+      : 'working';
     const pathData = linePath(asArray(route.points));
     if (!pathData) return;
     routeLayer.append(createSvgElement('path', {
@@ -940,22 +1040,28 @@ function renderMap(animateCampers = false) {
     const visible = markerMatchesFilter(option);
     const status = String(option.status || 'working').toLowerCase().replace(/[^a-z0-9-]/g, '');
     const grocery = isBonusStore(option);
+    const passSite = isCampingCardSite(option);
+    const currentPlace = option.id === itinerary?.trip?.currentState?.currentPlaceId;
     const marker = createSvgElement('g', {
       class: [
         'map-marker',
         grocery ? 'map-marker--bonus' : '',
+        passSite ? 'map-marker--camping-card' : '',
         status ? `map-marker--${status}` : '',
         option.standout ? 'map-marker--standout' : '',
         optionDayIds(option).includes(selectedDay()?.id) ? 'is-current-day' : '',
+        currentPlace ? 'is-current-trip-place' : '',
         option.id === selectedOptionId ? 'is-active' : '',
-        visible ? '' : (grocery ? 'is-layer-hidden' : 'is-muted'),
+        visible ? '' : ((grocery || passSite) ? 'is-layer-hidden' : 'is-muted'),
       ].filter(Boolean).join(' '),
       transform: `translate(${point.x.toFixed(2)} ${point.y.toFixed(2)})`,
       role: 'button',
       tabindex: visible ? '0' : '-1',
       'aria-label': grocery
         ? `${option.name}. Bónus grocery, ${option.routeFit === 'on-route' ? 'on route' : 'short provisioning detour'}. ${option.address}.`
-        : `${option.title}. ${statusLabel(option.status)}${option.standout ? '. Best-of-area research signal' : ''}.`,
+        : (passSite
+          ? `${option.name}. Participating site in the prepaid Camping Card program; tax and extras may still cost. ${option.routeFit === 'direct' ? 'Directly useful on the remaining plan' : (option.routeFit === 'conditional' ? 'Conditional remaining-route alternative' : 'Outside the remaining route')}. ${option.address || humanize(option.region || '')}.`
+          : `${option.title}. ${statusLabel(option.status)}${option.standout ? '. Best-of-area research signal' : ''}${currentPlace ? `. Last confirmed: ${firstText(itinerary?.trip?.currentState?.label, statusLabel(itinerary?.trip?.currentState?.status))}` : ''}.`),
       'aria-pressed': String(option.id === selectedOptionId),
       'aria-hidden': visible ? 'false' : 'true',
       'data-option-id': option.id,
@@ -971,7 +1077,9 @@ function renderMap(animateCampers = false) {
       createSvgElement('circle', { class: 'map-marker__halo', r: 15 }),
       grocery
         ? createSvgElement('rect', { class: 'map-marker__store', x: -7, y: -7, width: 14, height: 14, rx: 3 })
-        : createSvgElement('circle', { class: 'map-marker__dot', r: 6 }),
+        : (passSite
+          ? createSvgElement('path', { class: 'map-marker__camp', d: 'M0 -10 L10 0 L0 10 L-10 0 Z' })
+          : createSvgElement('circle', { class: 'map-marker__dot', r: 6 })),
     );
     const offsets = option.map?.labelOffset;
     const offsetX = Array.isArray(offsets) ? offsets[0] : offsets?.x;
@@ -981,7 +1089,7 @@ function renderMap(animateCampers = false) {
       x: Number.isFinite(Number(offsetX)) ? Number(offsetX) : 14,
       y: Number.isFinite(Number(offsetY)) ? Number(offsetY) : -11,
     });
-    label.textContent = firstText(option.map?.label, option.shortTitle, option.title);
+    label.textContent = firstText(option.map?.label, option.shortTitle, option.title, option.name);
     marker.append(label);
     markerLayer.append(marker);
   });
@@ -1076,7 +1184,9 @@ function openMapChoiceMenu(markers, returnFocus) {
       createElement('strong', null, firstText(option.shortTitle, option.title, option.name)),
       createElement('span', null, isBonusStore(option)
         ? `Bónus · ${option.routeFit === 'on-route' ? 'on route' : 'short detour'}`
-        : statusLabel(option.status)),
+        : (isCampingCardSite(option)
+          ? `Camping Card · ${campingCardRouteFitLabel(option.routeFit)}`
+          : statusLabel(option.status))),
     );
     button.addEventListener('click', () => {
       closeMapChoiceMenu({ restoreFocus: false });
@@ -1171,6 +1281,117 @@ function renderBonusStorePanel(store) {
   elements.placeContent.append(custody);
 }
 
+function campingCardRouteFitLabel(routeFit) {
+  if (routeFit === 'direct') return 'Direct route fit';
+  if (routeFit === 'conditional') return 'Useful alternative';
+  return 'Outside remaining route';
+}
+
+function compactSeasonDate(value) {
+  const parsed = parseDate(value);
+  return parsed ? parsed.toLocaleDateString([], { month: 'short', day: 'numeric' }) : firstText(value);
+}
+
+function formatIcelandPhone(value) {
+  const raw = String(value || '').trim();
+  const compact = raw.replace(/[^+\d]/g, '');
+  const match = compact.match(/^\+354(\d{3})(\d{4})$/);
+  return match ? `+354 ${match[1]} ${match[2]}` : raw;
+}
+
+function renderCampingCardSitePanel(site) {
+  const head = createElement('header', 'place-head place-head--camping-card');
+  const meta = createElement('div', 'place-head__meta');
+  appendBadge(meta, 'Prepaid Camping Card', 'badge--camping-card');
+  appendBadge(meta, campingCardRouteFitLabel(site.routeFit), `badge--camping-${site.routeFit}`);
+  const title = createElement('h3', null, site.name);
+  title.id = 'place-title';
+  head.append(
+    meta,
+    title,
+    createElement('p', 'place-location', firstText(site.address, site.region)),
+    createElement('p', 'place-hook', firstText(site.routeRelation, site.coverageNote)),
+  );
+  elements.placeContent.append(head);
+
+  const opening = site.season2026 || site.opening || site.openingDates || {};
+  const opens = firstText(opening.opens, site.opens);
+  const closes = firstText(opening.closes, site.closes);
+  const metrics = createElement('div', 'metric-grid metric-grid--store');
+  [
+    ['Route fit', campingCardRouteFitLabel(site.routeFit)],
+    ['Nearest day', firstText(site.nearestSegment, site.nearestDayId)],
+    ['2026 season', opens || closes ? `${compactSeasonDate(opens) || 'Check opening'}–${compactSeasonDate(closes) || 'check closing'}` : 'Check official page'],
+  ].forEach(([label, value]) => {
+    const metric = createElement('div');
+    metric.append(createElement('span', null, label), createElement('strong', null, value));
+    metrics.append(metric);
+  });
+  elements.placeContent.append(metrics);
+
+  const coverage = createElement('section', 'detail-section camping-card-coverage');
+  coverage.append(
+    createElement('h4', null, 'What our prepaid card means'),
+    createElement(
+      'p',
+      null,
+      'Two passes were ordered ahead of time for our two camper units. Each valid card covers one camping unit, so confirm that both cards are valid before relying on coverage. The 400 ISK nightly lodging tax is separate, and electricity, showers, laundry or other amenities can still cost extra.',
+    ),
+    createElement(
+      'p',
+      null,
+      'Normal policy is to arrive and register without booking. The card does not guarantee space; call ahead when weather or demand could fill the site.',
+    ),
+  );
+  const cardCaveats = asArray(site.cardCaveats).map(itemText).filter(Boolean);
+  if (site.blackoutNote || site.coverageNote || cardCaveats.length) {
+    const caveat = createElement('div', 'coverage-caveat');
+    appendDetailList(caveat, [site.blackoutNote, site.coverageNote, ...cardCaveats].filter(Boolean));
+    coverage.append(caveat);
+  }
+  elements.placeContent.append(coverage);
+
+  if (asArray(site.amenities).length) {
+    const amenitySection = createElement('section', 'detail-section');
+    amenitySection.append(createElement('h4', null, 'Verified site services'));
+    appendDetailList(amenitySection, asArray(site.amenities).map(humanize));
+    amenitySection.append(createElement('p', 'detail-footnote', 'A listed service is not a promise that its fee is covered by the Camping Card.'));
+    elements.placeContent.append(amenitySection);
+  }
+
+  const contact = createElement('section', 'detail-section');
+  contact.append(
+    createElement('h4', null, 'Official details and directions'),
+    createElement(
+      'p',
+      null,
+      `Official Camping Card inventory checked ${firstText(campingCardData?.sourceAccessedAt, campingCardData?.sourceAccessed, 'August 13, 2026')}. Recheck capacity and live site notices before changing a remaining overnight.`,
+    ),
+  );
+  const links = createElement('div', 'contact-links');
+  if (site.mapNote) contact.append(createElement('p', 'detail-footnote', site.mapNote));
+  appendSafeLink(links, { url: site.officialUrl, label: `${site.name} official Camping Card page ↗` });
+  appendSafeLink(links, {
+    url: campingCardData?.officialInventory?.programUrl || campingCardData?.officialInventory?.url,
+    label: 'Official 2026 Camping Card inventory ↗',
+  });
+  const faqSource = asArray(campingCardData?.provenance?.officialSnapshots)
+    .find((source) => /faq/i.test(source.name));
+  appendSafeLink(links, { url: faqSource?.url, label: 'Official coverage and arrival FAQ ↗' });
+  const phones = asArray(site.phones).length ? site.phones : [site.phone].filter(Boolean);
+  phones.forEach((phone) => appendSafeLink(links, {
+    url: `tel:${String(phone).replace(/[^+\d]/g, '')}`,
+    label: `Call ${formatIcelandPhone(phone)}`,
+    protocols: ['tel:'],
+  }));
+  appendSafeLink(links, {
+    url: `https://www.google.com/maps/dir/?api=1&destination=${site.map.lat},${site.map.lng}`,
+    label: `Directions to ${site.name} ↗`,
+  });
+  contact.append(links);
+  elements.placeContent.append(contact);
+}
+
 function renderPlacePanel() {
   const previousOptionId = renderedPanelOptionId;
   elements.placeContent.replaceChildren();
@@ -1190,10 +1411,21 @@ function renderPlacePanel() {
     renderBonusStorePanel(option);
     return;
   }
+  if (isCampingCardSite(option)) {
+    renderCampingCardSitePanel(option);
+    return;
+  }
 
   const head = createElement('header', 'place-head');
   const meta = createElement('div', 'place-head__meta');
   appendBadge(meta, statusLabel(option.status), `badge--${option.status || 'working'}`);
+  const currentState = itinerary?.trip?.currentState;
+  if (option.id === currentState?.currentPlaceId) {
+    appendBadge(meta, `Last confirmed · ${humanize(currentState.status || 'update')}`, 'badge--current-trip');
+  }
+  const currentStayIsOutsidePass = option.id === currentState?.currentPlaceId
+    && currentState?.currentPlaceIsCampingCardSite === false;
+  if (currentStayIsOutsidePass) appendBadge(meta, 'Not a Camping Card site', 'badge--outside-pass');
   if (option.standout) appendBadge(meta, '★ Best-of-area signal', 'badge--standout');
   asArray(option.tags).slice(0, 3).forEach((tag) => appendBadge(meta, humanize(tag)));
   const title = createElement('h3', null, option.title);
@@ -1205,6 +1437,19 @@ function renderPlacePanel() {
     createElement('p', 'place-hook', firstText(option.hook, option.summary, option.details)),
   );
   elements.placeContent.append(head);
+
+  if (currentStayIsOutsidePass) {
+    const section = createElement('section', 'detail-section current-stay-note');
+    section.append(
+      createElement('h4', null, 'Latest confirmed stay'),
+      createElement(
+        'p',
+        null,
+        `Traveller-confirmed update. ${option.title} is not in the official 30-site Camping Card roster, so the latest confirmed location is shown without claiming pass coverage.`,
+      ),
+    );
+    elements.placeContent.append(section);
+  }
 
   const visit = option.visit || {};
   const metrics = createElement('div', 'metric-grid');
@@ -1356,7 +1601,7 @@ function renderMapStory() {
     image.decoding = 'async';
     figure.append(
       image,
-      createElement('figcaption', null, 'Image carried forward from the revised planning document · not a live conditions view.'),
+      createElement('figcaption', null, 'Planning-document image · not a live conditions view.'),
     );
     elements.mapStoryContent.append(figure);
   }
@@ -1393,11 +1638,13 @@ function renderVoting() {
     elements.selectedVoting.append(createElement('p', 'empty-note', 'Choose a mapped place to weigh in.'));
     return;
   }
-  if (isBonusStore(option)) {
+  if (isReferencePlace(option)) {
     elements.selectedVoting.append(createElement(
       'p',
-      'empty-note grocery-reference-note',
-      'Provisioning reference only. Grocery markers do not accept votes and never write to shared trip state.',
+      `empty-note ${isCampingCardSite(option) ? 'camping-card-reference-note' : 'grocery-reference-note'}`,
+      isCampingCardSite(option)
+        ? 'Prepaid campsite reference only. Camping Card markers do not accept votes or sticky notes and never write to shared trip state.'
+        : 'Provisioning reference only. Grocery markers do not accept votes and never write to shared trip state.',
     ));
     return;
   }
@@ -1473,7 +1720,7 @@ function renderComments() {
   elements.selectedComments.replaceChildren();
   const option = selectedOption();
   if (!option) return;
-  if (isBonusStore(option)) return;
+  if (isReferencePlace(option)) return;
   const panel = createElement('section', 'comment-panel');
   panel.append(createElement('h4', null, 'Sticky notes'));
   const form = createElement('form', 'sticky-form');
@@ -1755,7 +2002,7 @@ function renderArchivedSourceDecisions(parent) {
   if (!archived.length) return;
 
   const section = createElement('section', 'archived-source-decisions');
-  const heading = createElement('h3', null, 'Ruled out in the revised source');
+  const heading = createElement('h3', null, 'Source history and route changes');
   heading.id = 'archived-source-decisions-title';
   section.setAttribute('aria-labelledby', heading.id);
   section.append(
@@ -1763,14 +2010,17 @@ function renderArchivedSourceDecisions(parent) {
     createElement(
       'p',
       'archived-source-decisions__intro',
-      'Read-only source history. These ideas are preserved for context, but are not route stops and cannot be ranked or discussed here.',
+      'Read-only source history. Ruled-out and earlier-plan ideas stay preserved without masquerading as current stops; any existing shared state remains intact.',
     ),
   );
 
   const list = createElement('div', 'archived-source-decisions__list');
   archived.forEach((decision) => {
     const card = createElement('article', 'archived-source-decision');
-    const status = createElement('span', 'archived-source-decision__status', 'Ruled out');
+    const statusText = decision?.status === 'ruled-out'
+      ? 'Ruled out'
+      : (decision?.status === 'removed-from-latest-plan' ? 'Removed from latest plan' : 'Earlier plan');
+    const status = createElement('span', 'archived-source-decision__status', statusText);
     card.append(status, createElement('h4', null, firstText(decision?.title, 'Archived source decision')));
     if (decision?.documentStatus) card.append(createElement('p', null, decision.documentStatus));
     appendDetailList(card, decision?.items);
@@ -1818,6 +2068,7 @@ function renderPage({ animateCampers = false, preserveFocus = true } = {}) {
   ensureSelection();
   renderBaseline();
   renderCounts();
+  renderReferenceLayerControls();
   renderTimeline();
   renderDayRail();
   renderMap(animateCampers);
@@ -1986,10 +2237,11 @@ async function load() {
   const rememberedParticipant = readStorage('iceland26-participant');
   if (participantIds.includes(rememberedParticipant)) elements.participant.value = rememberedParticipant;
 
-  const [tripResult, mapResult, bonusResult, stateResult] = await Promise.allSettled([
+  const [tripResult, mapResult, bonusResult, campingCardResult, stateResult] = await Promise.allSettled([
     fetchJson('/iceland26/itinerary.json'),
     fetchJson('/iceland26/map-data.json'),
     fetchJson('/iceland26/bonus-stores.json'),
+    fetchJson('/iceland26/camping-card-sites.json'),
     fetchJson('/api/iceland26'),
   ]);
 
@@ -2006,11 +2258,20 @@ async function load() {
     officialInventory: {},
     stores: [],
   };
+  campingCardData = campingCardResult.status === 'fulfilled' ? campingCardResult.value : {
+    sourceAccessed: '',
+    officialInventory: {},
+    sites: [],
+  };
   if (stateResult.status === 'fulfilled') sharedState = stateResult.value;
+  const currentDayIndex = asArray(itinerary.days)
+    .findIndex((day) => day.id === itinerary?.trip?.currentState?.dayId);
   selectedDayIndex = Math.min(
-    Math.max(0, Number(elements.scrubber.value) || 0),
+    Math.max(0, currentDayIndex >= 0 ? currentDayIndex : (Number(elements.scrubber.value) || 0)),
     Math.max(0, asArray(itinerary.days).length - 1),
   );
+  const currentPlaceId = itinerary?.trip?.currentState?.currentPlaceId;
+  if (currentPlaceId && placeById(currentPlaceId)) selectedOptionId = currentPlaceId;
   ensureSelection();
   renderPage({ preserveFocus: false });
 
@@ -2027,6 +2288,9 @@ async function load() {
   }
   if (bonusResult.status === 'rejected') {
     showToast('The Bónus provisioning layer could not load; the route board remains available.', true);
+  }
+  if (campingCardResult.status === 'rejected') {
+    showToast('The prepaid Camping Card layer could not load; the dated route remains available.', true);
   }
 
   refreshTimer = setInterval(() => {
@@ -2125,6 +2389,40 @@ elements.bonusLayer.addEventListener('click', () => {
     renderMap(false);
   }
   elements.bonusLayer.focus({ preventScroll: true });
+});
+
+function selectCurrentDayFallback() {
+  const dayChoice = asArray(selectedDay()?.stopIds).find((id) => optionById(id));
+  selectedOptionId = dayChoice || allOptions()[0]?.id || null;
+  panelOpen = true;
+  storyOpen = true;
+  renderPage({ animateCampers: false, preserveFocus: false });
+}
+
+elements.campingCardLayer.addEventListener('click', () => {
+  campingCardLayerEnabled = !campingCardLayerEnabled;
+  elements.campingCardLayer.classList.toggle('is-active', campingCardLayerEnabled);
+  elements.campingCardLayer.setAttribute('aria-pressed', String(campingCardLayerEnabled));
+  renderReferenceLayerControls();
+  if (!campingCardLayerEnabled && isCampingCardSite(selectedOption())) {
+    selectCurrentDayFallback();
+  } else {
+    renderMap(false);
+  }
+  elements.campingCardLayer.focus({ preventScroll: true });
+});
+
+elements.campingCardScope.addEventListener('change', () => {
+  campingCardScope = ['direct', 'remaining', 'all'].includes(elements.campingCardScope.value)
+    ? elements.campingCardScope.value
+    : 'remaining';
+  renderReferenceLayerControls();
+  if (isCampingCardSite(selectedOption()) && !campingCardSiteMatchesScope(selectedOption())) {
+    selectCurrentDayFallback();
+  } else {
+    renderMap(false);
+  }
+  elements.campingCardScope.focus({ preventScroll: true });
 });
 
 function changeZoom(next) {

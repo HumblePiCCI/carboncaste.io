@@ -145,7 +145,10 @@ try {
     schemaVersion: 1,
     revision: 1,
     updatedAt: '2026-08-08T00:00:00.000Z',
-    preferences: { 'arrival-bjarkalundur': { ben: 'love' } },
+    preferences: {
+      'arrival-bjarkalundur': { ben: 'love' },
+      'latrabjarg-raudasandur': { laura: 'interested' },
+    },
     comments: [],
     suggestions: [],
     activity: [],
@@ -189,8 +192,9 @@ try {
   if (initial.response.status !== 200
       || !initial.body.available
       || initial.body.revision !== 1
-      || initial.body.preferences?.['arrival-bjarkalundur']?.ben !== 'love') {
-    fail('Existing production-shaped revision 1 state was not preserved at startup.');
+      || initial.body.preferences?.['arrival-bjarkalundur']?.ben !== 'love'
+      || initial.body.preferences?.['latrabjarg-raudasandur']?.laura !== 'interested') {
+    fail('Existing production-shaped state, including inactive-option history, was not preserved at startup.');
   }
 
   const noIndex = initial.response.headers.get('x-robots-tag') || '';
@@ -243,6 +247,44 @@ try {
   if (lockedBonusAsset.status !== 302
       || !lockedBonusAsset.headers.get('location')?.startsWith('/iceland26/access.html')) {
     fail('Bónus census bypassed the private Iceland route gate.');
+  }
+
+  const privateCampingCardAsset = await fetch(`${baseUrl}/iceland26/camping-card-sites.json`, {
+    headers: { Cookie: sessionCookie },
+  });
+  let campingCardCensus = null;
+  try {
+    campingCardCensus = await privateCampingCardAsset.json();
+  } catch {
+    // The complete response contract is reported by the assertion below.
+  }
+  const campingCardSites = campingCardCensus?.sites || [];
+  if (privateCampingCardAsset.status !== 200
+      || privateCampingCardAsset.headers.get('content-type') !== 'application/json; charset=utf-8'
+      || privateCampingCardAsset.headers.get('cache-control') !== 'private, no-store'
+      || !privateCampingCardAsset.headers.get('vary')?.toLowerCase().includes('cookie')
+      || !privateCampingCardAsset.headers.get('x-robots-tag')?.includes('noindex')
+      || campingCardCensus?.officialInventory?.siteCount !== 30
+      || campingCardSites.length !== 30
+      || campingCardSites.filter((site) => site.routeFit === 'direct').length !== 7
+      || campingCardSites.filter((site) => site.routeFit === 'conditional').length !== 8
+      || campingCardSites.filter((site) => site.routeFit === 'behind-current-route').length !== 15
+      || !campingCardSites.some((site) => site.id === 'camping-card-husavik')
+      || campingCardSites.some((site) => /hamrar/i.test(site.name))
+      || campingCardCensus?.currentTripState?.currentCampsite !== 'Camping Hamrar, Akureyri'
+      || campingCardCensus?.currentTripState?.currentCampsiteIsCampingCardSite !== false) {
+    fail('Authenticated Camping Card census must be complete, current-trip-aware, private, uncached, cookie-varying, and non-indexed.');
+  }
+
+  const lockedCampingCardAsset = await fetch(`${baseUrl}/iceland26/camping-card-sites.json`, {
+    redirect: 'manual',
+  });
+  if (lockedCampingCardAsset.status !== 302
+      || !lockedCampingCardAsset.headers.get('location')?.startsWith('/iceland26/access.html')
+      || lockedCampingCardAsset.headers.get('cache-control') !== 'no-store'
+      || !lockedCampingCardAsset.headers.get('vary')?.toLowerCase().includes('cookie')
+      || !lockedCampingCardAsset.headers.get('x-robots-tag')?.includes('noindex')) {
+    fail('Camping Card census bypassed the private Iceland route gate or exposed cache/indexable redirect metadata.');
   }
 
   const lockedMediaAsset = await fetch(`${baseUrl}/iceland26/media/dynjandi.webp`, {
@@ -304,6 +346,63 @@ try {
   });
   if (unknownOption.response.status !== 400) fail('Unknown option mutation was not rejected.');
 
+  const stateBeforeCampingCardForgeries = await jsonRequest('/api/iceland26');
+  const campingCardPreference = await jsonRequest('/api/iceland26/preference', {
+    method: 'POST',
+    body: {
+      participant: 'ben',
+      optionId: 'camping-card-husavik',
+      preference: 'love',
+    },
+  });
+  const campingCardComment = await jsonRequest('/api/iceland26/comment', {
+    method: 'POST',
+    body: {
+      participant: 'mary',
+      optionId: 'camping-card-husavik',
+      text: 'Trying to turn a reference campsite into shared trip state.',
+    },
+  });
+  const inactivePreference = await jsonRequest('/api/iceland26/preference', {
+    method: 'POST',
+    body: {
+      participant: 'laura',
+      optionId: 'latrabjarg-raudasandur',
+      preference: 'interested',
+    },
+  });
+  const inactiveComment = await jsonRequest('/api/iceland26/comment', {
+    method: 'POST',
+    body: {
+      participant: 'brad',
+      optionId: 'latrabjarg-raudasandur',
+      text: 'Trying to update an archived idea.',
+    },
+  });
+  const stateAfterCampingCardForgeries = await jsonRequest('/api/iceland26');
+  const sharedStateFields = (snapshot) => ({
+    revision: snapshot.revision,
+    preferences: snapshot.preferences,
+    comments: snapshot.comments,
+    suggestions: snapshot.suggestions,
+    activity: snapshot.activity,
+  });
+  if (stateBeforeCampingCardForgeries.response.status !== 200
+      || stateAfterCampingCardForgeries.response.status !== 200
+      || stateBeforeCampingCardForgeries.body.revision !== 1
+      || campingCardPreference.response.status !== 400
+      || campingCardPreference.body.error !== 'That itinerary option does not exist.'
+      || campingCardComment.response.status !== 400
+      || campingCardComment.body.error !== 'That itinerary option does not exist.'
+      || inactivePreference.response.status !== 400
+      || inactivePreference.body.error !== 'That itinerary option does not exist.'
+      || inactiveComment.response.status !== 400
+      || inactiveComment.body.error !== 'That itinerary option does not exist.'
+      || JSON.stringify(sharedStateFields(stateAfterCampingCardForgeries.body))
+        !== JSON.stringify(sharedStateFields(stateBeforeCampingCardForgeries.body))) {
+    fail('Read-only Camping Card markers or archived ideas accepted a forged update or changed shared coordination state.');
+  }
+
   const suggestion = await jsonRequest('/api/iceland26/suggestion', {
     method: 'POST',
     body: {
@@ -363,8 +462,9 @@ try {
       || stored.comments.length !== 1
       || stored.suggestions.length !== 1
       || Object.keys(stored.preferences.dynjandi || {}).length !== 4
-      || stored.preferences?.['arrival-bjarkalundur']?.ben !== 'love') {
-    fail('Atomic state file does not preserve the production-shaped preference plus all seven serialized mutations.');
+      || stored.preferences?.['arrival-bjarkalundur']?.ben !== 'love'
+      || stored.preferences?.['latrabjarg-raudasandur']?.laura !== 'interested') {
+    fail('Atomic state file does not preserve active and inactive historical preferences plus all seven serialized mutations.');
   }
   if (previous.revision !== 7
       || Object.keys(previous.preferences.dynjandi || {}).length !== 3) {
@@ -378,6 +478,7 @@ try {
   if (restored.body.revision !== 8
       || restored.body.preferences?.[suggestionId]?.brad !== 'love'
       || restored.body.preferences?.['arrival-bjarkalundur']?.ben !== 'love'
+      || restored.body.preferences?.['latrabjarg-raudasandur']?.laura !== 'interested'
       || restored.body.suggestions?.[0]?.title !== 'A quiet local pool'
       || Object.keys(restored.body.preferences?.dynjandi || {}).length !== 4) {
     fail('Coordination state did not survive a server restart.');

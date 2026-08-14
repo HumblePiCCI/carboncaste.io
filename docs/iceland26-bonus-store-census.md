@@ -30,37 +30,37 @@ The offset column is minimum great-circle proximity to the stored core/branch po
 | Official store | Decision | Nearest route segment | Offset | Rationale |
 | --- | --- | --- | ---: | --- |
 | Bjarkarholt 7-9, 270 Mosfellsbær | On route | Aug 9 arrival northbound | 0.26 km | Northbound arrival corridor toward Borgarnes. |
-| Fiskislóð, 101 Reykjavík | Short detour | Aug 21–23 Reykjavík stay | 2.96 km | Practical west-side city provisioning. |
+| Fiskislóð, 101 Reykjavík | Short detour | Aug 23 Reykjavík stay | 2.96 km | Practical west-side city provisioning. |
 | Garðatorg, 210 Garðabær | On route | Aug 24 camper return/KEF | 0.44 km | Metropolitan airport-return corridor. |
 | Helluhraun, 220 Hafnarfirði | On route | Aug 9/24 airport corridor | 0.43 km | Reykjavík–Reykjanes corridor. |
-| Holtagarðar, 104 Reykjavík | On route | Aug 21 Reykjavík arrival | 0.27 km | East-side arrival/city circulation path. |
-| Hraunbær, 110 Reykjavík | Short detour | Aug 21 arrival/stay | 0.78 km | Short east-Reykjavík detour. |
+| Holtagarðar, 104 Reykjavík | On route | Aug 23 Reykjavík arrival | 0.27 km | East-side arrival/city circulation path. |
+| Hraunbær, 110 Reykjavík | Short detour | Aug 23 arrival/stay | 0.78 km | Short east-Reykjavík detour. |
 | Kauptún, 210 Garðabær | On route | Aug 9/24 airport corridor | 0.47 km | Metropolitan Reykjavík–KEF corridor. |
 | Kjörgarður/Laugavegur, 101 Reykjavík | Short detour | Aug 23 city loop | 1.46 km | Central-city provisioning during the stay. |
 | Kringlan, 103 Reykjavík | On route | Aug 23 local loop | 0.19 km | Stored Reykjavík local-loop geometry. |
-| Lóuhólar, 111 Reykjavík | Short detour | Aug 21–23 city stay | 1.44 km | Short south-east Reykjavík detour. |
+| Lóuhólar, 111 Reykjavík | Short detour | Aug 23 city stay | 1.44 km | Short south-east Reykjavík detour. |
 | Miðhraun, 210 Garðabær | On route | Aug 9/24 airport corridor | 0.42 km | Metropolitan Reykjavík–KEF corridor. |
-| Norðlingabraut, 110 Reykjavík | On route | Aug 21 Hveragerði–Reykjavík | 0.45 km | Eastern Reykjavík arrival corridor. |
-| Nýbýlavegur, 200 Kópavogur | On route | Aug 24 departure/Sky Lagoon branch | 0.05 km | Departure-side route and optional branch. |
-| Ögurhvarf, 203 Kópavogi | Short detour | Aug 21 arrival/stay | 1.69 km | Short Kópavogur detour. |
-| Skeifan 11a, 108 Reykjavík | Short detour | Aug 21–23 city stay | 1.08 km | Central-east city provisioning. |
+| Norðlingabraut, 110 Reykjavík | On route | Aug 23 Hveragerði–Reykjavík | 0.45 km | Eastern Reykjavík arrival corridor. |
+| Nýbýlavegur, 200 Kópavogur | On route | Aug 23 arrival/Sky Lagoon branch | 0.05 km | Metro route and optional branch. |
+| Ögurhvarf, 203 Kópavogi | Short detour | Aug 23 arrival/stay | 1.69 km | Short Kópavogur detour. |
+| Skeifan 11a, 108 Reykjavík | Short detour | Aug 23 city stay | 1.08 km | Central-east city provisioning. |
 | Skipholt, 105 Reykjavík | Short detour | Aug 23 city loop | 0.73 km | Central Reykjavík provisioning. |
-| Skútuvogur, 104 Reykjavík | Short detour | Aug 21–23 city stay | 0.87 km | Short east-Reykjavík detour. |
+| Skútuvogur, 104 Reykjavík | Short detour | Aug 23 city stay | 0.87 km | Short east-Reykjavík detour. |
 | Smáratorg, 201 Kópavogi | On route | Aug 9/24 airport corridor | 0.29 km | Metropolitan Reykjavík–KEF corridor. |
-| Spöngin, 112 Reykjavík | Short detour | Aug 21–23 metro stay | 1.90 km | Practical Grafarvogur provisioning. |
-| Tjarnarvellir, 221 Hafnarfirði | Short detour | Aug 24 departure | 1.43 km | Short airport-corridor detour. |
+| Spöngin, 112 Reykjavík | Short detour | Aug 23 metro stay | 1.90 km | Practical Grafarvogur provisioning. |
+| Tjarnarvellir, 221 Hafnarfirði | Short detour | Aug 24 departure | 1.40 km | Short airport-corridor detour. |
 | Borgarbraut, 340 Stykkishólmur | **Excluded** | Aug 9 Borgarnes–Bjarkalundur | 44.65 km | Separate Snæfellsnes peninsula; the revised plan expressly rules out the Snæfellsnes block. |
 | Digranesgata, 310 Borgarnesi | On route | Aug 9 Borgarnes | 0.25 km | Explicit provisioning town on the route. |
 | Fitjar, 260 Reykjanesbæ | On route | Aug 9 pickup / Aug 24 return | 0.17 km | KEF-side arrival/return path. |
-| Langholt, 603 Akureyri | Short detour | Aug 14 Akureyri | 0.54 km | Short city resupply detour. |
-| Larsenstræti, 800 Selfossi | Short detour | Aug 20 Golden Circle transfer | 2.79 km | Practical South Coast service-town path. |
-| Miðstræti 20, 900 Vestmannaeyjar | On route | Aug 19 Heimaey branch | 0.18 km | On the planned foot-passenger island day. |
-| Miðvangur, 700 Egilsstöðum | On route | Aug 15/16 Egilsstaðir | 0.25 km | Route arrival and departure through town. |
-| Naustahverfi, 600 Akureyri | Short detour | Aug 14 Akureyri | 1.20 km | Short city resupply detour. |
-| Norðurtorg, 603 Akureyri | Short detour | Aug 14 Akureyri/Hauganes | 0.50 km | Beside the optional northbound branch. |
-| Skeiði, 400 Ísafjörður | **Excluded** | Aug 11 Dynjandi–Arngerðareyri | 34.21 km | Substantial westward side trip from the stored route, not a short detour. |
+| Langholt, 603 Akureyri | Short detour | Aug 14 Akureyri | 0.34 km | Short city resupply detour. |
+| Larsenstræti, 800 Selfossi | Short detour | Aug 23 Reykjadalur–Reykjavík | 2.79 km | Practical final-transfer service-town path. |
+| Miðstræti 20, 900 Vestmannaeyjar | On route | Aug 21 Heimaey branch | 0.18 km | On the optional foot-passenger island branch. |
+| Miðvangur, 700 Egilsstöðum | On route | Aug 17/19 Egilsstaðir | 0.25 km | Route arrival and departure through town. |
+| Naustahverfi, 600 Akureyri | Short detour | Aug 14 Akureyri | 0.61 km | Short city resupply detour. |
+| Norðurtorg, 603 Akureyri | Short detour | Aug 14 Akureyri departure | 0.71 km | Short city resupply detour before continuing east. |
+| Skeiði, 400 Ísafjörður | **Excluded** | Aug 11 Dynjandi–Arngerðareyri | 34.17 km | Substantial westward side trip from the stored route, not a short detour. |
 | Smiðjuvellir, 300 Akranesi | **Excluded** | Aug 9 Reykjavík–Borgarnes | 7.31 km | Separate Route 1 peninsula exit; explicit on-line provisioning is directly ahead in Borgarnes. |
-| Sunnumörk, 810 Hveragerði | Short detour | Aug 21 Reykjadalur | 0.57 km | Short town detour beside the planned stop. |
+| Sunnumörk, 810 Hveragerði | Short detour | Aug 23 Reykjadalur | 0.57 km | Short town detour beside the planned stop. |
 | Túngata, 230 Reykjanesbær | Short detour | Aug 9 arrival / Aug 24 departure | 2.80 km | Practical KEF-side provisioning detour. |
 
 ## Product and state boundary
